@@ -1,0 +1,1175 @@
+{
+    "common":  {
+                   "loading":  "Loading...",
+                   "error":  "Something went wrong",
+                   "success":  "Success",
+                   "comingSoon":  "Coming soon",
+                   "copy":  "Copy",
+                   "copied":  "Copied",
+                   "copyFailed":  "Copy failed",
+                   "role":  "Role",
+                   "status":  "Status",
+                   "active":  "Active",
+                   "inactive":  "Inactive",
+                   "retry":  "Retry",
+                   "save":  "Save",
+                   "cancel":  "Cancel",
+                   "delete":  "Delete",
+                   "edit":  "Edit",
+                   "view":  "View",
+                   "create":  "Create",
+                   "search":  "Search",
+                   "filter":  "Filter",
+                   "sort":  "Sort",
+                   "all":  "All",
+                   "none":  "None",
+                   "yes":  "Yes",
+                   "no":  "No",
+                   "or":  "or",
+                   "and":  "and",
+                   "back":  "Back",
+                   "next":  "Next",
+                   "previous":  "Previous",
+                   "submit":  "Submit",
+                   "confirm":  "Confirm",
+                   "close":  "Close",
+                   "currency":  "SAR",
+                   "perThousand":  "per 1K",
+                   "actions":  "Actions",
+                   "empty":  "Nothing to show",
+                     "refresh":  "Refresh"
+                    ,
+                     "loadOrders":  "Load orders",
+                     "loadMore":  "Load more"
+                 },
+    "nav":  {
+                "home":  "Home",
+                "services":  "Services",
+                "faq":  "FAQ",
+                "contact":  "Contact",
+                "login":  "Login",
+                "register":  "Sign Up",
+                "logout":  "Logout",
+                "admin":  "Admin"
+            },
+    "home":  {
+                 "hero":  {
+                              "title":  "Save time ? let orders fulfill themselves.",
+                              "subtitle":  "A smart dashboard that connects your Salla store to providers and auto-fulfills orders from the moment of purchase with zero manual work.",
+                              "cta":  "Browse Services"
+                          },
+                 "categories":  {
+                                    "title":  "Popular Platforms",
+                                    "subtitle":  "Choose your platform and boost your presence"
+                                },
+                 "featured":  {
+                                  "title":  "Featured Services",
+                                  "subtitle":  "Most popular services with proven results",
+                                  "viewAll":  "View All Services"
+                              },
+                 "howItWorks":  {
+                                    "title":  "Start in 3 simple steps",
+                                    "subtitle":  "Get started in 3 simple steps",
+                                    "step1":  {
+                                                  "title":  "01 â€” Connect your store",
+                                                  "description":  "Connect your Salla store to the platform via webhook in minutes."
+                                              },
+                                    "step2":  {
+                                                  "title":  "02 â€” Add providers and services",
+                                                  "description":  "Add providers, map each product to its service ID, and set quantities and packages."
+                                              },
+                                    "step3":  {
+                                                  "title":  "03 â€” Auto execution",
+                                                  "description":  "Orders run automatically on every purchase with status tracking until completion."
+                                              }
+                                },
+                 "trust":  {
+                               "title":  "Why choose F5R?",
+                               "secure":  {
+                                              "title":  "ðŸ”— Direct Salla integration",
+                                              "description":  "Webhook integration to autoâ€‘fulfill orders with no manual steps."
+                                          },
+                               "support":  {
+                                               "title":  "âš™ï¸ Full service control",
+                                               "description":  "Map products to service IDs and set quantities and packages from one dashboard."
+                                           },
+                               "fast":  {
+                                            "title":  "ðŸš€ Fast, automatic execution",
+                                            "description":  "Orders start instantly after purchase with status updates until completion."
+                                        },
+                               "refill":  {
+                                              "title":  "ðŸ§© Multi-provider support",
+                                              "description":  "Add multiple providers and choose the best fit for each service."
+                                          }
+                           },
+                 "pricing":  {
+                                 "title":  "Plans \u0026 Pricing",
+                                 "subtitle":  "Choose the plan that fits your store.",
+                                 "mostPopular":  "Most popular",
+                                 "perMonth":  "SAR / month",
+                                 "cta":  "Get started",
+                                 "plans":  {
+                                               "basic":  {
+                                                             "tag":  "Basic",
+                                                             "name":  "Basic",
+                                                              "price":  "0",
+                                                              "features":  {
+                                                                               "f1":  "25 orders",
+                                                                               "f2":  "1 account",
+                                                                               "f3":  "Limited API integration",
+                                                                               "f4":  "Automated order processing (no manual intervention)"
+                                                                           }
+                                                          },
+                                               "plus":  {
+                                                             "tag":  "Plus",
+                                                             "name":  "Plus",
+                                                             "price":  "99",
+                                                             "features":  {
+                                                                              "f1":  "1,250 orders",
+                                                                              "f2":  "1 account",
+                                                                              "f3":  "Full API integration",
+                                                                              "f4":  "AI-powered processing + better speed & stability"
+                                                                          }
+                                                         },
+                                               "pro":  {
+                                                            "tag":  "Pro",
+                                                            "name":  "Pro",
+                                                            "price":  "149",
+                                                            "features":  {
+                                                                             "f1":  "2,000 orders",
+                                                                             "f2":  "2 staff accounts",
+                                                                             "f3":  "Full API integration",
+                                                                             "f4":  "Advanced smart processing + higher execution priority"
+                                                                         }
+                                                        },
+                                               "special":  {
+                                                                "tag":  "Special",
+                                                                "name":  "Special",
+                                                                "price":  "199",
+                                                                "features":  {
+                                                                                 "f1":  "Unlimited orders",
+                                                                                 "f2":  "4 staff accounts",
+                                                                                 "f3":  "Full API integration",
+                                                                                 "f4":  "Full setup + instant AI processing (highest priority)"
+                                                                             }
+                                                            }
+                                           }
+                             },
+                 "testimonials":  {
+                                      "title":  "What Our Clients Say",
+                                      "subtitle":  "Join thousands of satisfied customers"
+                                  },
+                 "faqPreview":  {
+                                    "title":  "Frequently Asked Questions",
+                                    "subtitle":  "Quick answers to common questions",
+                                    "viewAll":  "View All FAQs"
+                                }
+             },
+    "services":  {
+                     "title":  "All Services",
+                     "subtitle":  "Find the perfect service for your social media growth",
+                     "filters":  {
+                                     "platform":  "Platform",
+                                     "type":  "Service Type",
+                                     "priceRange":  "Price Range",
+                                     "speed":  "Delivery Speed",
+                                     "refill":  "Refill Guarantee",
+                                     "rating":  "Rating"
+                                 },
+                     "sort":  {
+                                  "popular":  "Most Popular",
+                                  "priceLow":  "Price: Low to High",
+                                  "priceHigh":  "Price: High to Low",
+                                  "fastest":  "Fastest Delivery",
+                                  "newest":  "Newest"
+                              },
+                     "types":  {
+                                   "followers":  "Followers",
+                                   "likes":  "Likes",
+                                   "views":  "Views",
+                                   "comments":  "Comments",
+                                   "shares":  "Shares",
+                                   "saves":  "Saves"
+                               },
+                     "card":  {
+                                  "minOrder":  "Min Order",
+                                  "maxOrder":  "Max Order",
+                                  "avgTime":  "Avg. Time",
+                                  "refill":  "Refill",
+                                  "buyNow":  "Buy Now"
+                              },
+                     "empty":  "No services found matching your criteria"
+                 },
+    "serviceDetail":  {
+                          "pricing":  "Pricing Calculator",
+                          "quantity":  "Quantity",
+                          "total":  "Total",
+                          "requirements":  "Requirements",
+                          "deliveryInfo":  "Delivery Information",
+                          "startTime":  "Start Time",
+                          "completionTime":  "Avg. Completion",
+                          "policy":  "Refill \u0026 Cancel Policy",
+                          "buyNow":  "Buy Now"
+                      },
+    "checkout":  {
+                     "title":  "Checkout",
+                     "steps":  {
+                                   "service":  "Service",
+                                   "details":  "Details",
+                                   "payment":  "Payment",
+                                   "confirmation":  "Confirmation"
+                               },
+                     "serviceSummary":  "Service Summary",
+                     "enterDetails":  "Enter Details",
+                     "linkPlaceholder":  "Enter your profile or post link",
+                     "quantityLabel":  "Quantity",
+                     "priceBreakdown":  "Price Breakdown",
+                     "subtotal":  "Subtotal",
+                     "fees":  "Service Fees",
+                     "total":  "Total",
+                     "paymentMethod":  "Payment Method",
+                     "payNow":  "Pay Now",
+                     "processing":  "Processing...",
+                     "success":  {
+                                     "title":  "Order Confirmed!",
+                                     "message":  "Your order has been placed successfully.",
+                                     "orderId":  "Order ID",
+                                     "viewOrder":  "View Order"
+                                 }
+                 },
+    "account":  {
+                    "title":  "My Account",
+                    "overview":  "Overview",
+                    "profile":  "Profile",
+                    "billing":  "Billing",
+                    "orders":  "Orders",
+                    "tickets":  "Support Tickets",
+                    "stats":  {
+                                  "totalOrders":  "Total Orders",
+                                  "activeOrders":  "Active Orders",
+                                  "totalSpent":  "Total Spent",
+                                  "walletBalance":  "Wallet Balance"
+                              }
+                },
+    "orders":  {
+                   "title":  "My Orders",
+                   "empty":  "No orders yet",
+                   "status":  {
+                                  "pending":  "Pending",
+                                  "approved":  "Approved",
+                                  "submitted":  "Submitted",
+                                  "in_progress":  "In progress",
+                                  "completed":  "Completed",
+                                  "partial":  "Partial",
+                                  "failed":  "Failed",
+                                  "refunded":  "Refunded",
+                                  "cancelled":  "Cancelled"
+                              },
+                   "columns":  {
+                                   "id":  "Order ID",
+                                   "service":  "Service",
+                                   "platform":  "Platform",
+                                   "quantity":  "Quantity",
+                                   "total":  "Total",
+                                   "status":  "Status",
+                                   "date":  "Date"
+                               },
+                   "details":  {
+                                   "title":  "Order details",
+                                   "subtitle":  "Tracking and fulfillment status.",
+                                   "summary":  "Summary",
+                                   "items":  "Items",
+                                   "fulfillments":  "Fulfillment summary",
+                                   "emptyItems":  "No items found.",
+                                   "routing":  {
+                                                   "title":  "Routing",
+                                                   "routed":  "Routed",
+                                                   "unrouted":  "Not routed",
+                                                   "unmappedCount":  "{{count}} unmapped",
+                                                   "diagnosticsTitle":  "Routing diagnostics",
+                                                   "hintUnmapped":  "Some items are not mapped to a product/rule. Add the Salla product ID or SKU in Products and create provider rules.",
+                                                   "reasons":  {
+                                                                   "already_routed":  "Already routed",
+                                                                   "unmapped_product":  "Unmapped product",
+                                                                   "product_inactive":  "Product inactive",
+                                                                   "no_rule":  "No rule",
+                                                                   "provider_inactive":  "Provider inactive",
+                                                                   "ready":  "Ready to route",
+                                                                   "product_inactive_short":  "{{count}} inactive",
+                                                                   "no_rule_short":  "{{count}} no rule",
+                                                                   "provider_inactive_short":  "{{count}} provider inactive",
+                                                                   "ready_short":  "{{count}} ready"
+                                                               }
+                                               },
+                                   "fields":  {
+                                                  "orderId":  "Order ID",
+                                                  "internalId":  "Internal ID",
+                                                  "status":  "Status",
+                                                  "paymentStatus":  "Payment status",
+                                                  "total":  "Total",
+                                                  "currency":  "Currency",
+                                                  "createdAt":  "Created at",
+                                                  "updatedAt":  "Last updated",
+                                                  "service":  "Service",
+                                                  "platform":  "Platform",
+                                                  "quantity":  "Quantity",
+                                                  "link":  "Target link"
+                                              },
+                                   "columns":  {
+                                                   "product":  "Product",
+                                                   "quantity":  "Quantity",
+                                                   "target":  "Target",
+                                                   "fulfillment":  "Fulfillment",
+                                                   "providerOrderId":  "Provider order ID",
+                                                   "lastError":  "Last error"
+                                               }
+                               }
+               },
+    "tickets":  {
+                    "title":  "Support Tickets",
+                    "new":  "New Ticket",
+                    "empty":  "No tickets yet",
+                    "subject":  "Subject",
+                    "message":  "Message",
+                    "priority":  "Priority",
+                    "status":  {
+                                   "open":  "Open",
+                                   "pending":  "Pending",
+                                   "resolved":  "Resolved",
+                                   "closed":  "Closed"
+                               }
+                },
+    "admin":  {
+                  "title":  "Admin Dashboard",
+                  "orders":  "Orders",
+                  "services":  "Services",
+                  "categories":  "Categories",
+                  "providers":  "Providers",
+                  "users":  "Users",
+                  "settings":  "Settings",
+                  "auditLogs":  "Audit Logs",
+                  "actions":  {
+                                  "approve":  "Approve",
+                                  "reject":  "Reject",
+                                  "rejectReason":  "Rejection Reason"
+                              },
+                  "stats":  {
+                                "totalRevenue":  "Total Revenue",
+                                "totalOrders":  "Total Orders",
+                                "pendingOrders":  "Pending Orders",
+                                "activeUsers":  "Active Users",
+                                "totalUsers":  "Total Users",
+                                "totalSellers":  "Total Sellers",
+                                "totalProviders":  "Total Providers",
+                                "totalProducts":  "Total Products",
+                                "pendingFulfillments":  "Pending Fulfillments",
+                                "failedFulfillments":  "Failed Fulfillments"
+                            },
+                  "analytics":  {
+                                    "empty":  "No data yet.",
+                                    "kpi":  {
+                                                "ordersLast7d":  "Orders (7 days)",
+                                                "revenueLast30d":  "Revenue (30 days)",
+                                                "pendingFulfillments":  "Pending fulfillments",
+                                                "failedFulfillmentsLast7d":  "Failed fulfillments (7 days)",
+                                                "webhookBacklog":  "Webhook backlog",
+                                                "pendingUpgradeRequests":  "Pending upgrade requests"
+                                            },
+                                    "ordersByDayTitle":  "Orders by day",
+                                    "topSellersTitle":  "Top sellers (30 days)",
+                                    "topProvidersTitle":  "Top providers (30 days)",
+                                    "fulfillmentsTitle":  "Fulfillment status (30 days)",
+                                    "columns":  {
+                                                    "day":  "Day",
+                                                    "orders":  "Orders",
+                                                    "revenue":  "Revenue",
+                                                    "seller":  "Seller",
+                                                    "provider":  "Provider",
+                                                    "total":  "Total",
+                                                    "failed":  "Failed"
+                                                },
+                                    "fulfillmentStatus":  {
+                                                             "pending":  "Pending",
+                                                             "submitted":  "Submitted",
+                                                             "success":  "Success",
+                                                             "failed":  "Failed"
+                                                         }
+                                },
+                  "ordersDeleteConfirm":  "Delete this order? This cannot be undone.",
+                  "usersSubtitle":  "Manage all accounts and roles.",
+                  "usersHint":  "Search and edit users across the platform.",
+                  "usersDisabled":  "Disabled",
+                  "usersDisabledHint":  "Disabled users cannot log in.",
+                  "usersEmailVerified":  "Email verified",
+                  "usersResetPassword":  "Reset password",
+                  "usersDeleteConfirm":  "Delete this user?",
+                  "usersDeleteTitle":  "Delete user",
+                  "usersDeleteDescription":  "This will permanently delete {{email}} and cannot be undone.",
+                  "usersDeleted":  "User deleted",
+                  "usersDeleteSelfError":  "You cannot delete your own account.",
+                  "usersEdit":  "Edit user",
+                  "usersRole":  "Role",
+                  "usersWallet":  "Wallet balance",
+                  "usersSubscriptionPlan":  "Subscription plan",
+                  "usersSubscriptionDays":  "Subscription days",
+                  "usersSubscriptionRenewAt":  "Current renew date: {{date}}",
+                  "usersSubscriptionRemaining":  "Time left",
+                  "usersSubscriptionExpired":  "Expired",
+                  "usersSubscriptionNoRenewal":  "Not set",
+                  "usersSubscriptionRemainingDays":  "{{count}} day left",
+                  "usersSubscriptionRemainingHours":  "{{count}} hour left",
+                  "usersSubscriptionRemainingMinutes":  "{{count}} minute left",
+                  "providersSubtitle":  "Manage all seller providers.",
+                  "providersHint":  "Enable/disable or set a default provider per seller.",
+                  "providersEdit":  "Edit provider",
+                  "providersActiveHint":  "Disable to block new routing.",
+                  "providersDefault":  "Default",
+                  "providersDefaultHint":  "Used for auto-fulfillment routing.",
+                  "providersDeleteConfirm":  "Delete this provider?",
+                  "providersDeleteTitle":  "Delete provider",
+                  "providersDeleteDescription":  "This will permanently delete {{name}} and cannot be undone.",
+                  "providersDeleted":  "Provider deleted",
+                  "categoriesSubtitle":  "Manage catalog categories.",
+                  "categoriesHint":  "Create and edit categories used for grouping.",
+                  "categoriesCreate":  "Create category",
+                  "categoriesEdit":  "Edit category",
+                  "categoriesDeleteConfirm":  "Delete this category?",
+                  "categoriesName":  "Name",
+                  "categoriesNameAr":  "Name (Arabic)",
+                  "categoriesSlug":  "Slug",
+                  "categoriesPlatform":  "Platform",
+                  "categoriesIcon":  "Icon",
+                  "categoriesDescription":  "Description",
+                  "categoriesDescriptionAr":  "Description (Arabic)",
+                  "categoriesSort":  "Sort order",
+                  "productsSubtitle":  "Manage seller products and rules.",
+                  "productsHint":  "Search and edit seller products.",
+                  "productsDetails":  "Product details",
+                  "productsDetailsHint":  "Selected product information.",
+                  "productsSelect":  "Select a product to view details and rules.",
+                  "productsDeleteConfirm":  "Delete this product and its rules?",
+                  "productsRules":  "Routing rules",
+                  "productsRulesHint":  "Rules for sending orders to providers.",
+                  "productsRuleEdit":  "Edit rule",
+                  "productsRuleDeleteConfirm":  "Delete this rule?",
+                  "productsEdit":  "Edit product",
+                  "auditLogsSubtitle":  "Track admin actions.",
+                  "auditLogsHint":  "Recent actions across the system.",
+                  "auditLogsActor":  "Actor",
+                  "auditLogsAction":  "Action",
+                  "auditLogsEntity":  "Entity",
+                  "auditLogsWhen":  "When",
+                  "settingsSubtitle":  "Application-wide controls.",
+                  "settingsWorkers":  "Workers",
+                  "settingsWorkersHint":  "Enable/disable async workers.",
+                  "settingsCustom":  "Custom settings",
+                  "settingsCustomHint":  "Store any key/value config.",
+                  "settingsKey":  "Setting key",
+                  "settingsValue":  "Setting value",
+                  "telegram":  {
+                                   "title":  "Telegram bot settings",
+                                   "hint":  "Configure the bot credentials and notification defaults used for seller alerts and reports.",
+                                   "botToken":  "Bot token",
+                                   "botUsername":  "Bot username",
+                                   "webhookSecret":  "Telegram webhook secret",
+                                   "reminderDays":  "Reminder lead days",
+                                   "lowBalanceCooldown":  "Low-balance cooldown (minutes)",
+                                   "summary":  "Notification delivery summary",
+                                   "summaryHint":  "Recent Telegram notification job counts and failed deliveries.",
+                                   "failedJobs":  "Recent failed jobs",
+                                   "unknownError":  "Unknown error",
+                                   "channels":  {
+                                                    "telegram":  "Telegram"
+                                                },
+                                   "eventTypes":  {
+                                                     "all":  "All notifications",
+                                                     "execution_failed":  "Execution failures",
+                                                     "subscription_ending":  "Subscription reminders",
+                                                     "low_balance":  "Low-balance alerts",
+                                                     "monthly_report":  "Monthly reports"
+                                                 },
+                                   "statuses":  {
+                                                    "pending":  "Pending",
+                                                    "processing":  "Processing",
+                                                    "sent":  "Sent",
+                                                    "failed":  "Failed",
+                                                    "PENDING":  "Pending",
+                                                    "PROCESSING":  "Processing",
+                                                    "SENT":  "Sent",
+                                                    "FAILED":  "Failed"
+                                                }
+                               },
+                  "sallaConnections":  "Salla connections",
+                  "sallaConnectionsSubtitle":  "Manage native Salla store connections per seller.",
+                  "sallaConnectionsHint":  "Review connection mode, status, store identity, and legacy manual tokens when applicable.",
+                  "sallaRotateToken":  "Rotate token",
+                  "sallaEdit":  "Edit Salla connection",
+                  "sallaEnabled":  "Enabled",
+                  "sallaTokenTitle":  "New token (copy now)",
+                  "sallaTokenLabel":  "Token",
+                  "products":  "Products",
+                  "sallaPaymentStatus":  "Payment status",
+                  "nav":  {
+                              "dashboard":  "Dashboard",
+                              "analytics":  "Analytics",
+                              "orders":  "Orders",
+                              "categories":  "Categories",
+                              "users":  "Users",
+                              "providers":  "Providers",
+                              "salla":  "Salla Connections",
+                              "auditLogs":  "Audit Logs",
+                              "settings":  "Settings",
+                              "subscriptionRequests":  "Subscription Requests"
+                          },
+                  "analyticsPage":  {
+                                       "title":  "Analytics & Metrics",
+                                       "subtitle":  "Showing {{range}}.",
+                                       "range":  {
+                                                     "day":  "Day",
+                                                     "week":  "Week",
+                                                     "month":  "Month",
+                                                     "all":  "All time"
+                                                 },
+                                       "kpi":  {
+                                                   "orders":  "Orders",
+                                                   "revenue":  "Revenue",
+                                                   "pendingFulfillments":  "Pending fulfillments",
+                                                   "failedFulfillments":  "Failed fulfillments"
+                                               }
+                                   },
+                  "dashboardSubtitle":  "Overview of platform activity.",
+                  "subscriptionRequests":  {
+                                               "title":  "Subscription upgrade requests",
+                                               "subtitle":  "Review upgrade requests and update plans manually.",
+                                               "listTitle":  "Requests",
+                                               "listHint":  "Sellers submit requests when they want to upgrade.",
+                                               "empty":  "No requests yet.",
+                                               "review":  "Review",
+                                               "reviewTitle":  "Review request",
+                                               "reviewHint":  "Approve or reject. Contact the seller after reviewing.",
+                                               "decision":  "Decision",
+                                               "note":  "Admin note (optional)",
+                                               "notePlaceholder":  "Add a note for your team (not visible to the seller).",
+                                               "submit":  "Submit",
+                                               "toasts":  {
+                                                              "reviewed":  "Request updated successfully."
+                                                          },
+                                               "fields":  {
+                                                              "status":  "Status",
+                                                              "seller":  "Seller",
+                                                              "currentPlan":  "Current plan",
+                                                              "requestedPlan":  "Requested plan",
+                                                              "createdAt":  "Created at",
+                                                              "actions":  "Actions"
+                                                          }
+                                           }
+              },
+    "seller":  {
+                   "title":  "Seller Dashboard",
+                   "unauthorizedHint":  "Login as a seller to access this page.",
+                   "nav":  {
+                               "dashboard":  "Dashboard",
+                               "analytics":  "Analytics",
+                               "orders":  "Orders",
+                               "products":  "Products",
+                               "smmProviders":  "Providers",
+                               "salla":  "Salla Integration",
+                               "account":  "Account"
+                           },
+                   "analyticsPage":  {
+                                         "title":  "Analytics & Metrics",
+                                         "subtitle":  "Showing {{range}}.",
+                                         "empty":  "No data yet.",
+                                         "range":  {
+                                                       "day":  "Day",
+                                                       "week":  "Week",
+                                                       "month":  "Month",
+                                                       "all":  "All time"
+                                                   },
+                                         "kpi":  {
+                                                     "orders":  "Orders",
+                                                     "revenue":  "Revenue",
+                                                     "successRate":  "Fulfillment success (30 days)",
+                                                     "webhookBacklog":  "Webhook backlog",
+                                                     "totalOrdersAllTime":  "Total: {{count}}",
+                                                     "revenue30d":  "30 days: {{amount}}"
+                                                 },
+                                         "ordersByDayTitle":  "Orders by day",
+                                         "topProvidersTitle":  "Top providers"
+                                     },
+                   "dashboard":  {
+                                     "title":  "Dashboard",
+                                     "subtitle":  "Welcome back, {{name}}",
+                                     "actions":  {
+                                                     "orders":  "View orders",
+                                                     "account":  "Account"
+                                                 },
+                                     "cards":  {
+                                                   "totalOrders":  "Total orders",
+                                                   "totalOrdersHint":  "Recent activity summary",
+                                                   "activeOrders":  "Active orders",
+                                                   "activeOrdersHint":  "Orders in progress / queued",
+                                                   "completedOrders":  "Completed",
+                                                   "completedOrdersHint":  "Successfully completed orders",
+                                                   "revenue":  "Revenue",
+                                                   "revenueHint":  "Total value of recent orders",
+                                                   "products":  "Products",
+                                                   "productsHint":  "Linked products",
+                                                  "providers":  "Providers",
+                                                   "providersHint":  "Connected providers",
+                                                   "help":  "Quick actions",
+                                                   "helpHint":  "Set up providers and routing rules.",
+                                                  "goProviders":  "Providers",
+                                                   "goProducts":  "Products"
+                                               },
+                                     "subscription":  {
+                                                          "title":  "Subscription",
+                                                          "subtitle":  "Your plan and monthly usage.",
+                                                          "plan":  "Plan",
+                                                          "usage":  "Monthly usage",
+                                                          "usageHint":  "Usage is calculated from recent demo orders.",
+                                                          "renewAt":  "Renewal",
+                                                          "manage":  "Manage",
+                                                          "upgrade":  "Upgrade"
+                                                      },
+                                     "recent":  {
+                                                    "title":  "Recent orders",
+                                                    "subtitle":  "Latest orders (demo).",
+                                                    "empty":  "No orders yet.",
+                                                    "viewAll":  "View all",
+                                                    "columns":  {
+                                                                    "id":  "Order",
+                                                                    "createdAt":  "Date",
+                                                                    "status":  "Status",
+                                                                    "total":  "Total"
+                                                                }
+                                                },
+                                     "analytics":  {
+                                                       "empty":  "No data yet.",
+                                                       "cards":  {
+                                                                     "ordersLast7d":  "Orders (7 days)",
+                                                                     "ordersLast7dHint":  "New orders created in the last 7 days.",
+                                                                     "revenueLast30d":  "Revenue (30 days)",
+                                                                     "revenueLast30dHint":  "Sum of order totals over the last 30 days.",
+                                                                     "fulfillmentSuccess":  "Fulfillment success (30 days)",
+                                                                     "fulfillmentSuccessHint":  "Success rate for completed fulfillments (success / (success + failed)).",
+                                                                     "webhookBacklog":  "Webhook backlog",
+                                                                     "webhookBacklogHint":  "Events waiting to be processed.",
+                                                                     "routingIssues":  "Routing issues (30 days)",
+                                                                     "routingIssuesHint":  "Order items that are unmapped or mapped but missing rules.",
+                                                                     "pendingFulfillments":  "Pending fulfillments",
+                                                                     "pendingFulfillmentsHint":  "Pending + submitted fulfillments."
+                                                                 },
+                                                       "ordersByDayTitle":  "Orders by day",
+                                                       "ordersByDayHint":  "Last 14 days (orders + revenue).",
+                                                       "fulfillmentsTitle":  "Fulfillment status",
+                                                       "fulfillmentsHint":  "All-time totals (by status).",
+                                                       "topProductsTitle":  "Top products (30 days)",
+                                                       "topProductsHint":  "Most ordered Salla products.",
+                                                       "topProvidersTitle":  "Top providers (30 days)",
+                                                       "topProvidersHint":  "Fulfillment volume and failures per provider.",
+                                                       "columns":  {
+                                                                       "day":  "Day",
+                                                                       "orders":  "Orders",
+                                                                       "revenue":  "Revenue",
+                                                                       "product":  "Product",
+                                                                       "items":  "Items",
+                                                                       "provider":  "Provider",
+                                                                       "total":  "Total",
+                                                                       "failed":  "Failed",
+                                                                       "seller":  "Seller"
+                                                                   },
+                                                       "fulfillmentStatus":  {
+                                                                                "pending":  "Pending",
+                                                                                "submitted":  "Submitted",
+                                                                                "success":  "Success",
+                                                                                "failed":  "Failed"
+                                                                            }
+                                                   }
+                                 },
+                   "pages":  {
+                                 "comingSoon":  "Coming soon"
+                             },
+                   "orders":  {
+                                  "subtitle":  "View and manage incoming orders.",
+                                  "listTitle":  "Orders",
+                                  "listHint":  "Latest marketplace orders (demo data).",
+                                  "searchPlaceholder":  "Search by order ID / service / link",
+                                  "empty":  "No orders found",
+                                 "repeat":  {
+                                                 "action":  "Repeat selected orders",
+                                                 "selected":  "{{count}} orders selected",
+                                                 "selectAll":  "Select all failed orders",
+                                                 "selectOne":  "Select failed order",
+                                                 "toasts":  {
+                                                                "success":  "Repeated {{orders}} orders and queued {{fulfillments}} failed fulfillments.",
+                                                                "none":  "No eligible failed fulfillments were found in the selected orders."
+                                                            }
+                                             },
+                                 "cancel":  {
+                                                "action":  "Cancel selected pending orders",
+                                                "toasts":  {
+                                                               "success":  "Cancelled {{orders}} orders and stopped {{fulfillments}} pending fulfillments.",
+                                                               "none":  "No cancellable pending orders were found in the selected orders."
+                                                           }
+                                             }
+                              },
+                   "products":  {
+                                    "subtitle":  "Manage your store products and provider rules.",
+                                    "addProduct":  "Add Product",
+                                    "addTitle":  "Add Product",
+                                    "editTitle":  "Edit Product",
+                                    "modalHint":  "Product information (mapped to Salla product id).",
+                                    "listTitle":  "Products",
+                                    "listHint":  "Select a product to manage rules.",
+                                    "searchPlaceholder":  "Search products...",
+                                    "empty":  "No products yet. Add one to get started.",
+                                    "detailsTitle":  "Product Details",
+                                    "detailsHint":  "Selected product information.",
+                                    "selectHint":  "Select a product to view details and rules.",
+                                    "sallaId":  "Salla ID",
+                                    "noSallaId":  "Not linked to Salla",
+                                    "fields":  {
+                                                   "name":  "Product name",
+                                                   "sallaProductId":  "Salla product id",
+                                                   "sku":  "Product SKU",
+                                                   "handler":  "Product handler",
+                                                   "productType":  "Product type",
+                                                   "category":  "Product category",
+                                                   "basePrice":  "Base price",
+                                                   "baseCost":  "Base cost",
+                                                   "description":  "Description",
+                                                   "enabled":  "Product enabled",
+                                                   "status":  "Status",
+                                                   "updatedAt":  "Last updated"
+                                               },
+                                    "placeholders":  {
+                                                         "name":  "e.g. Instagram Likes Package",
+                                                         "sallaProductId":  "e.g. 22086",
+                                                         "sku":  "e.g. SKU-001",
+                                                         "handler":  "Select handler",
+                                                         "productType":  "e.g. Service",
+                                                         "category":  "e.g. Instagram",
+                                                         "basePrice":  "e.g. 49.99",
+                                                         "baseCost":  "e.g. 25.00",
+                                                         "description":  "Write a short description..."
+                                                     },
+                                    "handlers":  {
+                                                    "smm":  "Provider"
+                                                 },
+                                    "hints":  {
+                                                  "enabled":  "Disable to hide the product from routing."
+                                              },
+                                    "toasts":  {
+                                                   "created":  "Product created successfully.",
+                                                   "updated":  "Product updated successfully.",
+                                                   "deleted":  "Product deleted successfully."
+                                               },
+                                    "deleteTitle":  "Delete product",
+                                    "deleteHint":  "This will remove the product and its rules. This action cannot be undone.",
+                                    "rules":  {
+                                                 "title":  "Provider Rules",
+                                                  "subtitle":  "Create rules to route orders to your providers.",
+                                                  "addRule":  "Add Rule",
+                                                 "addTitle":  "Add Provider Rule",
+                                                 "editTitle":  "Edit Provider Rule",
+                                                  "modalHint":  "Define provider mapping and execution rules.",
+                                                 "noProviders":  "Add a provider first to create rules.",
+                                                  "needActiveProvider":  "Activate at least one provider to create rules.",
+                                                  "empty":  "No rules yet for this product.",
+                                                  "fromField":  "From field",
+                                                  "fetchServices":  "Load services",
+                                                  "servicePickerPlaceholder":  "Pick from provider servicesâ€¦",
+                                                  "serviceSearchPlaceholder":  "Search servicesâ€¦",
+                                                  "serviceSearchEmpty":  "No services found",
+                                                  "deleteTitle":  "Delete rule",
+                                                  "deleteHint":  "This action cannot be undone.",
+                                                  "toasts":  {
+                                                                 "created":  "Rule created successfully.",
+                                                                 "updated":  "Rule updated successfully.",
+                                                                 "deleted":  "Rule deleted successfully."
+                                                             },
+                                                  "columns":  {
+                                                                  "service":  "Service",
+                                                                  "provider":  "Provider",
+                                                                  "target":  "Target",
+                                                                  "quantity":  "Quantity",
+                                                                  "delay":  "Delay",
+                                                                  "order":  "Order",
+                                                                  "conditions":  "Conditions",
+                                                                  "actions":  "Actions"
+                                                              },
+                                                  "fields":  {
+                                                                 "provider":  "Provider",
+                                                                 "serviceName":  "Service name",
+                                                                 "providerServiceId":  "Service id",
+                                                                 "targetField":  "Target field",
+                                                                 "targetValue":  "Target value (optional)",
+                                                                 "platform":  "Platform",
+                                                                 "applyTo":  "Apply change to",
+                                                                 "quantityType":  "Quantity type",
+                                                                 "quantityValue":  "Quantity value",
+                                                                 "quantityField":  "Quantity field",
+                                                                 "delaySeconds":  "Delay (seconds)",
+                                                                 "executionOrder":  "Execution order",
+                                                                 "urlHandler":  "URL handler/syntax",
+                                                                 "normalizeUrl":  "Normalize URL",
+                                                                 "conditions":  "Execution conditions"
+                                                             },
+                                                  "placeholders":  {
+                                                                       "provider":  "Select provider",
+                                                                       "serviceName":  "e.g. Likes",
+                                                                       "targetField":  "Select target",
+                                                                       "targetValue":  "e.g. https://... or username",
+                                                                       "platform":  "Optional (auto-detect)",
+                                                                       "quantityType":  "Select type",
+                                                                       "quantityField":  "e.g. quantity",
+                                                                       "urlHandler":  "Optional",
+                                                                       "urlHandlerExample":  "e.g. instagram_post"
+                                                                   },
+                                                  "platforms":  {
+                                                                    "none":  "Auto",
+                                                                    "tiktok":  "TikTok",
+                                                                    "instagram":  "Instagram"
+                                                                },
+                                                  "applyModes":  {
+                                                                    "single":  "This product only",
+                                                                    "allMatching":  "All products with same service id",
+                                                                    "products":  "Choose products",
+                                                                    "allByName":  "All products with same rule name",
+                                                                    "productsByName":  "Choose products (same rule name)"
+                                                                },
+                                                  "hints":  {
+                                                                "normalizeUrl":  "Auto-normalize target links before sending.",
+                                                                "targetValue":  "Use this if your Salla order doesnâ€™t include a target (link/username).",
+                                                                "conditions":  "Optional conditions based on order fields."
+                                                            },
+                                                  "validation":  {
+                                                                     "min":  "Minimum is {{min}}",
+                                                                     "max":  "Maximum is {{max}}"
+                                                                 },
+                                                  "targets":  {
+                                                                  "link":  "Link",
+                                                                  "postLink":  "Post link",
+                                                                  "videoLink":  "Video link",
+                                                                  "username":  "Username",
+                                                                  "custom":  "Custom"
+                                                              },
+                                                  "quantityTypes":  {
+                                                                        "fixed":  "Fixed value",
+                                                                        "fromField":  "From order field"
+                                                                    },
+                                                  "addCondition":  "Add condition",
+                                                  "noConditions":  "No conditions.",
+                                                  "condition":  {
+                                                                    "field":  "Field",
+                                                                    "op":  "Operator",
+                                                                    "value":  "Value",
+                                                                    "fieldPlaceholder":  "e.g. package",
+                                                                    "valuePlaceholder":  "e.g. premium"
+                                                                },
+                                                  "ops":  {
+                                                              "equals":  "Equals",
+                                                              "contains":  "Contains",
+                                                              "gt":  "Greater than",
+                                                              "lt":  "Less than"
+                                                          }
+                                              }
+                                },
+                   "salla":  {
+                                 "subtitle":  "Connect your Salla store and let F5R receive orders natively.",
+                                 "statusTitle":  "Connection",
+                                 "statusHint":  "Connect your store first, then manage how native Salla orders are processed.",
+                                 "enabled":  "Enable integration",
+                                 "enabledHint":  "Allows incoming Salla webhook events to be processed.",
+                                 "connectionStatus":  "Connection status",
+                                 "connected":  "Connected",
+                                 "notConnected":  "Not connected yet",
+                                 "noStoreConnected":  "No Salla store connected yet.",
+                                 "nativeConnectHint":  "Connect your Salla private app and let F5R handle webhooks natively.",
+                                 "connectButton":  "Connect Salla",
+                                 "reconnect":  "Reconnect Salla",
+                                 "disconnectButton":  "Disconnect Salla",
+                                 "disconnected":  "Salla disconnected.",
+                                 "connectSuccess":  "Salla connected successfully.",
+                                 "connectFailed":  "Failed to connect Salla.",
+                                 "storeId":  "Store ID",
+                                 "storeUrl":  "Store URL",
+                                 "installedAt":  "Installed at",
+                                 "lastEventAt":  "Last event",
+                                 "settingsTitle":  "Settings",
+                                 "settingsHint":  "Configure how Salla orders are ingested into F5R.",
+                                 "duplicateDelayTitle":  "Delay duplicate orders",
+                                 "duplicateDelayHint":  "When multiple orders use the same link, delay the newer ones to avoid provider rejections.",
+                                 "duplicateDelayMinutes":  "Delay (minutes)",
+                                 "fields":  {
+                                                "storeIdentifier":  "Store identifier",
+                                                "webhookToken":  "Webhook token"
+                                            },
+                                 "placeholders":  {
+                                                      "storeIdentifier":  "e.g. my-store-123",
+                                                     "webhookToken":  "Set a token (or rotate provider token)"
+                                                  },
+                                 "hints":  {
+                                               "storeIdentifier":  "No store header needed. Use the generated webhook URL and token header only."
+                                           },
+                                 "tokenSet":  "Token is set (not retrievable). Rotate if you lose it.",
+                                 "tokenNotSet":  "Token not set. Save configuration with a token first.",
+                                 "rotateToken":  "Generate / rotate token",
+                                 "newTokenTitle":  "New token (copy now)",
+                                 "newTokenHint":  "This token is shown once. Paste it into Salla as x-f5r-webhook-token.",
+                                 "webhookTitle":  "Webhook info",
+                                 "webhookHint":  "For manual mode only. Native app connections manage the webhook automatically.",
+                                 "webhookUrl":  "Webhook URL",
+                                 "headersTitle":  "Required headers",
+                                 "headersHint":  "Paste these headers only when using the legacy manual connection.",
+                                 "toasts":  {
+                                                "saved":  "Settings saved",
+                                                "tokenRotated":  "Token generated. Copy it now."
+                                            },
+                                 "eventTypeLabel":  "Event type",
+                                 "eventTypeValue":  "order.created",
+                                 "manualWebhookNote":  "Manual webhook setup is only needed for legacy connections.",
+                                 "nativeWebhookManaged":  "Webhook is managed automatically by the Salla app."
+                             },
+                   "account":  {
+                                   "subtitle":  "Your account and subscription.",
+                                   "infoTitle":  "Account Info",
+                                   "infoHint":  "Basic seller profile information.",
+                                   "subscriptionTitle":  "Subscription",
+                                   "subscriptionHint":  "Manage your plan and billing status.",
+                                   "fields":  {
+                                                  "name":  "Name",
+                                                  "email":  "Email",
+                                                  "role":  "Role",
+                                                  "plan":  "Plan",
+                                                  "status":  "Status",
+                                                  "renewAt":  "Renewal",
+                                                  "phone":  "Phone"
+                                              },
+                                   "status":  {
+                                                  "active":  "Active",
+                                                  "inactive":  "Inactive"
+                                              },
+                                   "plans":  {
+                                                 "basic":  "Basic",
+                                                 "plus":  "Plus",
+                                                 "pro":  "Pro",
+                                                 "special":  "Special"
+                                             },
+                                   "planHint":  "Subscription is a draft UI for now.",
+                                   "upgrade":  "Upgrade",
+                                   "toasts":  {
+                                                  "saved":  "Subscription saved",
+                                                  "upgraded":  "Subscription updated",
+                                                  "upgradeRequested":  "Upgrade request sent to admin"
+                                              },
+                                   "upgradeRequest":  "Request upgrade",
+                                   "planReadOnlyHint":  "Plans cannot be changed instantly. Click Request upgrade and an admin will contact you.",
+                                   "pendingTitle":  "Upgrade request pending",
+                                   "pendingHint":  "You already requested an upgrade to:",
+                                   "upgradeDialog":  {
+                                                         "title":  "Request a plan upgrade",
+                                                         "hint":  "This will send your request to the admin for manual review and activation.",
+                                                         "requestedPlan":  "Requested plan",
+                                                         "reviewNote":  "An admin will review your request and contact you using your account details.",
+                                                         "submit":  "Send request"
+                                                     },
+                                   "notifications":  {
+                                                         "title":  "Telegram notifications",
+                                                         "hint":  "Link your Telegram bot chat to receive execution failures, subscription reminders, low-balance alerts, and optional monthly reports.",
+                                                         "saved":  "Telegram notification settings saved.",
+                                                         "linkRefreshed":  "A new Telegram linking code was generated.",
+                                                         "unlinked":  "Telegram was disconnected.",
+                                                         "telegramStatus":  "Telegram status",
+                                                         "linked":  "Linked",
+                                                         "notLinked":  "Not linked",
+                                                         "botMissing":  "Bot username is not configured yet by the admin.",
+                                                         "linkHint":  "Open the bot and press Start to connect this seller account.",
+                                                         "openBot":  "Open Telegram bot",
+                                                         "refreshLink":  "Generate new link",
+                                                         "unlinkButton":  "Unlink Telegram",
+                                                         "notificationMode":  "Notification mode",
+                                                         "notificationModeHint":  "Choose whether Telegram should send every alert or execution failures only.",
+                                                         "subscriptionReminderCount":  "Subscription reminder count",
+                                                         "subscriptionReminderCountHint":  "Choose how many reminders to receive before the subscription ends.",
+                                                         "modes":  {
+                                                                       "all":  "All notifications",
+                                                                       "failedOnly":  "Failed only"
+                                                                   },
+                                                         "reminderCounts":  {
+                                                                 "one":  "1 reminder",
+                                                                 "two":  "2 reminders",
+                                                                 "three":  "3 reminders"
+                                                             },
+                                                         "timezone":  "Timezone",
+                                                         "lowBalanceThresholdLabel":  "Low-balance threshold (USD)",
+                                                         "lowBalanceThresholdHint":  "Send a Telegram alert when a provider balance drops below this amount. Leave empty to disable.",
+                                                         "monthlyReportTime":  "Monthly report time",
+                                                         "monthlyReport":  "Monthly Telegram report",
+                                                         "monthlyReportHint":  "Send a summary of orders, spend, revenue, and net profit at month end.",
+                                                         "executionFailed":  "Execution failure alerts",
+                                                        "executionFailedHint":  "Optional. Enable or disable it as needed.",
+                                                         "subscriptionEnding":  "Subscription ending reminders",
+                                                        "subscriptionEndingHint":  "Optional. Enable or disable it as needed.",
+                                                         "lowBalance":  "Low provider balance alerts",
+                                                        "lowBalanceHint":  "Optional. Enable or disable it as needed."
+                                                     }
+                               },
+                   "smmProviders":  {
+                                        "title":  "Providers",
+                                        "subtitle":  "Manage your connected providers.",
+                                        "add":  "Add Provider",
+                                        "addTitle":  "Add Provider",
+                                        "editTitle":  "Edit Provider",
+                                        "connectionStatus":  "Connection Status",
+                                        "connectionStatusHint":  "Test the selected provider connectivity.",
+                                        "testConnection":  "Test Connection",
+                                        "selectProvider":  "Select a provider to test connection.",
+                                        "lastResult":  "Last Result",
+                                        "lastTestedAt":  "Last tested at",
+                                        "details":  "Provider Details",
+                                        "detailsHint":  "Provider connection information.",
+                                        "noSelection":  "Select a provider to view details.",
+                                        "listTitle":  "Providers List",
+                                        "listHint":  "All your linked providers.",
+                                        "empty":  "No providers yet. Add one to get started.",
+                                        "default":  "Default",
+                                        "deleteConfirmTitle":  "Delete provider?",
+                                        "deleteConfirmDesc":  "This action cannot be undone.",
+                                        "currentKey":  "Current key",
+                                        "fields":  {
+                                                       "name":  "Provider Name",
+                                                       "baseUrl":  "API Base URL",
+                                                       "apiKey":  "API Key",
+                                                       "status":  "Status",
+                                                       "active":  "Active",
+                                                       "default":  "Default provider",
+                                                       "createdAt":  "Created at"
+                                                   },
+                                        "placeholders":  {
+                                                            "name":  "e.g. provider-1",
+                                                             "baseUrl":  "https://example.com/api/v2",
+                                                             "apiKey":  "Paste your API key",
+                                                             "apiKeyEdit":  "Leave blank to keep current key"
+                                                         },
+                                        "hints":  {
+                                                      "active":  "Disable to prevent new orders from routing here.",
+                                                      "default":  "Used for auto-fulfillment routing."
+                                                  },
+                                        "badges":  {
+                                                       "active":  "Active",
+                                                       "inactive":  "Inactive",
+                                                       "testSuccess":  "Success",
+                                                       "testFail":  "Fail"
+                                                   },
+                                        "toasts":  {
+                                                       "created":  "Provider created successfully",
+                                                       "updated":  "Provider updated successfully",
+                                                       "deleted":  "Provider deleted successfully",
+                                                       "testedTitle":  "Connection test completed",
+                                                       "testFailedTitle":  "Connection test failed"
+                                                   }
+                                    }
+               },
+    "auth":  {
+                 "login":  {
+                               "title":  "Welcome Back",
+                               "subtitle":  "Sign in to your account",
+                               "email":  "Email",
+                               "password":  "Password",
+                               "remember":  "Remember me",
+                               "forgot":  "Forgot password?",
+                               "submit":  "Sign In",
+                               "noAccount":  "Don\u0027t have an account?",
+                               "signUp":  "Sign up"
+                           },
+                 "register":  {
+                                  "title":  "Create Account",
+                                  "subtitle":  "Join F5R today",
+                                  "name":  "Full Name",
+                                  "email":  "Email",
+                                  "role":  "Account type",
+                                  "roles":  {
+                                                "user":  "User",
+                                                "seller":  "Seller"
+                                            },
+                                  "password":  "Password",
+                                  "confirmPassword":  "Confirm Password",
+                                  "terms":  "I agree to the Terms of Service and Privacy Policy",
+                                  "submit":  "Create Account",
+                                  "hasAccount":  "Already have an account?",
+                                  "signIn":  "Sign in",
+                                  "phone":  "Phone number"
+                              },
+                 "forgot":  {
+                                "title":  "Forgot Password",
+                                "subtitle":  "Enter your email to reset your password",
+                                "submit":  "Send Reset Link"
+                            },
+                 "reset":  {
+                               "title":  "Reset Password",
+                               "subtitle":  "Enter your new password",
+                               "submit":  "Reset Password"
+                           },
+                 "demo":  {
+                              "admin":  "Demo Admin Login",
+                              "seller":  "Demo Seller Login",
+                              "user":  "Demo User Login"
+                          },
+                 "unauthorized":  "Unauthorized"
+             },
+    "footer":  {
+                   "description":  "Premium social media marketing services. Grow your presence with trusted solutions.",
+                   "quickLinks":  "Quick Links",
+                   "legal":  "Legal",
+                   "support":  "Support",
+                   "terms":  "Terms of Service",
+                   "privacy":  "Privacy Policy",
+                   "refund":  "Refund Policy",
+                   "contact":  "Contact Us",
+                   "faq":  "FAQ",
+                   "copyright":  "Â© 2024 F5R. All rights reserved."
+               },
+    "faq":  {
+                "title":  "Frequently Asked Questions",
+                "subtitle":  "Find answers to common questions",
+                "q1":  "How long does delivery take?",
+                "a1":  "Most services start within 0-30 minutes and complete within the estimated time shown on each service.",
+                "q2":  "Are the services safe?",
+                "a2":  "Yes, all our services are safe and compliant with platform guidelines. We use organic methods.",
+                "q3":  "Do you offer refills?",
+                "a3":  "Yes, many services include a refill guarantee. Check the service details for specifics.",
+                "q4":  "What payment methods do you accept?",
+                "a4":  "We accept Mada, Apple Pay, Visa, and Mastercard for secure payments.",
+                "q5":  "Can I get a refund?",
+                "a5":  "Yes, refunds are available according to our refund policy. Contact support for assistance."
+            },
+    "contact":  {
+                    "title":  "Contact Us",
+                    "subtitle":  "We\u0027re here to help",
+                    "form":  {
+                                 "name":  "Your Name",
+                                 "email":  "Email Address",
+                                 "subject":  "Subject",
+                                 "message":  "Message",
+                                 "submit":  "Send Message"
+                             },
+                    "info":  {
+                                 "email":  "support@f5r.store",
+                                 "phone":  "+966 50 971 5861",
+                                 "hours":  "24/7 Support"
+                             }
+                },
+    "errors":  {
+                   "required":  "This field is required",
+                   "email":  "Please enter a valid email",
+                   "password":  "Password must be at least 8 characters",
+                   "passwordMatch":  "Passwords do not match",
+                   "minOrder":  "Quantity is below minimum order",
+                   "maxOrder":  "Quantity exceeds maximum order",
+                   "invalidLink":  "Please enter a valid link",
+                   "notFound":  "Page not found",
+                   "unauthorized":  "Please login to continue"
+               }
+}

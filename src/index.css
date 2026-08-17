@@ -1,0 +1,289 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* F5R Premium Gold Design System */
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    /* Premium Gold Primary */
+    --primary: 45 87% 47%;
+    --primary-foreground: 222 47% 11%;
+    --primary-hover: 45 87% 42%;
+    --primary-glow: 45 87% 55%;
+
+    /* Gold Accent */
+    --accent: 45 87% 47%;
+    --accent-foreground: 222 47% 11%;
+    --accent-hover: 45 87% 42%;
+
+    /* Warm neutrals (gold-tinted) */
+    --secondary: 45 25% 96%;
+    --secondary-foreground: 222 47% 15%;
+
+    --muted: 45 20% 94%;
+    --muted-foreground: 222 15% 40%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    --border: 45 20% 88%;
+    --input: 45 20% 88%;
+    --ring: 45 87% 47%;
+
+    --radius: 0.75rem;
+
+    /* Glass Effect */
+    --glass-bg: 45 25% 98% / 0.75;
+    --glass-border: 45 30% 92% / 0.65;
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 hsl(215 25% 15% / 0.05);
+    --shadow-md: 0 4px 6px -1px hsl(215 25% 15% / 0.1), 0 2px 4px -2px hsl(215 25% 15% / 0.1);
+    --shadow-lg: 0 10px 15px -3px hsl(215 25% 15% / 0.1), 0 4px 6px -4px hsl(215 25% 15% / 0.1);
+    --shadow-xl: 0 20px 25px -5px hsl(215 25% 15% / 0.1), 0 8px 10px -6px hsl(215 25% 15% / 0.1);
+    --shadow-glow: 0 0 46px hsl(45 87% 55% / 0.28);
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(43 90% 45%), hsl(48 95% 58%));
+    --gradient-accent: linear-gradient(135deg, hsl(43 90% 45%), hsl(48 95% 58%));
+    --gradient-subtle: linear-gradient(180deg, hsl(0 0% 100%), hsl(0 0% 97%));
+    --gradient-hero: linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(45 35% 96%) 55%, hsl(0 0% 100%) 100%);
+    --gradient-card: linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(45 25% 99%) 100%);
+
+    /* Sidebar */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 47% 15%;
+    --sidebar-primary: 45 87% 47%;
+    --sidebar-primary-foreground: 222 47% 11%;
+    --sidebar-accent: 45 25% 96%;
+    --sidebar-accent-foreground: 222 47% 15%;
+    --sidebar-border: 45 20% 88%;
+    --sidebar-ring: 45 87% 47%;
+
+    /* Platform Colors */
+    --tiktok: 349 100% 50%;
+    --instagram: 340 75% 54%;
+    --youtube: 0 100% 50%;
+    --snapchat: 55 100% 50%;
+    --twitter: 203 89% 53%;
+    --facebook: 220 46% 48%;
+  }
+
+  .dark {
+    --background: 0 0% 6%;
+    --foreground: 0 0% 96%;
+
+    --card: 0 0% 10%;
+    --card-foreground: 0 0% 96%;
+
+    --popover: 0 0% 10%;
+    --popover-foreground: 0 0% 96%;
+
+    --primary: 45 87% 52%;
+    --primary-foreground: 0 0% 6%;
+    --primary-hover: 45 87% 56%;
+    --primary-glow: 45 87% 60%;
+
+    --accent: 45 87% 52%;
+    --accent-foreground: 0 0% 6%;
+
+    --secondary: 0 0% 14%;
+    --secondary-foreground: 0 0% 92%;
+
+    --muted: 0 0% 12%;
+    --muted-foreground: 0 0% 70%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 45 20% 22%;
+    --input: 45 20% 22%;
+    --ring: 45 87% 52%;
+
+    --glass-bg: 0 0% 10% / 0.88;
+    --glass-border: 45 25% 28% / 0.55;
+
+    --gradient-hero: linear-gradient(135deg, hsl(0 0% 6%) 0%, hsl(0 0% 10%) 100%);
+    --gradient-card: linear-gradient(135deg, hsl(0 0% 10%) 0%, hsl(45 20% 12%) 100%);
+
+    --sidebar-background: 0 0% 8%;
+    --sidebar-foreground: 0 0% 92%;
+    --sidebar-primary: 45 87% 52%;
+    --sidebar-primary-foreground: 0 0% 6%;
+    --sidebar-accent: 0 0% 12%;
+    --sidebar-accent-foreground: 0 0% 92%;
+    --sidebar-border: 45 20% 18%;
+  }
+
+  /* RTL Support */
+  [dir="rtl"] {
+    font-family: 'IBM Plex Sans Arabic', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+      'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
+  }
+
+  [dir="ltr"] {
+    font-family: 'Space Grotesk', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans',
+      'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer components {
+  /* Glass Card */
+  .glass-card {
+    @apply bg-card/80 backdrop-blur-xl border border-border/50 shadow-lg;
+  }
+
+  /* Premium Button Styles */
+  .btn-primary {
+    @apply bg-gradient-primary text-primary-foreground
+           transition-all duration-300
+           hover:-translate-y-0.5 active:translate-y-0;
+    box-shadow: var(--shadow-md), 0 0 28px hsl(var(--primary-glow) / 0.22);
+  }
+
+  .btn-primary:hover {
+    box-shadow: var(--shadow-lg), 0 0 52px hsl(var(--primary-glow) / 0.42);
+  }
+
+  .btn-accent {
+    @apply bg-gradient-accent text-accent-foreground
+           transition-all duration-300
+           hover:-translate-y-0.5 active:translate-y-0;
+    box-shadow: var(--shadow-md), 0 0 28px hsl(var(--primary-glow) / 0.18);
+  }
+
+  .btn-accent:hover {
+    box-shadow: var(--shadow-lg), 0 0 52px hsl(var(--primary-glow) / 0.38);
+  }
+
+  .btn-ghost {
+    @apply bg-transparent hover:bg-secondary text-foreground 
+           transition-all duration-200;
+  }
+
+  /* Card Hover Effect */
+  .card-hover {
+    @apply transition-all duration-300 hover:shadow-xl hover:-translate-y-1;
+  }
+
+  /* Gradient Text */
+  .gradient-text {
+    @apply bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent;
+    filter: drop-shadow(0 0 14px hsl(var(--primary-glow) / 0.35));
+  }
+
+  /* Platform Badges */
+  .badge-tiktok {
+    @apply bg-[hsl(var(--tiktok))] text-white;
+  }
+
+  .badge-instagram {
+    @apply bg-gradient-to-r from-[hsl(340,75%,54%)] via-[hsl(25,100%,55%)] to-[hsl(55,100%,50%)] text-white;
+  }
+
+  .badge-youtube {
+    @apply bg-[hsl(var(--youtube))] text-white;
+  }
+
+  .badge-snapchat {
+    @apply bg-[hsl(var(--snapchat))] text-black;
+  }
+
+  .badge-twitter {
+    @apply bg-[hsl(var(--twitter))] text-white;
+  }
+
+  .badge-facebook {
+    @apply bg-[hsl(var(--facebook))] text-white;
+  }
+
+  /* Skeleton Animation */
+  .skeleton {
+    @apply animate-pulse bg-muted rounded;
+  }
+
+  /* Focus Ring */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background;
+  }
+
+  /* Section Container */
+  .section-container {
+    @apply container mx-auto px-4 sm:px-6 lg:px-8;
+  }
+}
+
+@layer utilities {
+  .emoji {
+    font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
+  }
+
+  @supports (font-variant-emoji: emoji) {
+    .emoji {
+      font-variant-emoji: emoji;
+    }
+  }
+
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Smooth transitions */
+  .transition-smooth {
+    @apply transition-all duration-300 ease-out;
+  }
+
+  /* Text balance */
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Golden glow for gradient surfaces */
+  .bg-gradient-primary,
+  .bg-gradient-accent {
+    box-shadow: 0 0 18px hsl(var(--primary-glow) / 0.22);
+  }
+
+  .dark .bg-gradient-primary,
+  .dark .bg-gradient-accent {
+    box-shadow: 0 0 22px hsl(var(--primary-glow) / 0.3);
+  }
+}

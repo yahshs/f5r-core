@@ -1,0 +1,1212 @@
+{
+  "common": {
+    "loading": "جاري التحميل...",
+    "error": "حدث خطأ ما",
+    "success": "تم بنجاح",
+    "comingSoon": "قريباً",
+    "role": "الدور",
+    "status": "الحالة",
+    "active": "نشط",
+    "inactive": "غير نشط",
+    "retry": "إعادة المحاولة",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "delete": "حذف",
+    "edit": "تعديل",
+    "view": "عرض",
+    "create": "إنشاء",
+    "search": "بحث",
+    "filter": "تصفية",
+    "sort": "ترتيب",
+    "all": "الكل",
+    "none": "لا شيء",
+    "yes": "نعم",
+    "no": "لا",
+    "or": "أو",
+    "and": "و",
+    "back": "رجوع",
+    "next": "التالي",
+    "previous": "السابق",
+    "submit": "إرسال",
+    "confirm": "تأكيد",
+    "close": "إغلاق",
+    "currency": "ر.س",
+      "perThousand": "لكل 1000",
+      "actions": "الإجراءات",
+      "empty": "لا توجد بيانات",
+      "refresh": "تحديث",
+      "loadOrders": "تحميل الطلبات",
+      "loadMore": "تحميل المزيد"
+    },
+  "nav": {
+    "home": "الرئيسية",
+    "services": "الخدمات",
+    "trackOrder": "تتبع الطلب",
+    "faq": "الأسئلة الشائعة",
+    "contact": "اتصل بنا",
+    "login": "تسجيل الدخول",
+    "register": "إنشاء حساب",
+    "logout": "تسجيل الخروج",
+    "account": "حسابي",
+    "admin": "لوحة التحكم"
+  },
+  "home": {
+    "hero": {
+      "title": "وفّر وقتك… خلّ الطلبات تنفّذ نفسها",
+      "subtitle": "لوحة تحكم ذكية تربط متجرك على سلة بالمزوّدين، وتنفّذ الطلبات تلقائيًا من لحظة الشراء بدون أي تدخل يدوي.",
+      "cta": "تصفح الخدمات",
+      "trackOrder": "تتبع طلبك"
+    },
+    "categories": {
+      "title": "المنصات الشائعة",
+      "subtitle": "اختر منصتك وعزز حضورك"
+    },
+    "featured": {
+      "title": "الخدمات المميزة",
+      "subtitle": "أكثر الخدمات شعبية مع نتائج مضمونة",
+      "viewAll": "عرض جميع الخدمات"
+    },
+    "howItWorks": {
+      "title": "ابدأ خلال 3 خطوات بسيطة",
+      "subtitle": "ابدأ الآن في 3 خطوات بسيطة",
+      "step1": {
+        "title": "01 — اربط متجرك",
+        "description": "اربط متجرك على سلة بالمنصة عبر Webhook خلال دقائق."
+      },
+      "step2": {
+        "title": "02 — أضف المزوّدين والخدمات",
+        "description": "أضف المزوّدين، اربط كل منتج برقم خدمته، وحدد الكميات والبكجات."
+      },
+      "step3": {
+        "title": "03 — تنفيذ تلقائي",
+        "description": "تُنفّذ الطلبات تلقائيًا عند كل عملية شراء مع تتبع الحالة حتى الاكتمال."
+      }
+    },
+    "trust": {
+      "title": "لماذا تختار F5R؟",
+      "secure": {
+        "title": "🔗 ربط مباشر مع سلة",
+        "description": "تكامل عبر Webhook لتنفيذ الطلبات تلقائيًا بدون تدخل يدوي."
+      },
+      "support": {
+        "title": "⚙️ تحكم كامل بالخدمات",
+        "description": "ربط المنتجات برقم الخدمة، تحديد الكميات، والبكجات من لوحة وحدة."
+      },
+      "fast": {
+        "title": "🚀 تنفيذ تلقائي وسريع",
+        "description": "الطلبات تبدأ تلقائيًا فور الشراء مع تحديث الحالة حتى الاكتمال."
+      },
+      "refill": {
+        "title": "🧩 دعم أكثر من مزوّد",
+        "description": "أضف عدة مزوّدين واختر الأنسب لكل خدمة."
+      }
+    },
+    "pricing": {
+      "title": "الأسعار والباقات",
+      "subtitle": "اختر الباقة المناسبة لمتجرك.",
+      "mostPopular": "الأكثر شيوعاً",
+      "perMonth": "ريال / شهر",
+      "cta": "ابدأ الآن",
+        "plans": {
+          "basic": {
+            "tag": "بيسك",
+            "name": "بيسك",
+            "price": "0",
+            "features": {
+              "f1": "25 طلب",
+              "f2": "حساب واحد",
+              "f3": "تكامل API محدود",
+              "f4": "معالجة الطلبات آليًا بدون تدخل بشري"
+            }
+          },
+          "plus": {
+            "tag": "بلس",
+            "name": "بلس",
+            "price": "99",
+            "features": {
+              "f1": "1250 طلب",
+              "f2": "حساب واحد",
+              "f3": "تكامل API كامل",
+              "f4": "معالجة بالذكاء الاصطناعي + سرعة واستقرار أعلى"
+            }
+          },
+          "pro": {
+            "tag": "برو",
+            "name": "برو",
+            "price": "149",
+            "features": {
+              "f1": "2000 طلب",
+              "f2": "حسابين موظفين",
+              "f3": "تكامل API كامل",
+              "f4": "معالجة ذكية متقدمة + أولوية تنفيذ أعلى"
+            }
+          },
+          "special": {
+            "tag": "سبيشل",
+            "name": "سبيشل",
+            "price": "199",
+            "features": {
+              "f1": "طلبات غير محدودة",
+              "f2": "4 حسابات موظفين",
+              "f3": "تكامل API كامل",
+              "f4": "إعداد وربط كامل + معالجة فورية بالذكاء الاصطناعي بأعلى أولوية"
+            }
+          }
+        }
+      },
+    "testimonials": {
+      "title": "ماذا يقول عملاؤنا",
+      "subtitle": "انضم لآلاف العملاء الراضين"
+    },
+    "faqPreview": {
+      "title": "الأسئلة الشائعة",
+      "subtitle": "إجابات سريعة على الأسئلة الشائعة",
+      "viewAll": "عرض جميع الأسئلة"
+    }
+  },
+  "services": {
+    "title": "جميع الخدمات",
+    "subtitle": "اعثر على الخدمة المثالية لنمو وسائل التواصل الاجتماعي",
+    "filters": {
+      "platform": "المنصة",
+      "type": "نوع الخدمة",
+      "priceRange": "نطاق السعر",
+      "speed": "سرعة التوصيل",
+      "refill": "ضمان التعويض",
+      "rating": "التقييم"
+    },
+    "sort": {
+      "popular": "الأكثر شعبية",
+      "priceLow": "السعر: من الأقل للأعلى",
+      "priceHigh": "السعر: من الأعلى للأقل",
+      "fastest": "الأسرع توصيلاً",
+      "newest": "الأحدث"
+    },
+    "types": {
+      "followers": "متابعين",
+      "likes": "إعجابات",
+      "views": "مشاهدات",
+      "comments": "تعليقات",
+      "shares": "مشاركات",
+      "saves": "حفظ"
+    },
+    "card": {
+      "minOrder": "الحد الأدنى",
+      "maxOrder": "الحد الأقصى",
+      "avgTime": "الوقت المتوقع",
+      "refill": "تعويض",
+      "buyNow": "اشترِ الآن"
+    },
+    "empty": "لا توجد خدمات تطابق معاييرك"
+  },
+  "serviceDetail": {
+    "pricing": "حاسبة الأسعار",
+    "quantity": "الكمية",
+    "total": "الإجمالي",
+    "requirements": "المتطلبات",
+    "deliveryInfo": "معلومات التوصيل",
+    "startTime": "وقت البدء",
+    "completionTime": "وقت الاكتمال المتوقع",
+    "policy": "سياسة التعويض والإلغاء",
+    "buyNow": "اشترِ الآن"
+  },
+  "checkout": {
+    "title": "الدفع",
+    "steps": {
+      "service": "الخدمة",
+      "details": "التفاصيل",
+      "payment": "الدفع",
+      "confirmation": "التأكيد"
+    },
+    "serviceSummary": "ملخص الخدمة",
+    "enterDetails": "أدخل التفاصيل",
+    "linkPlaceholder": "أدخل رابط الملف الشخصي أو المنشور",
+    "quantityLabel": "الكمية",
+    "priceBreakdown": "تفاصيل السعر",
+    "subtotal": "المجموع الفرعي",
+    "fees": "رسوم الخدمة",
+    "total": "الإجمالي",
+    "paymentMethod": "طريقة الدفع",
+    "payNow": "ادفع الآن",
+    "processing": "جاري المعالجة...",
+    "success": {
+      "title": "تم تأكيد الطلب!",
+      "message": "تم تقديم طلبك بنجاح.",
+      "orderId": "رقم الطلب",
+      "viewOrder": "عرض الطلب",
+      "trackOrder": "تتبع الطلب"
+    }
+  },
+  "trackOrder": {
+    "title": "تتبع طلبك",
+    "subtitle": "أدخل تفاصيل طلبك للتحقق من الحالة",
+    "orderId": "رقم الطلب",
+    "email": "البريد الإلكتروني",
+    "phone": "رقم الهاتف",
+    "track": "تتبع الطلب",
+    "status": {
+      "pending": "قيد الانتظار",
+      "approved": "تمت الموافقة",
+      "submitted": "تم الإرسال",
+      "inProgress": "قيد التنفيذ",
+      "completed": "مكتمل",
+      "partial": "جزئي",
+      "failed": "فشل",
+      "refunded": "مسترد",
+      "cancelled": "ملغي"
+    },
+    "timeline": "الجدول الزمني للطلب",
+    "lastUpdate": "آخر تحديث"
+  },
+  "account": {
+    "title": "حسابي",
+    "overview": "نظرة عامة",
+    "profile": "الملف الشخصي",
+    "billing": "الفواتير",
+    "orders": "الطلبات",
+    "tickets": "تذاكر الدعم",
+    "stats": {
+      "totalOrders": "إجمالي الطلبات",
+      "activeOrders": "الطلبات النشطة",
+      "totalSpent": "إجمالي المصروفات",
+      "walletBalance": "رصيد المحفظة"
+    }
+  },
+  "orders": {
+    "title": "طلباتي",
+    "empty": "لا توجد طلبات بعد",
+    "status": {
+      "pending": "قيد الانتظار",
+      "approved": "مقبول",
+      "submitted": "تم الإرسال",
+      "in_progress": "قيد التنفيذ",
+      "completed": "مكتمل",
+      "partial": "جزئي",
+      "failed": "فشل",
+      "refunded": "مسترجع",
+      "cancelled": "ملغي"
+    },
+    "columns": {
+      "id": "رقم الطلب",
+      "service": "الخدمة",
+      "platform": "المنصة",
+      "quantity": "الكمية",
+      "total": "الإجمالي",
+      "status": "الحالة",
+      "date": "التاريخ"
+    },
+    "details": {
+      "title": "تفاصيل الطلب",
+      "subtitle": "التتبع وحالة التنفيذ.",
+      "summary": "الملخص",
+      "items": "عناصر الطلب",
+      "fulfillments": "ملخص التنفيذ",
+      "emptyItems": "لا توجد عناصر.",
+      "routing": {
+        "title": "التوجيه",
+        "routed": "تم التوجيه",
+        "unrouted": "غير موجه",
+        "unmappedCount": "{{count}} غير مربوط",
+        "diagnosticsTitle": "تشخيص التوجيه",
+        "hintUnmapped": "بعض العناصر غير مربوطة بمنتج/قاعدة. أضف معرف منتج سلة أو SKU داخل المنتجات وأنشئ قواعد المزوّد.",
+        "reasons": {
+          "already_routed": "تم توجيهه مسبقًا",
+          "unmapped_product": "منتج غير مربوط",
+          "product_inactive": "المنتج غير نشط",
+          "no_rule": "لا توجد قاعدة",
+          "provider_inactive": "المزود غير نشط",
+          "ready": "جاهز للتوجيه",
+          "product_inactive_short": "{{count}} غير نشط",
+          "no_rule_short": "{{count}} بدون قاعدة",
+          "provider_inactive_short": "{{count}} مزود غير نشط",
+          "ready_short": "{{count}} جاهز"
+        }
+      },
+      "fields": {
+        "orderId": "رقم الطلب",
+        "internalId": "المعرف الداخلي",
+        "status": "الحالة",
+        "paymentStatus": "حالة الدفع",
+        "total": "الإجمالي",
+        "currency": "العملة",
+        "createdAt": "تاريخ الإنشاء",
+        "updatedAt": "آخر تحديث",
+        "service": "الخدمة",
+        "platform": "المنصة",
+        "quantity": "الكمية",
+        "link": "رابط الهدف"
+      },
+      "columns": {
+        "product": "المنتج",
+        "quantity": "الكمية",
+        "target": "الهدف",
+        "fulfillment": "حالة التنفيذ",
+        "providerOrderId": "رقم طلب المزود",
+        "lastError": "آخر خطأ"
+      }
+    }
+  },
+  "tickets": {
+    "title": "تذاكر الدعم",
+    "new": "تذكرة جديدة",
+    "empty": "لا توجد تذاكر بعد",
+    "subject": "الموضوع",
+    "message": "الرسالة",
+    "priority": "الأولوية",
+    "status": {
+      "open": "مفتوحة",
+      "pending": "معلقة",
+      "resolved": "محلولة",
+      "closed": "مغلقة"
+    }
+  },
+  "admin": {
+    "title": "لوحة تحكم المدير",
+    "orders": "الطلبات",
+    "services": "الخدمات",
+    "categories": "الفئات",
+    "providers": "مزودي الخدمة",
+    "users": "المستخدمين",
+    "settings": "الإعدادات",
+    "auditLogs": "سجلات التدقيق",
+    "actions": {
+      "approve": "موافقة",
+      "reject": "رفض",
+      "rejectReason": "سبب الرفض"
+    },
+    "stats": {
+      "totalRevenue": "إجمالي الإيرادات",
+      "totalOrders": "إجمالي الطلبات",
+      "pendingOrders": "الطلبات المعلقة",
+      "activeUsers": "المستخدمين النشطين",
+      "totalUsers": "إجمالي المستخدمين",
+      "totalSellers": "إجمالي البائعين",
+      "totalProviders": "إجمالي المزودين",
+      "totalProducts": "إجمالي المنتجات",
+      "pendingFulfillments": "طلبات قيد التنفيذ",
+      "failedFulfillments": "طلبات فاشلة"
+    },
+    "analytics": {
+      "empty": "لا توجد بيانات بعد.",
+      "kpi": {
+        "ordersLast7d": "الطلبات (7 أيام)",
+        "revenueLast30d": "الإيراد (30 يوم)",
+        "pendingFulfillments": "تنفيذات معلّقة",
+        "failedFulfillmentsLast7d": "تنفيذات فاشلة (7 أيام)",
+        "webhookBacklog": "تراكم الويبهوك",
+        "pendingUpgradeRequests": "طلبات ترقية معلّقة"
+      },
+      "ordersByDayTitle": "الطلبات حسب اليوم",
+      "topSellersTitle": "أفضل البائعين (30 يوم)",
+      "topProvidersTitle": "أفضل المزوّدين (30 يوم)",
+      "fulfillmentsTitle": "حالة التنفيذ (30 يوم)",
+      "columns": {
+        "day": "اليوم",
+        "orders": "الطلبات",
+        "revenue": "الإيراد",
+        "seller": "البائع",
+        "provider": "المزوّد",
+        "total": "الإجمالي",
+        "failed": "فشل"
+      },
+      "fulfillmentStatus": {
+        "pending": "معلّق",
+        "submitted": "مُرسل",
+        "success": "نجاح",
+        "failed": "فشل"
+      }
+    },
+    "ordersDeleteConfirm": "هل تريد حذف هذا الطلب؟ لا يمكن التراجع.",
+    "usersSubtitle": "إدارة حسابات المستخدمين والصلاحيات.",
+    "usersHint": "قم بتعطيل المستخدمين أو إعادة تعيين كلمات المرور.",
+    "usersDisabled": "معطل",
+    "usersDisabledHint": "تعطيل المستخدم يمنع تسجيل الدخول.",
+    "usersEmailVerified": "البريد موثق",
+    "usersResetPassword": "إعادة تعيين كلمة المرور",
+    "usersDeleteConfirm": "هل تريد حذف هذا المستخدم؟",
+    "usersDeleteTitle": "حذف المستخدم",
+    "usersDeleteDescription": "سيتم حذف {{email}} نهائياً ولا يمكن التراجع عن ذلك.",
+    "usersDeleted": "تم حذف المستخدم",
+    "usersDeleteSelfError": "لا يمكنك حذف حسابك.",
+    "usersEdit": "تعديل المستخدم",
+    "usersRole": "الدور",
+    "usersWallet": "رصيد المحفظة",
+    "usersSubscriptionPlan": "الخطة",
+    "usersSubscriptionDays": "أيام الاشتراك",
+    "usersSubscriptionRenewAt": "تاريخ التجديد الحالي: {{date}}",
+    "usersSubscriptionRemaining": "المتبقي للاشتراك",
+    "usersSubscriptionExpired": "منتهي",
+    "usersSubscriptionNoRenewal": "غير محدد",
+    "usersSubscriptionRemainingDays": "متبقي {{count}} يوم",
+    "usersSubscriptionRemainingHours": "متبقي {{count}} ساعة",
+    "usersSubscriptionRemainingMinutes": "متبقي {{count}} دقيقة",
+    "providersSubtitle": "إدارة المزوّدين.",
+    "providersHint": "عرض وتعديل مزودي البائعين.",
+    "providersEdit": "تعديل المزود",
+    "providersActiveHint": "تعطيل المزود يمنع توجيه الطلبات.",
+    "providersDefault": "المزود الافتراضي",
+    "providersDefaultHint": "يُستخدم للتوجيه التلقائي للطلبات.",
+    "providersDeleteConfirm": "هل تريد حذف هذا المزود؟",
+    "providersDeleteTitle": "حذف المزود",
+    "providersDeleteDescription": "سيتم حذف {{name}} نهائياً ولا يمكن التراجع عن ذلك.",
+    "providersDeleted": "تم حذف المزود",
+    "categoriesSubtitle": "إدارة تصنيفات المنتجات.",
+    "categoriesHint": "إنشاء وتعديل التصنيفات.",
+    "categoriesCreate": "إضافة تصنيف",
+    "categoriesEdit": "تعديل تصنيف",
+    "categoriesDeleteConfirm": "هل تريد حذف هذا التصنيف؟",
+    "categoriesName": "الاسم",
+    "categoriesNameAr": "الاسم (عربي)",
+    "categoriesSlug": "المعرف",
+    "categoriesPlatform": "المنصة",
+    "categoriesIcon": "الأيقونة",
+    "categoriesDescription": "الوصف",
+    "categoriesDescriptionAr": "الوصف (عربي)",
+    "categoriesSort": "الترتيب",
+    "productsSubtitle": "إدارة المنتجات وربطها بخدمات المزود.",
+    "productsHint": "اختر منتجاً لإدارة التفاصيل والقواعد.",
+    "productsDetails": "تفاصيل المنتج",
+    "productsDetailsHint": "معلومات المنتج المحدد.",
+    "productsSelect": "اختر منتجاً لعرض التفاصيل.",
+    "productsDeleteConfirm": "هل تريد حذف هذا المنتج؟",
+    "productsRules": "قواعد المزوّد",
+    "productsRulesHint": "أنشئ قواعد لتوجيه الطلبات للمزودين.",
+    "productsRuleEdit": "تعديل القاعدة",
+    "productsRuleDeleteConfirm": "هل تريد حذف هذه القاعدة؟",
+    "productsEdit": "تعديل المنتج",
+    "auditLogsSubtitle": "تتبع إجراءات الإدارة.",
+    "auditLogsHint": "سجل أحدث الإجراءات في النظام.",
+    "auditLogsActor": "المنفذ",
+    "auditLogsAction": "الإجراء",
+    "auditLogsEntity": "الكيان",
+    "auditLogsWhen": "الوقت",
+    "settingsSubtitle": "إعدادات النظام العامة.",
+    "settingsWorkers": "العمال (Workers)",
+    "settingsWorkersHint": "تمكين أو تعطيل المعالجة الخلفية.",
+    "settingsCustom": "إعدادات مخصصة",
+    "settingsCustomHint": "قيمة مفتاح/قيمة مخصصة.",
+    "settingsKey": "مفتاح الإعداد",
+    "settingsValue": "قيمة الإعداد",
+    "telegram": {
+      "title": "إعدادات بوت تيليجرام",
+      "hint": "اضبط بيانات البوت والإعدادات الافتراضية لإشعارات وتقارير التجار.",
+      "botToken": "رمز البوت",
+      "botUsername": "اسم مستخدم البوت",
+      "webhookSecret": "السر الخاص بـ Webhook تيليجرام",
+      "reminderDays": "أيام التذكير قبل الانتهاء",
+      "lowBalanceCooldown": "مدة التهدئة لتنبيه انخفاض الرصيد (بالدقائق)",
+      "summary": "ملخص إرسال الإشعارات",
+      "summaryHint": "إحصاءات وظائف إشعارات تيليجرام وآخر الإخفاقات.",
+      "failedJobs": "آخر الوظائف الفاشلة",
+      "unknownError": "خطأ غير معروف",
+      "channels": {
+        "telegram": "تيليجرام"
+      },
+      "eventTypes": {
+        "all": "كل الإشعارات",
+        "execution_failed": "فشل التنفيذ",
+        "subscription_ending": "تذكيرات انتهاء الاشتراك",
+        "low_balance": "تنبيهات انخفاض الرصيد",
+        "monthly_report": "التقارير الشهرية"
+      },
+      "statuses": {
+        "pending": "قيد الانتظار",
+        "processing": "قيد المعالجة",
+        "sent": "تم الإرسال",
+        "failed": "فشل",
+        "PENDING": "قيد الانتظار",
+        "PROCESSING": "قيد المعالجة",
+        "SENT": "تم الإرسال",
+        "FAILED": "فشل"
+      }
+    },
+    "sallaConnections": "اتصالات سلة",
+    "sallaConnectionsSubtitle": "إدارة اتصالات متاجر سلة الأصلية لكل بائع.",
+    "sallaConnectionsHint": "راجع وضع الاتصال والحالة وبيانات المتجر، وأدر التوكنات اليدوية القديمة عند الحاجة.",
+    "sallaRotateToken": "تدوير التوكن",
+    "sallaEdit": "تعديل اتصال سلة",
+    "sallaEnabled": "مفعل",
+    "sallaTokenTitle": "توكن جديد (انسخه الآن)",
+    "sallaTokenLabel": "التوكن",
+    "products": "المنتجات",
+    "sallaPaymentStatus": "حالة الدفع",
+    "nav": {
+      "dashboard": "لوحة التحكم",
+      "analytics": "التحليلات",
+      "orders": "الطلبات",
+      "categories": "التصنيفات",
+      "users": "المستخدمون",
+      "providers": "المزودون",
+      "salla": "اتصالات سلة",
+      "auditLogs": "سجلات التدقيق",
+      "settings": "الإعدادات",
+      "subscriptionRequests": "طلبات الاشتراك"
+    },
+    "analyticsPage": {
+      "title": "التحليلات والمؤشرات",
+      "subtitle": "عرض {{range}}.",
+      "range": {
+        "day": "يوم",
+        "week": "أسبوع",
+        "month": "شهر",
+        "all": "كل الوقت"
+      },
+      "kpi": {
+        "orders": "الطلبات",
+        "revenue": "الإيراد",
+        "pendingFulfillments": "تنفيذات معلّقة",
+        "failedFulfillments": "تنفيذات فاشلة"
+      }
+    },
+    "dashboardSubtitle": "نظرة عامة على مؤشرات المنصة.",
+    "subscriptionRequests": {
+      "title": "طلبات ترقية الاشتراك",
+      "subtitle": "راجع طلبات الترقية وفعّل الخطة يدويًا.",
+      "listTitle": "الطلبات",
+      "listHint": "يرسل البائع طلب ترقية عند رغبته بالترقية.",
+      "empty": "لا توجد طلبات حتى الآن.",
+      "review": "مراجعة",
+      "reviewTitle": "مراجعة الطلب",
+      "reviewHint": "وافق أو ارفض. تواصل مع البائع بعد المراجعة.",
+      "decision": "القرار",
+      "note": "ملاحظة للمدير (اختياري)",
+      "notePlaceholder": "ملاحظة داخلية (غير ظاهرة للبائع).",
+      "submit": "حفظ القرار",
+      "toasts": {
+        "reviewed": "تم تحديث الطلب بنجاح."
+      },
+      "fields": {
+        "status": "الحالة",
+        "seller": "البائع",
+        "currentPlan": "الخطة الحالية",
+        "requestedPlan": "الخطة المطلوبة",
+        "createdAt": "تاريخ الطلب",
+        "actions": "الإجراءات"
+      }
+    }
+  },
+  "seller": {
+    "title": "لوحة البائع",
+    "unauthorizedHint": "سجّل الدخول كبائع للوصول إلى هذه الصفحة.",
+    "nav": {
+      "dashboard": "لوحة التحكم",
+      "analytics": "التحليلات",
+      "orders": "الطلبات",
+      "products": "المنتجات",
+      "smmProviders": "المزوّدون",
+      "salla": "ربط مع سله",
+      "account": "الحساب"
+    },
+    "analyticsPage": {
+      "title": "التحليلات والمؤشرات",
+      "subtitle": "عرض {{range}}.",
+      "empty": "لا توجد بيانات بعد.",
+      "range": {
+        "day": "يوم",
+        "week": "أسبوع",
+        "month": "شهر",
+        "all": "كل الوقت"
+      },
+      "kpi": {
+        "orders": "الطلبات",
+        "revenue": "الإيراد",
+        "successRate": "نجاح التنفيذ (30 يوم)",
+        "webhookBacklog": "تراكم الويبهوك",
+        "totalOrdersAllTime": "الإجمالي: {{count}}",
+        "revenue30d": "30 يوم: {{amount}}"
+      },
+      "ordersByDayTitle": "الطلبات حسب اليوم",
+      "topProvidersTitle": "أفضل المزوّدين"
+    },
+    "dashboard": {
+      "title": "لوحة التحكم",
+      "subtitle": "مرحباً بعودتك، {{name}}",
+      "actions": {
+        "orders": "عرض الطلبات",
+        "account": "الحساب"
+      },
+      "cards": {
+        "totalOrders": "إجمالي الطلبات",
+        "totalOrdersHint": "ملخص النشاط الأخير",
+        "activeOrders": "الطلبات النشطة",
+        "activeOrdersHint": "طلبات قيد التنفيذ/الانتظار",
+        "completedOrders": "المكتملة",
+        "completedOrdersHint": "طلبات تم تنفيذها بنجاح",
+        "revenue": "الإيرادات",
+        "revenueHint": "إجمالي قيمة الطلبات الأخيرة",
+        "products": "المنتجات",
+        "productsHint": "المنتجات المرتبطة",
+        "providers": "المزوّدون",
+        "providersHint": "المزودين المرتبطين",
+        "help": "إجراءات سريعة",
+        "helpHint": "أكمل إعداد المزودين وقواعد التوجيه.",
+        "goProviders": "المزوّدون",
+        "goProducts": "المنتجات"
+      },
+      "subscription": {
+        "title": "حالة الاشتراك",
+        "subtitle": "باقة اشتراكك والاستخدام الشهري.",
+        "plan": "الباقة",
+        "usage": "الاستخدام الشهري",
+        "usageHint": "يتم احتساب الاستخدام من طلبات تجريبية حالياً.",
+        "renewAt": "التجديد",
+        "manage": "إدارة",
+        "upgrade": "ترقية"
+      },
+      "recent": {
+        "title": "أحدث الطلبات",
+        "subtitle": "آخر الطلبات (تجريبي).",
+        "empty": "لا توجد طلبات بعد.",
+        "viewAll": "عرض الكل",
+        "columns": {
+          "id": "رقم الطلب",
+          "createdAt": "التاريخ",
+          "status": "الحالة",
+          "total": "الإجمالي"
+        }
+      },
+      "analytics": {
+        "empty": "لا توجد بيانات بعد.",
+        "cards": {
+          "ordersLast7d": "الطلبات (7 أيام)",
+          "ordersLast7dHint": "عدد الطلبات التي تم إنشاؤها خلال آخر 7 أيام.",
+          "revenueLast30d": "الإيراد (30 يوم)",
+          "revenueLast30dHint": "مجموع إجمالي الطلبات خلال آخر 30 يوم.",
+          "fulfillmentSuccess": "نجاح التنفيذ (30 يوم)",
+          "fulfillmentSuccessHint": "نسبة النجاح للتنفيذات المكتملة (نجاح / (نجاح + فشل)).",
+          "webhookBacklog": "تراكم الويبهوك",
+          "webhookBacklogHint": "أحداث بانتظار المعالجة.",
+          "routingIssues": "مشاكل التوجيه (30 يوم)",
+          "routingIssuesHint": "عناصر طلبات غير مرتبطة بمنتج أو مرتبطة بدون قواعد.",
+          "pendingFulfillments": "تنفيذات معلّقة",
+          "pendingFulfillmentsHint": "معلّق + مُرسل."
+        },
+        "ordersByDayTitle": "الطلبات حسب اليوم",
+        "ordersByDayHint": "آخر 14 يوم (طلبات + إيراد).",
+        "fulfillmentsTitle": "حالة التنفيذ",
+        "fulfillmentsHint": "إجماليات كل الوقت (حسب الحالة).",
+        "topProductsTitle": "أفضل المنتجات (30 يوم)",
+        "topProductsHint": "أكثر منتجات سلة طلباً.",
+        "topProvidersTitle": "أفضل المزوّدين (30 يوم)",
+        "topProvidersHint": "حجم التنفيذ والأخطاء لكل مزوّد.",
+        "columns": {
+          "day": "اليوم",
+          "orders": "الطلبات",
+          "revenue": "الإيراد",
+          "product": "المنتج",
+          "items": "العناصر",
+          "provider": "المزوّد",
+          "total": "الإجمالي",
+          "failed": "فشل",
+          "seller": "البائع"
+        },
+        "fulfillmentStatus": {
+          "pending": "معلّق",
+          "submitted": "مُرسل",
+          "success": "نجاح",
+          "failed": "فشل"
+        }
+      }
+    },
+    "pages": {
+      "comingSoon": "قريباً"
+    },
+    "orders": {
+      "subtitle": "عرض وإدارة الطلبات الواردة.",
+      "listTitle": "الطلبات",
+      "listHint": "آخر طلبات السوق (بيانات تجريبية).",
+      "searchPlaceholder": "ابحث برقم الطلب / الخدمة / الرابط",
+      "empty": "لا توجد طلبات",
+      "repeat": {
+        "action": "تكرار الطلبات المحددة",
+        "selected": "تم تحديد {{count}} طلبات",
+        "selectAll": "تحديد كل الطلبات الفاشلة",
+        "selectOne": "تحديد طلب فاشل",
+        "toasts": {
+          "success": "تم تكرار {{orders}} طلبات وإضافة {{fulfillments}} محاولات تنفيذ فاشلة للطابور.",
+          "none": "لم يتم العثور على محاولات تنفيذ فاشلة قابلة للتكرار في الطلبات المحددة."
+        }
+      },
+      "cancel": {
+        "action": "إلغاء الطلبات المعلقة المحددة",
+        "toasts": {
+          "success": "تم إلغاء {{orders}} طلبات وإيقاف {{fulfillments}} محاولات تنفيذ معلقة.",
+          "none": "لم يتم العثور على طلبات معلقة قابلة للإلغاء ضمن الطلبات المحددة."
+        }
+      }
+    },
+    "products": {
+      "subtitle": "إدارة المنتجات/الخدمات الخاصة بك.",
+      "listTitle": "المنتجات",
+      "listHint": "يتم عرض المنتجات حالياً من كتالوج الخدمات التجريبي.",
+      "add": "إضافة منتج",
+      "addTitle": "إضافة منتج",
+      "addHint": "هذه واجهة فقط حالياً (سيتم ربطها بالخادم لاحقاً).",
+      "searchPlaceholder": "ابحث في المنتجات",
+      "empty": "لا توجد منتجات",
+      "filters": {
+        "platform": "المنصة",
+        "enabledOnly": "المفعلة فقط"
+      },
+      "fields": {
+        "name": "الاسم",
+        "platform": "المنصة",
+        "type": "النوع",
+        "pricePerThousand": "السعر لكل 1000",
+        "minOrder": "الحد الأدنى",
+        "maxOrder": "الحد الأقصى",
+        "range": "النطاق",
+        "enabled": "المنتج مفعل",
+        "actions": "الإجراءات",
+        "sallaProductId": "معرف منتج سلة",
+        "sku": "SKU المنتج",
+        "handler": "معالج المنتج",
+        "productType": "نوع المنتج",
+        "category": "فئة المنتج",
+        "basePrice": "السعر الأساسي",
+        "baseCost": "التكلفة الأساسية",
+        "description": "وصف المنتج",
+        "status": "الحالة",
+        "updatedAt": "آخر تحديث"
+      },
+      "enabled": "مفعل",
+      "disabled": "غير مفعل",
+      "enabledHint": "عطّل لإخفاء المنتج عن العملاء.",
+      "toasts": {
+        "created": "تم إضافة المنتج",
+        "deleted": "تم حذف المنتج"
+      },
+      "addProduct": "إضافة منتج",
+      "editTitle": "تعديل منتج",
+      "modalHint": "معلومات المنتج (مرتبط بمعرف منتج سلة).",
+      "detailsTitle": "تفاصيل المنتج",
+      "detailsHint": "معلومات المنتج المحدد.",
+      "selectHint": "اختر منتجاً لعرض التفاصيل والقواعد.",
+      "sallaId": "معرف سلة",
+      "noSallaId": "غير مرتبط بسلة",
+      "placeholders": {
+        "name": "مثال: باقة لايكات انستغرام",
+        "sallaProductId": "مثال: 22086",
+        "sku": "مثال: SKU-001",
+        "handler": "اختر المعالج",
+        "productType": "مثال: خدمة",
+        "category": "مثال: إنستغرام",
+        "basePrice": "مثال: 49.99",
+        "baseCost": "مثال: 25.00",
+        "description": "اكتب وصفاً قصيراً..."
+      },
+      "deleteTitle": "حذف المنتج",
+      "deleteHint": "سيتم حذف المنتج وقواعده. لا يمكن التراجع عن هذا الإجراء.",
+      "rules": {
+        "title": "قواعد المزوّد",
+        "subtitle": "أنشئ قواعد لتوجيه الطلبات إلى مزودي الخدمات.",
+        "addRule": "إضافة قاعدة",
+        "addTitle": "إضافة قاعدة مزوّد",
+        "editTitle": "تعديل قاعدة مزوّد",
+        "modalHint": "حدد المزود وربط الخدمة وقواعد التنفيذ.",
+        "noProviders": "أضف مزوّدًا أولًا لإنشاء القواعد.",
+        "needActiveProvider": "فعّل مزودًا واحدًا على الأقل لإنشاء القواعد.",
+        "empty": "لا توجد قواعد لهذا المنتج بعد.",
+        "fromField": "من حقل",
+        "fetchServices": "تحميل الخدمات",
+        "servicePickerPlaceholder": "اختر من خدمات المزود…",
+        "serviceSearchPlaceholder": "ابحث عن خدمة…",
+        "serviceSearchEmpty": "لا توجد خدمات",
+        "deleteTitle": "حذف القاعدة",
+        "deleteHint": "لا يمكن التراجع عن هذا الإجراء.",
+        "toasts": {
+          "created": "تم إنشاء القاعدة بنجاح.",
+          "updated": "تم تحديث القاعدة بنجاح.",
+          "deleted": "تم حذف القاعدة بنجاح."
+        },
+        "columns": {
+          "service": "الخدمة",
+          "provider": "المزود",
+          "target": "الهدف",
+          "quantity": "الكمية",
+          "delay": "التأخير",
+          "order": "الترتيب",
+          "conditions": "الشروط",
+          "actions": "الإجراءات"
+        },
+        "fields": {
+          "provider": "المزود",
+          "serviceName": "اسم الخدمة",
+          "providerServiceId": "معرف الخدمة",
+          "targetField": "حقل الهدف",
+          "targetValue": "قيمة الهدف (اختياري)",
+          "platform": "المنصة",
+          "applyTo": "تطبيق التعديل على",
+          "quantityType": "نوع الكمية",
+          "quantityValue": "قيمة الكمية",
+          "quantityField": "حقل الكمية",
+          "delaySeconds": "التأخير (ثواني)",
+          "executionOrder": "ترتيب التنفيذ",
+          "urlHandler": "معالج/صيغة الرابط",
+          "normalizeUrl": "توحيد الرابط",
+          "conditions": "شروط التنفيذ"
+        },
+        "placeholders": {
+          "provider": "اختر المزود",
+          "serviceName": "مثال: لايكات",
+          "targetField": "اختر الهدف",
+          "targetValue": "مثال: https://... أو اسم المستخدم",
+          "platform": "اختياري (تلقائي)",
+          "quantityType": "اختر النوع",
+          "quantityField": "مثال: quantity",
+          "urlHandler": "اختياري",
+          "urlHandlerExample": "مثال: instagram_post"
+        },
+        "platforms": {
+          "none": "تلقائي",
+          "tiktok": "تيك توك",
+          "instagram": "انستقرام"
+        },
+        "applyModes": {
+          "single": "هذا المنتج فقط",
+          "allMatching": "كل المنتجات بنفس معرف الخدمة",
+          "products": "تحديد منتجات",
+          "allByName": "كل المنتجات بنفس اسم القاعدة",
+          "productsByName": "تحديد منتجات (نفس اسم القاعدة)"
+        },
+        "hints": {
+          "normalizeUrl": "توحيد روابط الهدف تلقائياً قبل الإرسال.",
+          "targetValue": "استخدمها إذا كان طلب سلة لا يحتوي على هدف (رابط/اسم مستخدم).",
+          "conditions": "شروط اختيارية بناءً على بيانات الطلب."
+        },
+        "targets": {
+          "link": "رابط",
+          "postLink": "رابط منشور",
+          "videoLink": "رابط فيديو",
+          "username": "اسم مستخدم",
+          "custom": "مخصص"
+        },
+        "quantityTypes": {
+          "fixed": "قيمة ثابتة",
+          "fromField": "من حقل الطلب"
+        },
+        "addCondition": "إضافة شرط",
+        "noConditions": "لا توجد شروط.",
+        "condition": {
+          "field": "الحقل",
+          "op": "المعامل",
+          "value": "القيمة",
+          "fieldPlaceholder": "مثال: package",
+          "valuePlaceholder": "مثال: premium"
+        },
+        "ops": {
+          "equals": "يساوي",
+          "contains": "يحتوي",
+          "gt": "أكبر من",
+          "lt": "أقل من"
+        }
+      },
+      "handlers": {
+        "smm": "مزوّد"
+      },
+      "hints": {
+        "enabled": "عطّل لإخفاء المنتج من التوجيه."
+      }
+    },
+    "salla": {
+      "subtitle": "اربط متجر سلة الخاص بك ودع F5R يستقبل الطلبات بشكل أصلي.",
+      "statusTitle": "حالة الربط",
+      "statusHint": "اربط المتجر أولاً ثم تحكم في طريقة معالجة طلبات سلة داخل المنصة.",
+      "enabled": "تفعيل الربط",
+      "enabledHint": "يسمح بمعالجة أحداث Webhook الواردة من سلة.",
+      "connect": "ربط",
+      "disconnect": "فصل",
+      "connectionStatus": "حالة الاتصال",
+      "connected": "مرتبط",
+      "notConnected": "غير مرتبط بعد",
+      "noStoreConnected": "لا يوجد متجر سلة مرتبط حتى الآن.",
+      "nativeConnectHint": "اربط تطبيق سلة الخاص بك ودع F5R يدير الـ Webhook بشكل تلقائي.",
+      "connectButton": "ربط سلة",
+      "reconnect": "إعادة ربط سلة",
+      "disconnectButton": "فصل سلة",
+      "disconnected": "تم فصل سلة.",
+      "connectSuccess": "تم ربط سلة بنجاح.",
+      "connectFailed": "فشل ربط سلة.",
+      "storeId": "معرف المتجر",
+      "storeUrl": "رابط المتجر",
+      "installedAt": "تاريخ التثبيت",
+      "lastEventAt": "آخر حدث",
+      "note": "يتم حفظ الإعدادات محلياً حالياً؛ سيتم إضافة الربط بالخادم لاحقاً.",
+      "settingsTitle": "الإعدادات",
+      "settingsHint": "قم بإعداد طريقة استقبال طلبات سلة داخل F5R.",
+      "duplicateDelayTitle": "تأخير الطلبات المكررة",
+      "duplicateDelayHint": "إذا كانت هناك طلبات بنفس الرابط، سيتم تأخير الطلب الأحدث لتفادي رفض المزود.",
+      "duplicateDelayMinutes": "مدة التأخير (بالدقائق)",
+      "fields": {
+        "storeUrl": "رابط المتجر",
+        "webhookSecret": "سر الـ Webhook",
+        "syncProducts": "مزامنة المنتجات",
+        "syncOrders": "مزامنة الطلبات"
+      },
+      "placeholders": {
+        "webhookSecret": "الصق سر الـ Webhook"
+      },
+      "hints": {
+        "syncProducts": "استيراد المنتجات إلى كتالوجك.",
+        "syncOrders": "استلام الطلبات داخل لوحة البائع."
+      },
+      "toasts": {
+        "saved": "تم حفظ الإعدادات",
+        "disconnected": "تم فصل سلة",
+        "connectedTitle": "تم الربط",
+        "tokenRotated": "تم إنشاء التوكن. انسخه الآن."
+      },
+      "eventTypeLabel": "نوع الحدث",
+      "eventTypeValue": "order.created",
+      "rotateToken": "إنشاء / تدوير التوكن",
+      "newTokenTitle": "توكن جديد (انسخه الآن)",
+      "newTokenHint": "يظهر هذا التوكن مرة واحدة فقط. استخدمه في x-f5r-webhook-token عند الربط اليدوي.",
+      "webhookTitle": "معلومات الـ Webhook",
+      "webhookHint": "هذا القسم مخصص للربط اليدوي القديم فقط. الربط عبر التطبيق يدير الـ Webhook تلقائياً.",
+      "webhookUrl": "رابط الـ Webhook",
+      "headersTitle": "الترويسات المطلوبة",
+      "headersHint": "استخدم هذه الترويسات فقط عند استعمال الربط اليدوي القديم.",
+      "manualWebhookNote": "إعداد الـ Webhook اليدوي مطلوب فقط للاتصالات القديمة.",
+      "nativeWebhookManaged": "يتم إدارة الـ Webhook تلقائياً بواسطة تطبيق سلة."
+    },
+    "account": {
+      "subtitle": "معلومات الحساب والاشتراك.",
+      "infoTitle": "بيانات الحساب",
+      "infoHint": "معلومات البائع الأساسية.",
+      "subscriptionTitle": "الاشتراك",
+      "subscriptionHint": "إدارة الخطة وحالة الاشتراك.",
+      "fields": {
+        "name": "الاسم",
+        "email": "البريد الإلكتروني",
+        "role": "الدور",
+        "plan": "الخطة",
+        "status": "الحالة",
+        "renewAt": "التجديد",
+        "phone": "رقم الجوال"
+      },
+      "status": {
+        "active": "نشط",
+        "inactive": "غير نشط"
+      },
+      "plans": {
+        "basic": "بيسك",
+        "plus": "بلس",
+        "pro": "برو",
+        "special": "سبيشل"
+      },
+      "planHint": "هذه واجهة فقط حالياً.",
+      "upgrade": "ترقية",
+      "toasts": {
+        "saved": "تم حفظ الاشتراك",
+        "upgraded": "تم تحديث الاشتراك",
+        "upgradeRequested": "تم إرسال طلب الترقية للمدير"
+      },
+      "upgradeRequest": "طلب ترقية",
+      "planReadOnlyHint": "لا يمكن تغيير الخطة مباشرة. اضغط طلب ترقية وسيقوم المدير بالتواصل معك.",
+      "pendingTitle": "طلب الترقية قيد المراجعة",
+      "pendingHint": "تم إرسال طلب ترقية إلى:",
+      "upgradeDialog": {
+        "title": "طلب ترقية الخطة",
+        "hint": "سيتم إرسال الطلب للمدير للمراجعة والتفعيل يدويًا.",
+        "requestedPlan": "الخطة المطلوبة",
+        "reviewNote": "سيقوم المدير بمراجعة الطلب والتواصل معك باستخدام بيانات حسابك.",
+        "submit": "إرسال الطلب"
+      },
+      "notifications": {
+        "title": "إشعارات تيليجرام",
+        "hint": "اربط محادثة تيليجرام الخاصة بك لاستقبال إشعارات فشل التنفيذ وتذكيرات انتهاء الاشتراك وتنبيهات انخفاض الرصيد والتقارير الشهرية الاختيارية.",
+        "saved": "تم حفظ إعدادات إشعارات تيليجرام.",
+        "linkRefreshed": "تم إنشاء رمز ربط جديد لتيليجرام.",
+        "unlinked": "تم فصل تيليجرام.",
+        "telegramStatus": "حالة تيليجرام",
+        "linked": "مرتبط",
+        "notLinked": "غير مرتبط",
+        "botMissing": "اسم مستخدم البوت غير مُعد بعد من قبل المدير.",
+        "linkHint": "افتح البوت واضغط Start لربط حساب البائع هذا.",
+        "openBot": "فتح بوت تيليجرام",
+        "refreshLink": "إنشاء رابط جديد",
+        "unlinkButton": "فصل تيليجرام",
+        "notificationMode": "وضع الإشعارات",
+        "notificationModeHint": "اختر هل تريد استلام جميع إشعارات تيليجرام أو إشعارات الفشل فقط.",
+        "subscriptionReminderCount": "عدد تذكيرات انتهاء الاشتراك",
+        "subscriptionReminderCountHint": "اختر عدد مرات التذكير قبل انتهاء الاشتراك.",
+        "modes": {
+          "all": "جميع الإشعارات",
+          "failedOnly": "الفشل فقط"
+        },
+        "reminderCounts": {
+          "one": "تذكير واحد",
+          "two": "تذكيران",
+          "three": "3 تذكيرات"
+        },
+        "timezone": "المنطقة الزمنية",
+        "lowBalanceThresholdLabel": "حد تنبيه انخفاض الرصيد (بالدولار)",
+        "lowBalanceThresholdHint": "عند انخفاض رصيد المزوّد عن هذا الرقم سيتم إرسال تنبيه تيليجرام. اتركه فارغًا لتعطيله.",
+        "monthlyReportTime": "وقت التقرير الشهري",
+        "monthlyReport": "التقرير الشهري عبر تيليجرام",
+        "monthlyReportHint": "أرسل ملخصًا للطلبات والمصروفات والإيراد وصافي الربح في نهاية الشهر.",
+        "executionFailed": "تنبيهات فشل التنفيذ",
+        "executionFailedHint": "اختياري. فعّله أو عطّله حسب رغبتك.",
+        "subscriptionEnding": "تذكيرات انتهاء الاشتراك",
+        "subscriptionEndingHint": "اختياري. فعّله أو عطّله حسب رغبتك.",
+        "lowBalance": "تنبيهات انخفاض رصيد المزود",
+        "lowBalanceHint": "اختياري. فعّله أو عطّله حسب رغبتك."
+      }
+    },
+    "smmProviders": {
+      "title": "المزوّدون",
+      "subtitle": "إدارة المزوّدين المرتبطين بحسابك.",
+      "add": "إضافة مزود",
+      "addTitle": "إضافة مزود",
+      "editTitle": "تعديل المزود",
+      "connectionStatus": "حالة الاتصال",
+      "connectionStatusHint": "اختبر اتصال المزود المحدد.",
+      "testConnection": "اختبار الاتصال",
+      "selectProvider": "اختر مزوداً لاختبار الاتصال.",
+      "lastResult": "آخر نتيجة",
+      "lastTestedAt": "آخر اختبار",
+      "details": "تفاصيل المزود",
+      "detailsHint": "بيانات اتصال المزود.",
+      "noSelection": "اختر مزوداً لعرض التفاصيل.",
+      "listTitle": "قائمة المزودين",
+      "listHint": "جميع المزودين المرتبطين.",
+      "empty": "لا يوجد مزودون بعد. أضف مزوداً للبدء.",
+      "default": "الافتراضي",
+      "deleteConfirmTitle": "حذف المزود؟",
+      "deleteConfirmDesc": "لا يمكن التراجع عن هذا الإجراء.",
+      "currentKey": "المفتاح الحالي",
+      "fields": {
+        "name": "اسم المزود",
+        "baseUrl": "رابط API",
+        "apiKey": "مفتاح API",
+        "status": "الحالة",
+        "active": "نشط",
+        "default": "المزود الافتراضي",
+        "createdAt": "تاريخ الإنشاء"
+      },
+      "placeholders": {
+        "name": "مثال: مزود-1",
+        "baseUrl": "https://example.com/api/v2",
+        "apiKey": "الصق مفتاح API هنا",
+        "apiKeyEdit": "اتركه فارغاً للاحتفاظ بالمفتاح الحالي"
+      },
+      "hints": {
+        "active": "عطّل المزود لإيقاف توجيه الطلبات الجديدة إليه.",
+        "default": "يستخدم للتوجيه التلقائي لتنفيذ الطلبات."
+      },
+      "badges": {
+        "active": "نشط",
+        "inactive": "غير نشط",
+        "testSuccess": "ناجح",
+        "testFail": "فشل"
+      },
+      "toasts": {
+        "created": "تم إضافة المزود بنجاح",
+        "updated": "تم تحديث بيانات المزود بنجاح",
+        "deleted": "تم حذف المزود بنجاح",
+        "testedTitle": "تم اختبار الاتصال",
+        "testFailedTitle": "فشل اختبار الاتصال"
+      }
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "مرحباً بعودتك",
+      "subtitle": "سجل الدخول إلى حسابك",
+      "email": "البريد الإلكتروني",
+      "password": "كلمة المرور",
+      "remember": "تذكرني",
+      "forgot": "نسيت كلمة المرور؟",
+      "submit": "تسجيل الدخول",
+      "noAccount": "ليس لديك حساب؟",
+      "signUp": "إنشاء حساب"
+    },
+    "register": {
+      "title": "إنشاء حساب",
+      "subtitle": "انضم إلى F5R اليوم",
+      "name": "الاسم الكامل",
+      "email": "البريد الإلكتروني",
+      "role": "نوع الحساب",
+      "roles": {
+        "user": "مستخدم",
+        "seller": "بائع"
+      },
+      "password": "كلمة المرور",
+      "confirmPassword": "تأكيد كلمة المرور",
+      "terms": "أوافق على شروط الخدمة وسياسة الخصوصية",
+      "submit": "إنشاء حساب",
+      "hasAccount": "لديك حساب بالفعل؟",
+      "signIn": "تسجيل الدخول",
+      "phone": "رقم الجوال"
+    },
+    "forgot": {
+      "title": "نسيت كلمة المرور",
+      "subtitle": "أدخل بريدك الإلكتروني لإعادة تعيين كلمة المرور",
+      "submit": "إرسال رابط الإعادة"
+    },
+    "reset": {
+      "title": "إعادة تعيين كلمة المرور",
+      "subtitle": "أدخل كلمة المرور الجديدة",
+      "submit": "إعادة تعيين"
+    },
+    "demo": {
+      "admin": "دخول كمدير تجريبي",
+      "seller": "دخول كبائع تجريبي",
+      "user": "دخول كمستخدم تجريبي"
+    },
+    "unauthorized": "غير مصرح"
+  },
+  "footer": {
+    "description": "خدمات تسويق وسائل التواصل الاجتماعي المتميزة. نمّي حضورك مع حلول موثوقة.",
+    "quickLinks": "روابط سريعة",
+    "legal": "قانوني",
+    "support": "الدعم",
+    "terms": "شروط الخدمة",
+    "privacy": "سياسة الخصوصية",
+    "refund": "سياسة الاسترداد",
+    "contact": "اتصل بنا",
+    "faq": "الأسئلة الشائعة",
+    "copyright": "© 2024 F5R. جميع الحقوق محفوظة."
+  },
+  "faq": {
+    "title": "الأسئلة الشائعة",
+    "subtitle": "اعثر على إجابات للأسئلة الشائعة",
+    "q1": "كم يستغرق التوصيل؟",
+    "a1": "معظم الخدمات تبدأ خلال 0-30 دقيقة وتكتمل ضمن الوقت المتوقع الموضح في كل خدمة.",
+    "q2": "هل الخدمات آمنة؟",
+    "a2": "نعم، جميع خدماتنا آمنة ومتوافقة مع إرشادات المنصات. نستخدم طرق طبيعية.",
+    "q3": "هل تقدمون تعويضات؟",
+    "a3": "نعم، العديد من الخدمات تتضمن ضمان التعويض. تحقق من تفاصيل الخدمة.",
+    "q4": "ما طرق الدفع المقبولة؟",
+    "a4": "نقبل مدى، آبل باي، فيزا، وماستركارد للدفعات الآمنة.",
+    "q5": "هل يمكنني الحصول على استرداد؟",
+    "a5": "نعم، الاستردادات متاحة وفقاً لسياسة الاسترداد الخاصة بنا. تواصل مع الدعم للمساعدة."
+  },
+  "contact": {
+    "title": "اتصل بنا",
+    "subtitle": "نحن هنا للمساعدة",
+    "form": {
+      "name": "اسمك",
+      "email": "البريد الإلكتروني",
+      "subject": "الموضوع",
+      "message": "الرسالة",
+      "submit": "إرسال الرسالة"
+    },
+    "info": {
+      "email": "support@f5r.store",
+      "phone": "+966 50 971 5861",
+      "hours": "دعم على مدار الساعة"
+    }
+  },
+  "errors": {
+    "required": "هذا الحقل مطلوب",
+    "email": "يرجى إدخال بريد إلكتروني صحيح",
+    "password": "كلمة المرور يجب أن تكون 8 أحرف على الأقل",
+    "passwordMatch": "كلمات المرور غير متطابقة",
+    "minOrder": "الكمية أقل من الحد الأدنى",
+    "maxOrder": "الكمية تتجاوز الحد الأقصى",
+    "invalidLink": "يرجى إدخال رابط صحيح",
+    "notFound": "الصفحة غير موجودة",
+    "unauthorized": "يرجى تسجيل الدخول للمتابعة"
+  }
+}
