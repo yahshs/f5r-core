@@ -1,9 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
-import { createUser, getUserByEmail, getUserById, toPublicUser } from "../db/usersRepo";
+import { createUser, getUserByEmail, getUserById, toPublicUser, touchLastLogin } from "../db/usersRepo";
 import { hashPassword, verifyPassword } from "../lib/password";
 import { signAuthToken, verifyAuthToken } from "../lib/jwt";
-import { touchLastLogin } from "../db/usersRepo";
 
 export const authRouter = Router();
 
@@ -19,10 +18,10 @@ const loginSchema = z.object({
   password: z.string().min(1).max(200),
 });
 
-function getBearerToken(req: any) {
+function getBearerToken(req: { header(name: string): string | undefined }) {
   const header = req.header("authorization") || "";
-  const m = header.match(/^Bearer\s+(.+)$/i);
-  return m?.[1] || null;
+  const match = header.match(/^Bearer\s+(.+)$/i);
+  return match?.[1] || null;
 }
 
 authRouter.post("/register", async (req, res) => {
@@ -103,6 +102,5 @@ authRouter.get("/me", (req, res) => {
 });
 
 authRouter.post("/logout", (_req, res) => {
-  // JWT is stateless; client discards token.
   res.json({ success: true });
 });

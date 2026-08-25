@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { sellerSmmProvidersRouter } from "./routes/sellerSmmProviders";
 import { ensureDbReady } from "./db/db";
-import { authRouter } from "./routes/auth";
+import { authRouter } from "./routes/authRoutes";
 import { sellerProductsRouter } from "./routes/sellerProducts";
 import { sellerSallaRouter } from "./routes/sellerSalla";
 import { sellerOrdersRouter } from "./routes/sellerOrders";
