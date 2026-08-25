@@ -45,7 +45,7 @@ describe("salla webhook pipeline", () => {
     vi.restoreAllMocks();
   });
 
-  it("authenticates webhook via publicId + token header", async () => {
+  it("accepts a manual invoice webhook using the URL only", async () => {
     const app = await createApp();
     const sellerId = "seller-a";
 
@@ -54,23 +54,18 @@ describe("salla webhook pipeline", () => {
       .set(sellerHeaders(sellerId))
       .send({ is_enabled: true })
       .expect(200);
-    const token = rotated.body.data.token as string;
     const status = await request(app).get("/api/seller/salla/status").set(sellerHeaders(sellerId)).expect(200);
     const publicId = status.body.data.public_webhook_id as string;
 
-    await request(app).post(`/api/webhooks/salla/${publicId}`).send({}).expect(400);
-
     await request(app)
       .post(`/api/webhooks/salla/${publicId}`)
-      .set("x-f5r-webhook-token", "wrong")
-      .send({ hello: "world" })
-      .expect(401);
-
-    await request(app)
-      .post(`/api/webhooks/salla/${publicId}`)
-      .set("x-f5r-webhook-token", token)
-      .send({ hello: "world" })
+      .set("X-Salla-Event", "invoice.created")
+      .send({ data: { order: { id: "url-only-1", items: [] } } })
       .expect(200);
+
+    const db = getDb();
+    const row = db.prepare(`SELECT COUNT(1) as c FROM webhook_events WHERE seller_id = ?`).get(sellerId) as any;
+    expect(Number(row.c)).toBe(1);
   });
 
   it("returns 404 for unknown publicId", async () => {
@@ -82,7 +77,7 @@ describe("salla webhook pipeline", () => {
       .expect(404);
   });
 
-  it("automatically generates a stable invoice.created webhook URL", async () => {
+  it("creates one stable webhook URL and returns only that URL", async () => {
     const app = await createApp();
     const headers = sellerHeaders("seller-auto-webhook");
 
@@ -92,18 +87,24 @@ describe("salla webhook pipeline", () => {
       .send({})
       .expect(200);
 
-    expect(ensured.body.data.event).toBe("invoice.created");
-    expect(ensured.body.data.registered).toBe(false);
+    expect(Object.keys(ensured.body.data)).toEqual(["webhook_url"]);
     expect(ensured.body.data.webhook_url).toMatch(
       /^https:\/\/f5r\.test\/api\/webhooks\/salla\/[a-f0-9]{32}$/,
     );
+
+    const ensuredAgain = await request(app)
+      .post("/api/seller/salla/webhook/ensure")
+      .set(headers)
+      .send({})
+      .expect(200);
+    expect(ensuredAgain.body.data.webhook_url).toBe(ensured.body.data.webhook_url);
 
     const info = await request(app)
       .get("/api/seller/salla/webhook-info")
       .set(headers)
       .expect(200);
     expect(info.body.data.webhook_url).toBe(ensured.body.data.webhook_url);
-    expect(info.body.data.event).toBe("invoice.created");
+    expect(Object.keys(info.body.data)).toEqual(["webhook_url"]);
   });
 
   it("acks but does not enqueue when connection is disabled", async () => {
@@ -304,27 +305,14 @@ describe("salla webhook pipeline", () => {
     expect(row.access_token_encrypted).toBeTruthy();
     expect(row.refresh_token_encrypted).toBeTruthy();
 
-    fetchMock.mockImplementationOnce(async (_input, init) => {
-      const requestBody = JSON.parse(String(init?.body || "{}"));
-      return new Response(JSON.stringify({
-        success: true,
-        data: {
-          id: 60587520,
-          event: requestBody.event,
-          url: requestBody.url,
-          version: requestBody.version,
-        },
-      }), { status: 200, headers: { "content-type": "application/json" } });
-    });
-
     const ensured = await request(app)
       .post("/api/seller/salla/webhook/ensure")
       .set(sellerHeaders(seller.id))
       .send({})
       .expect(200);
-    expect(ensured.body.data.registered).toBe(true);
-    expect(ensured.body.data.event).toBe("invoice.created");
-    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(Object.keys(ensured.body.data)).toEqual(["webhook_url"]);
+    expect(ensured.body.data.webhook_url).toBe(registrationBody.url);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
   it("accepts native app webhooks with a valid Salla signature", async () => {

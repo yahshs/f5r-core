@@ -34,17 +34,10 @@ export type SellerSallaStatus = {
 
 export type SellerSallaWebhookInfo = {
   webhook_url: string;
-  event: 'invoice.created';
-  registered: boolean;
-  required_headers: { name: string; value: string }[];
-  notes: string;
 };
 
 export type SellerSallaWebhookEnsureResult = {
   webhook_url: string;
-  event: 'invoice.created';
-  registered: boolean;
-  registration_id: string | null;
 };
 
 export type SellerSallaMetrics = {

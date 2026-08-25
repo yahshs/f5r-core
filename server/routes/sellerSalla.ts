@@ -5,17 +5,15 @@ import { getDb } from "../db/db";
 import {
   createOrRotateSallaWebhookToken,
   disconnectSallaConnection,
-  getSallaAccessToken,
   getSallaConnectionBySellerId,
   getSallaWebhookToken,
   rotateSallaWebhookToken,
   upsertSallaConnection,
-  updateSallaConnectionStatus,
 } from "../db/sallaConnectionsRepo";
 import { insertWebhookEvent } from "../db/webhookEventsRepo";
 import { sha256Hex } from "../lib/hash";
 import { createSallaAuthState } from "../lib/sallaAuthState";
-import { getSallaAuthorizeUrl, registerSallaInvoiceCreatedWebhook } from "../lib/sallaClient";
+import { getSallaAuthorizeUrl } from "../lib/sallaClient";
 import { getUserById } from "../db/usersRepo";
 
 export const sellerSallaRouter = Router();
@@ -98,7 +96,7 @@ sellerSallaRouter.post("/disconnect", (req, res) => {
   return res.json({ success: true, data: toStatusPayload(row) });
 });
 
-sellerSallaRouter.post("/webhook/ensure", async (req, res) => {
+sellerSallaRouter.post("/webhook/ensure", (req, res) => {
   const sellerId = req.sellerAuth!.sellerId;
   let row = getSallaConnectionBySellerId(sellerId);
 
@@ -111,34 +109,10 @@ sellerSallaRouter.post("/webhook/ensure", async (req, res) => {
     return res.status(500).json({ success: false, message: "Failed to generate webhook URL" });
   }
 
-  const webhookUrl = getSallaWebhookPublicUrl(req, row.public_webhook_id);
-  if (row.connection_mode !== "app" || row.status === "disconnected") {
-    return res.json({
-      success: true,
-      data: { webhook_url: webhookUrl, event: "invoice.created", registered: false, registration_id: null },
-    });
-  }
-
-  try {
-    const accessToken = getSallaAccessToken(row);
-    if (!accessToken) throw new Error("Reconnect Salla to register the webhook");
-
-    const registration = await registerSallaInvoiceCreatedWebhook({ accessToken, webhookUrl });
-    updateSallaConnectionStatus(row.id, "active");
-    return res.json({
-      success: true,
-      data: {
-        webhook_url: registration.url,
-        event: registration.event,
-        registered: true,
-        registration_id: registration.id,
-      },
-    });
-  } catch (error) {
-    updateSallaConnectionStatus(row.id, "error");
-    const message = error instanceof Error ? error.message : "Failed to register Salla webhook";
-    return res.status(502).json({ success: false, message });
-  }
+  return res.json({
+    success: true,
+    data: { webhook_url: getSallaWebhookPublicUrl(req, row.public_webhook_id) },
+  });
 });
 
 sellerSallaRouter.put("/config", (req, res) => {
@@ -196,32 +170,9 @@ sellerSallaRouter.get("/webhook-info", (req, res) => {
   if (!row) return res.status(404).json({ success: false, message: "Not configured" });
   if (!row.public_webhook_id) return res.status(500).json({ success: false, message: "Missing webhook id" });
 
-  const webhookUrl = getSallaWebhookPublicUrl(req, row.public_webhook_id);
-
-  if (row.connection_mode === "app") {
-    return res.json({
-      success: true,
-      data: {
-        webhook_url: webhookUrl,
-        event: "invoice.created",
-        registered: row.status === "active",
-        required_headers: [],
-        notes: "Webhook is registered natively by the Salla private app.",
-      },
-    });
-  }
-
   return res.json({
     success: true,
-    data: {
-      webhook_url: webhookUrl,
-      event: "invoice.created",
-      registered: false,
-      required_headers: [
-        { name: "x-f5r-webhook-token", value: row.webhook_token_encrypted ? "******** (rotate to view)" : "(rotate to set)" },
-      ],
-      notes: "Webhook must be added in Salla manually.",
-    },
+    data: { webhook_url: getSallaWebhookPublicUrl(req, row.public_webhook_id) },
   });
 });
 

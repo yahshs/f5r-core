@@ -919,6 +919,7 @@
                                  "newTokenTitle":  "New token (copy now)",
                                  "newTokenHint":  "This token is shown once. Paste it into Salla as x-f5r-webhook-token.",
                                  "webhookTitle":  "Webhook info",
+                                 "createWebhookUrl":  "Create webhook URL",
                                  "webhookHint":  "For manual mode only. Native app connections manage the webhook automatically.",
                                  "webhookUrl":  "Webhook URL",
                                  "headersTitle":  "Required headers",

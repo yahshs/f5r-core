@@ -1,9 +1,7 @@
 import type { Request, Response } from "express";
 import { sha256Hex } from "../lib/hash";
-import { timingSafeEqualUtf8 } from "../lib/timingSafe";
 import {
   getSallaConnectionByPublicWebhookId,
-  getSallaWebhookToken,
   isSallaConnectionOperational,
   touchSallaLastEventAtByConnectionId,
 } from "../db/sallaConnectionsRepo";
@@ -70,26 +68,7 @@ export async function handleSallaWebhook(req: Request, res: Response) {
     return res.status(404).json({ ok: false });
   }
 
-  if (conn.connection_mode === "manual") {
-    const token = (req.header("x-f5r-webhook-token") || "").trim();
-    if (!token) {
-      console.warn("[salla-webhook] missing token", { publicId, topic, payloadBytes });
-      return res.status(400).json({ ok: false, message: "Missing headers" });
-    }
-
-    let expected: string;
-    try {
-      expected = getSallaWebhookToken(conn);
-    } catch {
-      console.error("[salla-webhook] token decrypt failed", { sellerId: conn.seller_id, publicId, topic });
-      return res.status(500).json({ ok: false, message: "Token storage error" });
-    }
-
-    if (!timingSafeEqualUtf8(expected, token)) {
-      console.warn("[salla-webhook] invalid token", { sellerId: conn.seller_id, publicId, topic, payloadBytes });
-      return res.status(401).json({ ok: false, message: "Unauthorized" });
-    }
-  } else {
+  if (conn.connection_mode === "app") {
     try {
       const headers = collectHeaders(req);
       if (!verifySallaWebhookSignature(rawBody, headers)) {

@@ -1,18 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Copy, Download, Link2, RefreshCcw, Unplug, Webhook } from 'lucide-react';
+import { Copy, Download, Link2, Unplug, Webhook } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import {
   useDisconnectSellerSalla,
   useEnsureSellerSallaWebhook,
-  useRotateSellerSallaToken,
   useSaveSellerSallaConfig,
   useSellerSallaMetrics,
   useSellerSallaRecentActivity,
@@ -21,7 +19,6 @@ import {
   useSimulateSellerSallaCreateOrder,
   useStartSellerSallaConnect,
 } from '@/hooks/useApi';
-import { sellerSallaApi } from '@/api/sellerSalla';
 import { useQueryClient } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -36,23 +33,18 @@ export default function SellerSallaIntegrationPage() {
   const metricsQuery = useSellerSallaMetrics();
   const recentQuery = useSellerSallaRecentActivity();
   const saveMutation = useSaveSellerSallaConfig();
-  const rotateMutation = useRotateSellerSallaToken();
   const simulateMutation = useSimulateSellerSallaCreateOrder();
   const connectMutation = useStartSellerSallaConnect();
   const disconnectMutation = useDisconnectSellerSalla();
   const ensureWebhookMutation = useEnsureSellerSallaWebhook();
-  const webhookEnsureStarted = useRef(false);
 
   const [enabled, setEnabled] = useState(true);
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<'all' | 'paid'>('all');
   const [duplicateDelayEnabled, setDuplicateDelayEnabled] = useState(false);
   const [duplicateDelayMinutes, setDuplicateDelayMinutes] = useState(5);
-  const [newToken, setNewToken] = useState<string | null>(null);
 
   const status = statusQuery.data;
   const connected = status?.connected ?? false;
-  const isManual = status?.connection_mode === 'manual';
-
   useEffect(() => {
     if (!status) return;
     setEnabled(!!status.is_enabled);
@@ -65,14 +57,6 @@ export default function SellerSallaIntegrationPage() {
       setDuplicateDelayEnabled(false);
     }
   }, [status]);
-
-  useEffect(() => {
-    if (!statusQuery.isSuccess || webhookEnsureStarted.current) return;
-    webhookEnsureStarted.current = true;
-    void ensureWebhookMutation.mutateAsync().catch(() => {
-      // The connection status becomes "error" and the normal reconnect flow remains available.
-    });
-  }, [ensureWebhookMutation, statusQuery.isSuccess]);
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -94,12 +78,6 @@ export default function SellerSallaIntegrationPage() {
     url.searchParams.delete('message');
     window.history.replaceState({}, '', url.toString());
   }, [queryClient, t]);
-
-  const headersText = useMemo(() => {
-    const info = webhookInfoQuery.data;
-    if (!info) return '';
-    return info.required_headers.map((h) => `${h.name}: ${h.value}`).join('\n');
-  }, [webhookInfoQuery.data]);
 
   const copy = async (text: string) => {
     try {
@@ -315,68 +293,14 @@ export default function SellerSallaIntegrationPage() {
                 </Button>
 
                 <div className="flex gap-2">
-                  {isManual ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className={cn('gap-2', isRTL && 'flex-row-reverse')}
-                      disabled={rotateMutation.isPending}
-                      onClick={async () => {
-                        try {
-                          const existing = status?.connected;
-                          const delaySeconds = duplicateDelayEnabled ? Math.max(1, Math.round(duplicateDelayMinutes)) * 60 : 0;
-                          const res = existing
-                            ? await rotateMutation.mutateAsync()
-                            : await sellerSallaApi.rotateTokenWithConfig({
-                                is_enabled: enabled,
-                                payment_status_filter: paymentStatusFilter,
-                                duplicate_link_delay_seconds: delaySeconds,
-                              });
-                          setNewToken(res.token);
-                          await queryClient.invalidateQueries({ queryKey: ['seller', 'salla'] });
-                          toast({ title: t('common.success'), description: t('seller.salla.toasts.tokenRotated') });
-                        } catch (e) {
-                          const msg = e instanceof Error ? e.message : t('common.error');
-                          toast({ title: t('common.error'), description: msg });
-                        }
-                      }}
-                    >
-                      <RefreshCcw className="h-4 w-4" />
-                      {t('seller.salla.rotateToken')}
-                    </Button>
-                  ) : null}
-
                   <Button onClick={save} disabled={saveMutation.isPending}>
                     {t('common.save')}
                   </Button>
                 </div>
               </div>
 
-              {newToken && (
-                <div className="rounded-lg border p-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="text-sm font-medium">{t('seller.salla.newTokenTitle')}</p>
-                      <p className="text-xs text-muted-foreground">{t('seller.salla.newTokenHint')}</p>
-                    </div>
-                    <Button type="button" size="sm" variant="outline" className={cn('gap-2', isRTL && 'flex-row-reverse')} onClick={() => copy(newToken)}>
-                      <Copy className="h-4 w-4" />
-                      {t('common.copy')}
-                    </Button>
-                  </div>
-                  <Input className="mt-3 font-mono" readOnly value={newToken} />
-                </div>
-              )}
-
-              {webhookInfoQuery.data?.webhook_url && (
+              {webhookInfoQuery.data?.webhook_url ? (
                 <div className="rounded-lg border p-3 space-y-3">
-                  <div>
-                    <p className="text-sm font-medium">{t('seller.salla.webhookTitle')}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {isManual ? t('seller.salla.webhookHint') : t('seller.salla.nativeWebhookManaged')}
-                    </p>
-                  </div>
-
                   <div className="space-y-2">
                     <Label>{t('seller.salla.webhookUrl')}</Label>
                     <div className="flex gap-2">
@@ -388,19 +312,26 @@ export default function SellerSallaIntegrationPage() {
                     </div>
                   </div>
 
-                  {!!headersText && (
-                    <div className="space-y-2">
-                      <Label>{t('seller.salla.headersTitle')}</Label>
-                      <div className="flex gap-2">
-                        <Textarea readOnly value={headersText} className="min-h-[88px] font-mono" />
-                        <Button type="button" variant="outline" className="gap-2" onClick={() => copy(headersText)}>
-                          <Copy className="h-4 w-4" />
-                          {t('common.copy')}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
                 </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={cn('gap-2', isRTL && 'flex-row-reverse')}
+                  disabled={ensureWebhookMutation.isPending}
+                  onClick={async () => {
+                    try {
+                      await ensureWebhookMutation.mutateAsync();
+                      toast({ title: t('common.success') });
+                    } catch (e) {
+                      const msg = e instanceof Error ? e.message : t('common.error');
+                      toast({ title: t('common.error'), description: msg });
+                    }
+                  }}
+                >
+                  <Webhook className="h-4 w-4" />
+                  {t('seller.salla.createWebhookUrl')}
+                </Button>
               )}
             </CardContent>
           </Card>

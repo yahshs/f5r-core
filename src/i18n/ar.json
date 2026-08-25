@@ -962,6 +962,7 @@
       "newTokenTitle": "توكن جديد (انسخه الآن)",
       "newTokenHint": "يظهر هذا التوكن مرة واحدة فقط. استخدمه في x-f5r-webhook-token عند الربط اليدوي.",
       "webhookTitle": "معلومات الـ Webhook",
+      "createWebhookUrl": "إنشاء الرابط",
       "webhookHint": "هذا القسم مخصص للربط اليدوي القديم فقط. الربط عبر التطبيق يدير الـ Webhook تلقائياً.",
       "webhookUrl": "رابط الـ Webhook",
       "headersTitle": "الترويسات المطلوبة",
