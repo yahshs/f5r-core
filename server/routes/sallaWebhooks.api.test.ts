@@ -11,6 +11,7 @@ import { sha256Hex } from "../lib/hash";
 import { createUser } from "../db/usersRepo";
 import { createSallaAuthState } from "../lib/sallaAuthState";
 import { encryptSecret } from "../lib/encryption";
+import { createProvider } from "../db/smmProvidersRepo";
 import { processNextSallaWebhookEvent } from "../workers/sallaWebhookWorker";
 import { processNextFulfillment } from "../workers/fulfillmentWorker";
 
@@ -79,6 +80,30 @@ describe("salla webhook pipeline", () => {
       .set("x-f5r-webhook-token", "x")
       .send({ hello: "world" })
       .expect(404);
+  });
+
+  it("automatically generates a stable invoice.created webhook URL", async () => {
+    const app = await createApp();
+    const headers = sellerHeaders("seller-auto-webhook");
+
+    const ensured = await request(app)
+      .post("/api/seller/salla/webhook/ensure")
+      .set(headers)
+      .send({})
+      .expect(200);
+
+    expect(ensured.body.data.event).toBe("invoice.created");
+    expect(ensured.body.data.registered).toBe(false);
+    expect(ensured.body.data.webhook_url).toMatch(
+      /^https:\/\/f5r\.test\/api\/webhooks\/salla\/[a-f0-9]{32}$/,
+    );
+
+    const info = await request(app)
+      .get("/api/seller/salla/webhook-info")
+      .set(headers)
+      .expect(200);
+    expect(info.body.data.webhook_url).toBe(ensured.body.data.webhook_url);
+    expect(info.body.data.event).toBe("invoice.created");
   });
 
   it("acks but does not enqueue when connection is disabled", async () => {
@@ -236,12 +261,21 @@ describe("salla webhook pipeline", () => {
           { status: 200, headers: { "content-type": "application/json" } },
         ),
       )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ success: true }), {
+      .mockImplementationOnce(async (_input, init) => {
+        const requestBody = JSON.parse(String(init?.body || "{}"));
+        return new Response(JSON.stringify({
+          success: true,
+          data: {
+            id: 60587520,
+            event: requestBody.event,
+            url: requestBody.url,
+            version: requestBody.version,
+          },
+        }), {
           status: 200,
           headers: { "content-type": "application/json" },
-        }),
-      );
+        });
+      });
 
     const res = await request(app)
       .get("/api/integrations/salla/callback")
@@ -250,6 +284,13 @@ describe("salla webhook pipeline", () => {
 
     expect(String(res.headers.location)).toContain("salla_connect=success");
     expect(fetchMock).toHaveBeenCalledTimes(3);
+    const registrationRequest = fetchMock.mock.calls[2];
+    expect(String(registrationRequest[0])).toBe("https://api.salla.test/admin/v2/webhooks/subscribe");
+    const registrationBody = JSON.parse(String(registrationRequest[1]?.body || "{}"));
+    expect(registrationBody.event).toBe("invoice.created");
+    expect(registrationBody.version).toBe(2);
+    expect(registrationBody.secret).toBe("test-salla-webhook-secret");
+    expect(registrationBody.url).toMatch(/^https:\/\/f5r\.test\/api\/webhooks\/salla\/[a-f0-9]{32}$/);
 
     const db = getDb();
     const row = db.prepare(`SELECT * FROM salla_connections WHERE seller_id = ? LIMIT 1`).get(seller.id) as any;
@@ -262,6 +303,28 @@ describe("salla webhook pipeline", () => {
     expect(row.salla_merchant_id).toBe("merchant-1");
     expect(row.access_token_encrypted).toBeTruthy();
     expect(row.refresh_token_encrypted).toBeTruthy();
+
+    fetchMock.mockImplementationOnce(async (_input, init) => {
+      const requestBody = JSON.parse(String(init?.body || "{}"));
+      return new Response(JSON.stringify({
+        success: true,
+        data: {
+          id: 60587520,
+          event: requestBody.event,
+          url: requestBody.url,
+          version: requestBody.version,
+        },
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    });
+
+    const ensured = await request(app)
+      .post("/api/seller/salla/webhook/ensure")
+      .set(sellerHeaders(seller.id))
+      .send({})
+      .expect(200);
+    expect(ensured.body.data.registered).toBe(true);
+    expect(ensured.body.data.event).toBe("invoice.created");
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 
   it("accepts native app webhooks with a valid Salla signature", async () => {
@@ -332,18 +395,17 @@ describe("salla webhook pipeline", () => {
     const publicId = status.body.data.public_webhook_id as string;
 
     // Provider
-    const providerRes = await request(app)
-      .post("/api/seller/smm-providers")
-      .set(sellerHeaders(sellerId))
-      .send({
-        name: "provider",
-        base_url: "https://example.com/api/v2",
-        api_key: "k",
-        is_active: true,
-        is_default: true,
-      })
-      .expect(201);
-    const providerId = providerRes.body.data.id as string;
+    const providerId = crypto.randomUUID();
+    createProvider({
+      id: providerId,
+      sellerId,
+      name: "provider",
+      baseUrl: "https://example.com/api/v2",
+      apiKeyEncrypted: encryptSecret("k"),
+      apiKeyLast4: "k",
+      isActive: true,
+      isDefault: true,
+    });
 
     // Product mapped to Salla
     const productRes = await request(app)
@@ -371,9 +433,21 @@ describe("salla webhook pipeline", () => {
         conditions: null,
       })
       .expect(201);
+    getDb()
+      .prepare(`UPDATE smm_product_rules SET provider_service_rate = ? WHERE seller_id = ? AND product_id = ?`)
+      .run(1, sellerId, productId);
 
     // Webhook enqueue (raw thread)
-    const payload = { data: { order: { id: "o1", items: [{ id: "i1", product_id: "p1", quantity: 2, link: "https://x.com" }] } } };
+    const payload = {
+      event: "invoice.created",
+      merchant: 98765,
+      created_at: "2026-08-25T12:00:00Z",
+      data: {
+        id: "invoice-1",
+        order_id: "o1",
+        items: [{ id: "i1", product_id: "p1", quantity: 2, link: "https://www.instagram.com/example" }],
+      },
+    };
     await request(app)
       .post(`/api/webhooks/salla/${publicId}`)
       .set("x-f5r-webhook-token", token)

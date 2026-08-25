@@ -34,8 +34,17 @@ export type SellerSallaStatus = {
 
 export type SellerSallaWebhookInfo = {
   webhook_url: string;
+  event: 'invoice.created';
+  registered: boolean;
   required_headers: { name: string; value: string }[];
   notes: string;
+};
+
+export type SellerSallaWebhookEnsureResult = {
+  webhook_url: string;
+  event: 'invoice.created';
+  registered: boolean;
+  registration_id: string | null;
 };
 
 export type SellerSallaMetrics = {
@@ -95,6 +104,11 @@ export const sellerSallaApi = {
 
   webhookInfo: async (): Promise<SellerSallaWebhookInfo> => {
     const res = await apiFetch<ApiResponse<SellerSallaWebhookInfo>>('/seller/salla/webhook-info', { method: 'GET' });
+    return res.data;
+  },
+
+  ensureWebhook: async (): Promise<SellerSallaWebhookEnsureResult> => {
+    const res = await apiFetch<ApiResponse<SellerSallaWebhookEnsureResult>>('/seller/salla/webhook/ensure', { method: 'POST' });
     return res.data;
   },
 

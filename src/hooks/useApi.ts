@@ -434,6 +434,18 @@ export const useSellerSallaWebhookInfo = () => {
   });
 };
 
+export const useEnsureSellerSallaWebhook = () => {
+  const queryClient = useQueryClient();
+  const { user } = useAuthStore();
+  return useMutation({
+    mutationFn: sellerSallaApi.ensureWebhook,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['seller', 'salla', 'status', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['seller', 'salla', 'webhookInfo', user?.id] });
+    },
+  });
+};
+
 export const useSellerSallaMetrics = () => {
   const { user } = useAuthStore();
   return useQuery({

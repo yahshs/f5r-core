@@ -957,7 +957,7 @@
         "tokenRotated": "تم إنشاء التوكن. انسخه الآن."
       },
       "eventTypeLabel": "نوع الحدث",
-      "eventTypeValue": "order.created",
+      "eventTypeValue": "invoice.created",
       "rotateToken": "إنشاء / تدوير التوكن",
       "newTokenTitle": "توكن جديد (انسخه الآن)",
       "newTokenHint": "يظهر هذا التوكن مرة واحدة فقط. استخدمه في x-f5r-webhook-token عند الربط اليدوي.",

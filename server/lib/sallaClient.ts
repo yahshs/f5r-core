@@ -98,6 +98,10 @@ export async function registerSallaInvoiceCreatedWebhook(input: {
 }) {
   const apiBaseUrl = trimSlash(getEnv("SALLA_API_BASE_URL", "https://api.salla.dev/admin/v2"));
   const webhookSecret = getEnv("SALLA_WEBHOOK_SECRET");
+  const parsedWebhookUrl = new URL(input.webhookUrl);
+  if (!/^https?:$/.test(parsedWebhookUrl.protocol)) {
+    throw new Error("Salla webhook URL must use HTTP or HTTPS");
+  }
   const webhooksUrl = new URL("webhooks/subscribe", `${apiBaseUrl}/`);
   const body = {
     name: "F5R invoice.created",
@@ -117,10 +121,27 @@ export async function registerSallaInvoiceCreatedWebhook(input: {
     body: JSON.stringify(body),
   });
   const json = (await res.json().catch(() => null)) as any;
-  if (!res.ok && res.status !== 409) {
-    throw new Error(json?.message || "Failed to register Salla webhook");
+  if (!res.ok) {
+    const errorMessage = json?.error?.message || json?.message || json?.error_description;
+    throw new Error(errorMessage || `Failed to register Salla webhook (${res.status})`);
   }
-  return json;
+
+  const data = json?.data ?? json;
+  const registeredEvent = String(data?.event || "").trim().toLowerCase();
+  const registeredUrl = String(data?.url || "").trim();
+  if (registeredEvent !== "invoice.created") {
+    throw new Error("Salla did not confirm the invoice.created webhook event");
+  }
+  if (registeredUrl.replace(/\/+$/, "") !== input.webhookUrl.replace(/\/+$/, "")) {
+    throw new Error("Salla confirmed a different webhook URL");
+  }
+
+  return {
+    id: data?.id === undefined || data?.id === null ? null : String(data.id),
+    event: registeredEvent,
+    url: registeredUrl,
+    version: Number(data?.version || 2),
+  };
 }
 
 

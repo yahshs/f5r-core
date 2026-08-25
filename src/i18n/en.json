@@ -928,7 +928,7 @@
                                                 "tokenRotated":  "Token generated. Copy it now."
                                             },
                                  "eventTypeLabel":  "Event type",
-                                 "eventTypeValue":  "order.created",
+                                 "eventTypeValue":  "invoice.created",
                                  "manualWebhookNote":  "Manual webhook setup is only needed for legacy connections.",
                                  "nativeWebhookManaged":  "Webhook is managed automatically by the Salla app."
                              },

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Copy, Download, Link2, RefreshCcw, Unplug, Webhook } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import {
   useDisconnectSellerSalla,
+  useEnsureSellerSallaWebhook,
   useRotateSellerSallaToken,
   useSaveSellerSallaConfig,
   useSellerSallaMetrics,
@@ -39,6 +40,8 @@ export default function SellerSallaIntegrationPage() {
   const simulateMutation = useSimulateSellerSallaCreateOrder();
   const connectMutation = useStartSellerSallaConnect();
   const disconnectMutation = useDisconnectSellerSalla();
+  const ensureWebhookMutation = useEnsureSellerSallaWebhook();
+  const webhookEnsureStarted = useRef(false);
 
   const [enabled, setEnabled] = useState(true);
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<'all' | 'paid'>('all');
@@ -62,6 +65,14 @@ export default function SellerSallaIntegrationPage() {
       setDuplicateDelayEnabled(false);
     }
   }, [status]);
+
+  useEffect(() => {
+    if (!statusQuery.isSuccess || webhookEnsureStarted.current) return;
+    webhookEnsureStarted.current = true;
+    void ensureWebhookMutation.mutateAsync().catch(() => {
+      // The connection status becomes "error" and the normal reconnect flow remains available.
+    });
+  }, [ensureWebhookMutation, statusQuery.isSuccess]);
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -357,25 +368,25 @@ export default function SellerSallaIntegrationPage() {
                 </div>
               )}
 
-              {isManual && connected && (
+              {webhookInfoQuery.data?.webhook_url && (
                 <div className="rounded-lg border p-3 space-y-3">
                   <div>
                     <p className="text-sm font-medium">{t('seller.salla.webhookTitle')}</p>
-                    <p className="text-xs text-muted-foreground">{t('seller.salla.webhookHint')}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {isManual ? t('seller.salla.webhookHint') : t('seller.salla.nativeWebhookManaged')}
+                    </p>
                   </div>
 
-                  {webhookInfoQuery.data?.webhook_url && (
-                    <div className="space-y-2">
-                      <Label>{t('seller.salla.webhookUrl')}</Label>
-                      <div className="flex gap-2">
-                        <Input readOnly value={webhookInfoQuery.data.webhook_url} className="font-mono" />
-                        <Button type="button" variant="outline" className="gap-2" onClick={() => copy(webhookInfoQuery.data!.webhook_url)}>
-                          <Copy className="h-4 w-4" />
-                          {t('common.copy')}
-                        </Button>
-                      </div>
+                  <div className="space-y-2">
+                    <Label>{t('seller.salla.webhookUrl')}</Label>
+                    <div className="flex gap-2">
+                      <Input readOnly value={webhookInfoQuery.data.webhook_url} className="font-mono" />
+                      <Button type="button" variant="outline" className="gap-2" onClick={() => copy(webhookInfoQuery.data!.webhook_url)}>
+                        <Copy className="h-4 w-4" />
+                        {t('common.copy')}
+                      </Button>
                     </div>
-                  )}
+                  </div>
 
                   {!!headersText && (
                     <div className="space-y-2">
