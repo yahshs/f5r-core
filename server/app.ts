@@ -25,6 +25,7 @@ import { adminSubscriptionRequestsRouter } from "./routes/adminSubscriptionReque
 import { sellerNotificationsRouter } from "./routes/sellerNotifications";
 import { handleTelegramWebhook } from "./routes/webhooksTelegram";
 import { sallaAppRouter } from "./routes/sallaApp";
+import { sellerCompensationBotRouter } from "./routes/sellerCompensationBot";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -54,6 +55,7 @@ export async function createApp() {
   app.use("/api/seller/orders", sellerOrdersRouter);
   app.use("/api/seller/subscription", sellerSubscriptionRouter);
   app.use("/api/seller/notifications", sellerNotificationsRouter);
+  app.use("/api/seller/compensation-bot", sellerCompensationBotRouter);
   app.use("/api/seller/analytics", sellerAnalyticsRouter);
   app.use("/api/admin/orders", adminOrdersRouter);
   app.use("/api/admin/users", adminUsersRouter);

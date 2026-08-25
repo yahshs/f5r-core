@@ -116,6 +116,104 @@ export async function createPanelV2Order(baseUrl: URL, apiKey: string, input: Cr
   return { ok: false, message: "Unexpected response shape" };
 }
 
+export type PanelV2OrderStatusResult =
+  | {
+      ok: true;
+      status: string;
+      startCount: number | null;
+      remains: number | null;
+      charge: number | null;
+      currency: string | null;
+    }
+  | { ok: false; message: string };
+
+function optionalNumber(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value.replace(/,/g, ""));
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+export async function fetchPanelV2OrderStatus(
+  baseUrl: URL,
+  apiKey: string,
+  providerOrderId: string,
+): Promise<PanelV2OrderStatusResult> {
+  const res = await postFormUrlEncoded(
+    baseUrl,
+    { key: apiKey, action: "status", order: providerOrderId },
+    { timeoutMs: 10_000, retries: 1 },
+  );
+
+  if (res.status >= 400) return { ok: false, message: `Provider returned HTTP ${res.status}` };
+  const json = tryParseJson(res.bodyText);
+  if (!json || typeof json !== "object" || Array.isArray(json)) {
+    return { ok: false, message: "Unexpected response (not JSON)" };
+  }
+  if ("error" in json && typeof (json as any).error === "string") {
+    return { ok: false, message: (json as any).error };
+  }
+
+  const statusRaw = (json as any).status ?? (json as any).state;
+  const status = typeof statusRaw === "string" ? statusRaw.trim() : "";
+  if (!status) return { ok: false, message: "Unexpected response shape" };
+
+  return {
+    ok: true,
+    status,
+    startCount: optionalNumber((json as any).start_count ?? (json as any).startCount),
+    remains: optionalNumber((json as any).remains ?? (json as any).remaining),
+    charge: optionalNumber((json as any).charge),
+    currency: typeof (json as any).currency === "string" && (json as any).currency.trim()
+      ? (json as any).currency.trim()
+      : null,
+  };
+}
+
+export type PanelV2RefillResult =
+  | { ok: true; refillId: string | null; message: string }
+  | { ok: false; message: string };
+
+export async function requestPanelV2Refill(
+  baseUrl: URL,
+  apiKey: string,
+  providerOrderId: string,
+): Promise<PanelV2RefillResult> {
+  const res = await postFormUrlEncoded(
+    baseUrl,
+    { key: apiKey, action: "refill", order: providerOrderId },
+    // Refill is a state-changing operation. Do not auto-retry an ambiguous timeout,
+    // otherwise a provider that accepted the first request could receive it twice.
+    { timeoutMs: 12_000, retries: 0 },
+  );
+
+  if (res.status >= 400) return { ok: false, message: `Provider returned HTTP ${res.status}` };
+  const json = tryParseJson(res.bodyText);
+  if (!json || typeof json !== "object") {
+    return { ok: false, message: "Unexpected response (not JSON)" };
+  }
+  if ("error" in json && typeof (json as any).error === "string") {
+    return { ok: false, message: (json as any).error };
+  }
+
+  const refillRaw = (json as any).refill ?? (json as any).refill_id ?? (json as any).id;
+  const refillId = typeof refillRaw === "number" || typeof refillRaw === "string" ? String(refillRaw) : null;
+  const successFlag = (json as any).success;
+  const statusText = typeof (json as any).status === "string" ? (json as any).status.trim() : "";
+  const messageText = typeof (json as any).message === "string" ? (json as any).message.trim() : "";
+  const refillText = typeof refillRaw === "string" ? refillRaw.trim() : "";
+  if (/\b(error|failed|denied|not allowed|cannot|can't|unavailable)\b|غير متاح|لا يمكن/i.test(refillText)) {
+    return { ok: false, message: refillText };
+  }
+  if (refillId || successFlag === true || /success|accepted|pending/i.test(statusText) || /success|accepted|queued/i.test(messageText)) {
+    return { ok: true, refillId, message: messageText || statusText || "Refill accepted" };
+  }
+
+  return { ok: false, message: messageText || statusText || "Provider did not accept the refill" };
+}
+
 export type PanelV2Service = {
   id: number;
   name: string;

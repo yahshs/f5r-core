@@ -2,6 +2,7 @@ import { processNextSallaWebhookEvent } from "./sallaWebhookWorker";
 import { processNextFulfillment } from "./fulfillmentWorker";
 import { processNextNotificationJob, runScheduledNotificationScan } from "./notificationWorker";
 import { getSetting } from "../db/settingsRepo";
+import { processNextCompensationRequest } from "./compensationWorker";
 
 let started = false;
 
@@ -16,6 +17,7 @@ export function startWorkers() {
   let fulfillmentRunning = false;
   let notificationRunning = false;
   let notificationScanRunning = false;
+  let compensationRunning = false;
   const notificationPollMs = Number(process.env.NOTIFICATION_WORKER_POLL_MS || pollMs);
   const notificationScanMs = Number(process.env.NOTIFICATION_SCAN_MS || 60_000);
 
@@ -87,4 +89,20 @@ export function startWorkers() {
       notificationScanRunning = false;
     }
   }, notificationScanMs);
+
+  setInterval(async () => {
+    if (!shouldRun()) return;
+    if (compensationRunning) return;
+    compensationRunning = true;
+    try {
+      for (let i = 0; i < maxBatch; i++) {
+        const did = await processNextCompensationRequest();
+        if (!did) break;
+      }
+    } catch (error) {
+      console.error("[workers] compensation loop failed", error);
+    } finally {
+      compensationRunning = false;
+    }
+  }, pollMs);
 }

@@ -28,6 +28,20 @@ import {
   getTelegramBotText,
   normalizeRetryTarget,
 } from "../lib/telegramFulfillmentRecovery";
+import {
+  getCustomerBotChatByChatId,
+  getCustomerBotSettingsBySellerId,
+  getCustomerBotSettingsByStartCode,
+  linkCustomerBotChat,
+} from "../db/customerBotSettingsRepo";
+import { reserveCompensationRequest } from "../db/compensationRequestsRepo";
+import { getOrderById } from "../db/ordersRepo";
+import { listFulfillmentsByOrderId } from "../db/fulfillmentsRepo";
+import {
+  buildCustomerOrderMessage,
+  buildCustomerOrderReplyMarkup,
+  getCustomerOrderSnapshot,
+} from "../lib/customerCompensationBot";
 
 function extractStartCode(text: string) {
   const trimmed = String(text || "").trim();
@@ -53,6 +67,7 @@ async function handleStartMessage(message: any) {
 
   const code = extractStartCode(text);
   if (!code) return false;
+  if (code.startsWith("cb_")) return false;
 
   const settings = getNotificationSettingsByLinkCode(code);
   if (!settings) {
@@ -76,26 +91,101 @@ async function handleStartMessage(message: any) {
   return true;
 }
 
+async function handleCustomerStartMessage(message: any) {
+  const text = typeof message?.text === "string" ? message.text : "";
+  const chatId = normalizeChatId(message?.chat?.id);
+  if (!text || !chatId) return false;
+  const code = extractStartCode(text);
+  if (!code || !code.startsWith("cb_")) return false;
+
+  const settings = getCustomerBotSettingsByStartCode(code);
+  if (!settings) {
+    await sendTelegramMessage(chatId, "رابط البوت غير صالح. افتح الرابط الموجود في متجر الشراء.");
+    return true;
+  }
+  if (!settings.is_enabled) {
+    await sendTelegramMessage(chatId, "خدمة متابعة الطلبات والتعويض متوقفة مؤقتًا لدى هذا المتجر.");
+    return true;
+  }
+
+  linkCustomerBotChat({
+    chatId,
+    sellerId: settings.seller_id,
+    telegramUserId: normalizeChatId(message?.from?.id),
+    telegramUsername: typeof message?.from?.username === "string" ? message.from.username : null,
+  });
+  await sendTelegramMessage(
+    chatId,
+    "أهلًا بك 👋\nأرسل رقم طلبك فقط، وسأعرض لك حالة التنفيذ وإمكانية التعويض.",
+  );
+  return true;
+}
+
+function normalizeCustomerOrderNumber(text: string) {
+  const normalized = String(text || "")
+    .trim()
+    .replace(/^#/, "")
+    .replace(/[٠-٩]/g, (digit) => String(digit.charCodeAt(0) - 0x0660))
+    .replace(/[۰-۹]/g, (digit) => String(digit.charCodeAt(0) - 0x06f0));
+  return /^[A-Za-z0-9_-]{2,80}$/.test(normalized) ? normalized : null;
+}
+
+async function sendCustomerOrderStatus(chatId: string, sellerId: string, orderNumber: string) {
+  const snapshot = await getCustomerOrderSnapshot({ sellerId, orderNumber });
+  if (!snapshot) {
+    await sendTelegramMessage(chatId, "رقم الطلب غير صحيح أو لا يتبع هذا المتجر. تأكد من الرقم وأرسله مرة أخرى.");
+    return;
+  }
+  await sendTelegramMessage(chatId, buildCustomerOrderMessage(snapshot), {
+    replyMarkup: buildCustomerOrderReplyMarkup(snapshot),
+  });
+}
+
+async function handleCustomerMessage(message: any) {
+  const chatId = normalizeChatId(message?.chat?.id);
+  const text = typeof message?.text === "string" ? message.text.trim() : "";
+  if (!chatId || !text) return false;
+  const customerChat = getCustomerBotChatByChatId(chatId);
+  if (!customerChat) return false;
+
+  const settings = getCustomerBotSettingsBySellerId(customerChat.seller_id);
+  if (!settings?.is_enabled) {
+    await sendTelegramMessage(chatId, "خدمة متابعة الطلبات والتعويض متوقفة مؤقتًا لدى هذا المتجر.");
+    return true;
+  }
+  if (/^\/start(?:@\w+)?$/i.test(text)) {
+    await sendTelegramMessage(chatId, "أرسل رقم طلبك فقط لمتابعة حالته.");
+    return true;
+  }
+  const orderNumber = normalizeCustomerOrderNumber(text);
+  if (!orderNumber) {
+    await sendTelegramMessage(chatId, "أرسل رقم الطلب فقط بدون أي كلمات إضافية.");
+    return true;
+  }
+  await sendCustomerOrderStatus(chatId, customerChat.seller_id, orderNumber);
+  return true;
+}
+
 async function handleSessionReply(message: any) {
   const chatId = normalizeChatId(message?.chat?.id);
   const text = typeof message?.text === "string" ? message.text.trim() : "";
-  if (!chatId || !text) return;
+  if (!chatId || !text) return false;
 
   deleteExpiredTelegramActionSessions(new Date().toISOString());
   const session = getActiveTelegramActionSessionByChatId(chatId, new Date().toISOString());
-  if (!session || session.action_type !== "await_new_link") return;
+  if (!session || session.action_type !== "await_new_link") return false;
 
   const settings = getNotificationSettingsByChatAndSellerId(chatId, session.seller_id);
   if (!settings) {
     deleteTelegramActionSession(session.id);
-    return;
+    return true;
   }
 
   const t = getTelegramBotText(settings.locale);
   if (/^\/cancel$/i.test(text)) {
     deleteTelegramActionSession(session.id);
     await sendTelegramMessage(chatId, t.prompts.cancelled);
-    return;
+    return true;
   }
 
   try {
@@ -103,7 +193,7 @@ async function handleSessionReply(message: any) {
     const candidate = normalizeRetryTarget(text, context.platform);
     if (!candidate) {
       await sendTelegramMessage(chatId, t.prompts.invalidLink);
-      return;
+      return true;
     }
 
     updateTelegramActionSessionPayload(
@@ -117,10 +207,75 @@ async function handleSessionReply(message: any) {
     await sendTelegramMessage(chatId, `${t.prompts.confirmNewLink}\n${candidate}`, {
       replyMarkup: buildRetryConfirmReplyMarkup(session.id, settings.locale),
     });
+    return true;
   } catch (error) {
     deleteTelegramActionSession(session.id);
     await sendTelegramMessage(chatId, error instanceof Error ? error.message : t.prompts.expired);
+    return true;
   }
+}
+
+function compensationDenialMessage(reason: string | null, retryAt?: string | null) {
+  if (reason === "pending") return "يوجد طلب تعويض قيد المعالجة حاليًا.";
+  if (reason === "limit_reached") return "تم استخدام جميع مرات التعويض المتاحة لهذا الطلب.";
+  if (reason === "cooldown" && retryAt) {
+    return `يمكن طلب التعويض مرة أخرى بعد ${new Date(retryAt).toLocaleString("ar-SA", { timeZone: "Asia/Riyadh" })}.`;
+  }
+  if (reason === "expired") return "انتهت مدة التعويض لهذا الطلب.";
+  if (reason === "disabled") return "خدمة التعويض متوقفة مؤقتًا.";
+  return "التعويض غير متاح لهذا الطلب.";
+}
+
+async function handleCustomerCallback(input: {
+  action: string;
+  orderId: string;
+  callbackId: string;
+  chatId: string;
+}) {
+  const customerChat = getCustomerBotChatByChatId(input.chatId);
+  if (!customerChat) {
+    await answerTelegramCallbackQuery(input.callbackId, "افتح رابط البوت من المتجر أولًا.");
+    return;
+  }
+  const order = getOrderById(input.orderId);
+  if (!order || order.seller_id !== customerChat.seller_id) {
+    await answerTelegramCallbackQuery(input.callbackId, "الطلب غير موجود.");
+    return;
+  }
+
+  if (input.action === "cs") {
+    await answerTelegramCallbackQuery(input.callbackId, "جاري تحديث الحالة...");
+    await sendCustomerOrderStatus(input.chatId, customerChat.seller_id, order.salla_order_id);
+    return;
+  }
+
+  const settings = getCustomerBotSettingsBySellerId(customerChat.seller_id);
+  if (!settings) {
+    await answerTelegramCallbackQuery(input.callbackId, "الخدمة غير متاحة.");
+    return;
+  }
+  const hasProviderOrder = listFulfillmentsByOrderId(order.id).some(
+    (entry) => entry.status === "SUCCESS" && !!entry.provider_order_id?.trim(),
+  );
+  const reservation = reserveCompensationRequest({
+    settings,
+    order,
+    chatId: input.chatId,
+    hasProviderOrder,
+    nowIso: new Date().toISOString(),
+  });
+  if (!reservation.ok) {
+    const message = compensationDenialMessage(reservation.reason, reservation.retryAt);
+    await answerTelegramCallbackQuery(input.callbackId, message);
+    await sendTelegramMessage(input.chatId, message);
+    return;
+  }
+
+  await answerTelegramCallbackQuery(input.callbackId, "تم استلام طلب التعويض ✅");
+  await sendTelegramMessage(
+    input.chatId,
+    `تم استلام طلب التعويض رقم ${reservation.request.request_number} للطلب ${order.salla_order_id}.\nسأرسل لك النتيجة فور رد المزود.`,
+  );
 }
 
 async function handleCallbackQuery(callbackQuery: any) {
@@ -132,6 +287,22 @@ async function handleCallbackQuery(callbackQuery: any) {
   const parsed = parseCallbackAction(data);
   if (!parsed) {
     await answerTelegramCallbackQuery(callbackId);
+    return;
+  }
+
+  if (parsed.action === "cs" || parsed.action === "cr") {
+    try {
+      await handleCustomerCallback({
+        action: parsed.action,
+        orderId: parsed.id,
+        callbackId,
+        chatId,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "تعذر تنفيذ الطلب.";
+      await answerTelegramCallbackQuery(callbackId, message);
+      await sendTelegramMessage(chatId, message);
+    }
     return;
   }
 
@@ -265,9 +436,11 @@ export async function handleTelegramWebhook(req: Request, res: Response) {
     }
 
     if (message) {
-      const handledStart = await handleStartMessage(message);
-      if (!handledStart) {
-        await handleSessionReply(message);
+      const handledSellerStart = await handleStartMessage(message);
+      const handledCustomerStart = handledSellerStart ? false : await handleCustomerStartMessage(message);
+      if (!handledSellerStart && !handledCustomerStart) {
+        const handledSession = await handleSessionReply(message);
+        if (!handledSession) await handleCustomerMessage(message);
       }
     }
 

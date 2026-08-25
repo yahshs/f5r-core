@@ -1,6 +1,6 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { BarChart3, CreditCard, LayoutDashboard, Link2, Package, Server, ShoppingBag } from 'lucide-react';
+import { BarChart3, Bot, CreditCard, LayoutDashboard, Link2, Package, Server, ShoppingBag } from 'lucide-react';
 
 import { MainLayout } from '@/components/layout';
 import { cn } from '@/lib/utils';
@@ -13,6 +13,7 @@ const sellerNavItems = [
   { path: '/seller/products', icon: ShoppingBag, labelKey: 'seller.nav.products' },
   { path: '/seller/smm-providers', icon: Server, labelKey: 'seller.nav.smmProviders' },
   { path: '/seller/salla', icon: Link2, labelKey: 'seller.nav.salla' },
+  { path: '/seller/compensation-bot', icon: Bot, labelKey: 'seller.nav.compensationBot' },
   { path: '/seller/account', icon: CreditCard, labelKey: 'seller.nav.account' },
 ];
 
@@ -62,7 +63,7 @@ export default function SellerLayout() {
                     )}
                   >
                     <item.icon className="h-[18px] w-[18px] shrink-0" />
-                    <span>{t(item.labelKey)}</span>
+                    <span>{t(item.labelKey, { defaultValue: item.path === '/seller/compensation-bot' ? (isRTL ? 'بوت التعويضات' : 'Compensation bot') : item.labelKey })}</span>
                   </Link>
                 );
               })}
@@ -96,7 +97,7 @@ export default function SellerLayout() {
                     )}
                   >
                     <item.icon className="h-4 w-4 shrink-0" />
-                    <span>{t(item.labelKey)}</span>
+                    <span>{t(item.labelKey, { defaultValue: item.path === '/seller/compensation-bot' ? (isRTL ? 'بوت التعويضات' : 'Compensation bot') : item.labelKey })}</span>
                   </Link>
                 );
               })}

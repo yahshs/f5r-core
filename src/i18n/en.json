@@ -574,6 +574,7 @@
                                "products":  "Products",
                                "smmProviders":  "Providers",
                                "salla":  "Salla Integration",
+                               "compensationBot":  "Compensation Bot",
                                "account":  "Account"
                            },
                    "analyticsPage":  {

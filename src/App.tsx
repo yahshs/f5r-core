@@ -39,6 +39,7 @@ const SellerOrdersPage = lazy(() => import("./pages/seller/Orders"));
 const SellerProductsPage = lazy(() => import("./pages/seller/Products"));
 const SellerSallaIntegrationPage = lazy(() => import("./pages/seller/Salla"));
 const SellerAccountPage = lazy(() => import("./pages/seller/Account"));
+const SellerCompensationBotPage = lazy(() => import("./pages/seller/CompensationBot"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 import RequireRole from "./components/auth/RequireRole";
 import { useCurrentUser } from "./hooks/useApi";
@@ -128,6 +129,7 @@ const AppContent = () => {
             <Route path="products" element={<SellerProductsPage />} />
             <Route path="smm-providers" element={<SellerSmmProvidersPage />} />
             <Route path="salla" element={<SellerSallaIntegrationPage />} />
+            <Route path="compensation-bot" element={<SellerCompensationBotPage />} />
             <Route path="account" element={<SellerAccountPage />} />
           </Route>
           
