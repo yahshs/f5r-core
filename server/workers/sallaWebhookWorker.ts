@@ -406,6 +406,46 @@ function findFirstUrlDeep(input: any) {
   return null;
 }
 
+function findFirstSocialTargetUrlDeep(input: any) {
+  const maxNodes = 4000;
+  const maxDepth = 12;
+  const stack: Array<{ v: any; path: string; depth: number }> = [{ v: input, path: "", depth: 0 }];
+  const seen = new Set<any>();
+  let nodes = 0;
+
+  while (stack.length && nodes < maxNodes) {
+    const cur = stack.pop()!;
+    nodes += 1;
+
+    if (typeof cur.v === "string") {
+      const cleaned = stripLeadingSlashHttp(cur.v);
+      const url = normalizeUrlish(cleaned) ?? extractUrlFromText(cleaned);
+      if (url && isLikelySocialTargetUrl(url) && !isIncompleteSocialTargetUrl(url)) {
+        return { value: url, path: cur.path || "." };
+      }
+      continue;
+    }
+    if (!cur.v || typeof cur.v !== "object" || cur.depth >= maxDepth) continue;
+    if (seen.has(cur.v)) continue;
+    seen.add(cur.v);
+
+    if (Array.isArray(cur.v)) {
+      for (let i = cur.v.length - 1; i >= 0; i--) {
+        stack.push({ v: cur.v[i], path: `${cur.path}[${i}]`, depth: cur.depth + 1 });
+      }
+      continue;
+    }
+
+    const keys = Object.keys(cur.v);
+    for (let i = keys.length - 1; i >= 0; i--) {
+      const key = keys[i];
+      stack.push({ v: cur.v[key], path: cur.path ? `${cur.path}.${key}` : key, depth: cur.depth + 1 });
+    }
+  }
+
+  return null;
+}
+
 function findUrlInKeyValueList(input: any) {
   const arr = normalizeArray(input);
   for (const entry of arr) {
@@ -509,10 +549,15 @@ function extractTargetFromItem(item: any) {
     if (username) return { key: "target", value: cleaned, source: `key:${k}:username` };
   }
 
+  const deepSocial = findFirstSocialTargetUrlDeep(item);
+  if (deepSocial?.value) {
+    return { key: "link", value: deepSocial.value, source: `deep-social:${deepSocial.path}` };
+  }
+
   return null;
 }
 
-function buildTargetJson(item: any) {
+export function buildTargetJson(item: any) {
   const base = item && typeof item === "object" ? { ...(item as any) } : { raw: item };
   const extracted = extractTargetFromItem(base);
 
@@ -564,7 +609,7 @@ function conditionsMatch(rule: SmmProductRuleRow, item: any) {
   return true;
 }
 
-function extractOrder(payload: any): {
+export function extractOrder(payload: any): {
   orderId: string | null;
   status?: string;
   paymentStatus?: string;
@@ -574,11 +619,21 @@ function extractOrder(payload: any): {
 } {
   const root = payload && typeof payload === "object" ? payload : {};
   const data = (root as any).data ?? root;
-  const order = (data as any).order ?? (root as any).order ?? data;
+  const order =
+    (data as any).order ??
+    (data as any).invoice?.order ??
+    (root as any).order ??
+    (root as any).invoice?.order ??
+    (data as any).invoice ??
+    data;
 
   const orderIdCandidate = firstByPaths(root, [
     "order.reference_id",
     "data.order.reference_id",
+    "data.invoice.order.reference_id",
+    "data.invoice.reference_id",
+    "invoice.order.reference_id",
+    "invoice.reference_id",
     "data.reference_id",
     "reference_id",
     "order.id",
@@ -586,6 +641,10 @@ function extractOrder(payload: any): {
     "order_id",
     "data.order_id",
     "data.order.order_id",
+    "data.invoice.order_id",
+    "data.invoice.order.id",
+    "invoice.order_id",
+    "invoice.order.id",
     "order.order_id",
     "data.id",
   ]);
@@ -600,6 +659,15 @@ function extractOrder(payload: any): {
       "data.items.data",
       "data.order.items",
       "data.order.items.data",
+      "data.invoice.items",
+      "data.invoice.items.data",
+      "data.invoice.products",
+      "data.invoice.order.items",
+      "data.invoice.order.items.data",
+      "data.products",
+      "data.order.products",
+      "invoice.items",
+      "invoice.products",
       "order.line_items",
       "data.line_items",
     ]) ?? [];
@@ -663,10 +731,14 @@ function extractOrderId(payload: any): string | null {
   const candidate =
     (order as any).reference_id ??
     (data as any).order?.reference_id ??
+    (data as any).invoice?.order?.reference_id ??
+    (data as any).invoice?.reference_id ??
     (data as any).reference_id ??
     (root as any).reference_id ??
     (order as any).id ??
     (data as any).order?.id ??
+    (data as any).invoice?.order_id ??
+    (data as any).invoice?.order?.id ??
     (root as any).order_id ??
     (data as any).order_id ??
     (order as any).order_id ??
@@ -696,6 +768,8 @@ function extractSallaApiOrderId(payload: any): string | null {
   const order = (root as any).order ?? (data as any).order ?? {};
   const candidate =
     (data as any).order_id ??
+    (data as any).invoice?.order_id ??
+    (data as any).invoice?.order?.id ??
     (order as any).id ??
     (root as any).order_id ??
     (data as any).order?.id ??
@@ -932,11 +1006,7 @@ export async function processNextSallaWebhookEvent() {
     const extracted = extractOrder(processingPayload);
     const orderId = extractOrderId(processingPayload) ?? extracted.orderId;
 
-    if (!orderId) {
-      console.log("[salla-worker] skipped (missing order id)", { id: job.id, sellerId: job.seller_id, topic: job.topic });
-      markWebhookEventDone(job.id, new Date().toISOString());
-      return true;
-    }
+    if (!orderId) throw new Error(`Webhook payload missing order id (topic=${job.topic})`);
 
     if (conn && !isSallaConnectionOperational(conn)) {
       markWebhookEventDone(job.id, new Date().toISOString());

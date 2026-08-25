@@ -125,11 +125,12 @@ export function createFulfillmentRetryAttempt(input: {
 
 export function claimNextFulfillment(nowIso: string) {
   const db = getDb();
+  const leaseUntilIso = new Date(new Date(nowIso).getTime() + 10 * 60 * 1000).toISOString();
   const tx = db.transaction(() => {
     const row = db
       .prepare(
         `SELECT * FROM fulfillments
-         WHERE status IN ('PENDING','FAILED') AND next_attempt_at <= ?
+         WHERE status IN ('PENDING','FAILED','SUBMITTED') AND next_attempt_at <= ?
          ORDER BY next_attempt_at ASC
          LIMIT 1`,
       )
@@ -139,11 +140,17 @@ export function claimNextFulfillment(nowIso: string) {
     const updatedAt = new Date().toISOString();
     db.prepare(
       `UPDATE fulfillments
-       SET status = 'SUBMITTED', attempts = attempts + 1, updated_at = ?
+       SET status = 'SUBMITTED', attempts = attempts + 1, next_attempt_at = ?, updated_at = ?
        WHERE id = ?`,
-    ).run(updatedAt, row.id);
+    ).run(leaseUntilIso, updatedAt, row.id);
 
-    return { ...row, status: "SUBMITTED" as const, attempts: row.attempts + 1, updated_at: updatedAt };
+    return {
+      ...row,
+      status: "SUBMITTED" as const,
+      attempts: row.attempts + 1,
+      next_attempt_at: leaseUntilIso,
+      updated_at: updatedAt,
+    };
   });
   return tx();
 }

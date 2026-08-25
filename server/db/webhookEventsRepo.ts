@@ -63,11 +63,12 @@ export function insertWebhookEvent(input: {
 
 export function claimNextWebhookEvent(nowIso: string) {
   const db = getDb();
+  const leaseUntilIso = new Date(new Date(nowIso).getTime() + 5 * 60 * 1000).toISOString();
   const tx = db.transaction(() => {
     const row = db
       .prepare(
         `SELECT * FROM webhook_events
-         WHERE status IN ('RECEIVED','FAILED') AND next_attempt_at <= ?
+         WHERE status IN ('RECEIVED','FAILED','PROCESSING') AND next_attempt_at <= ?
          ORDER BY received_at ASC
          LIMIT 1`,
       )
@@ -76,9 +77,9 @@ export function claimNextWebhookEvent(nowIso: string) {
 
     db.prepare(
       `UPDATE webhook_events
-       SET status = 'PROCESSING', attempts = attempts + 1
+       SET status = 'PROCESSING', attempts = attempts + 1, next_attempt_at = ?
        WHERE id = ?`,
-    ).run(row.id);
+    ).run(leaseUntilIso, row.id);
 
     return { ...row, status: "PROCESSING" as const, attempts: row.attempts + 1 };
   });

@@ -355,6 +355,56 @@ function extractUrlFromText(s: string) {
   return normalizeUrlish(m[1] ?? "") ?? null;
 }
 
+function isSocialTargetUrl(value: string) {
+  try {
+    const host = new URL(value).hostname.toLowerCase();
+    return (
+      host === "tiktok.com" ||
+      host.endsWith(".tiktok.com") ||
+      host === "instagram.com" ||
+      host.endsWith(".instagram.com") ||
+      host === "instagr.am" ||
+      host.endsWith(".instagr.am")
+    );
+  } catch {
+    return false;
+  }
+}
+
+function findUrlDeep(root: any, socialOnly: boolean) {
+  const stack: Array<{ value: any; depth: number }> = [{ value: root, depth: 0 }];
+  const seen = new Set<any>();
+  let nodes = 0;
+
+  while (stack.length && nodes < 4000) {
+    const current = stack.pop()!;
+    nodes += 1;
+
+    if (typeof current.value === "string") {
+      const url = extractUrlFromText(current.value) ?? normalizeUrlish(current.value);
+      if (url && (!socialOnly || isSocialTargetUrl(url))) return url;
+      continue;
+    }
+    if (!current.value || typeof current.value !== "object" || current.depth >= 10) continue;
+    if (seen.has(current.value)) continue;
+    seen.add(current.value);
+
+    if (Array.isArray(current.value)) {
+      for (let i = current.value.length - 1; i >= 0; i--) {
+        stack.push({ value: current.value[i], depth: current.depth + 1 });
+      }
+      continue;
+    }
+
+    const keys = Object.keys(current.value);
+    for (let i = keys.length - 1; i >= 0; i--) {
+      stack.push({ value: current.value[keys[i]], depth: current.depth + 1 });
+    }
+  }
+
+  return null;
+}
+
 function ruleExpectsUrl(rule: SmmProductRuleRow) {
   if (rule.normalize_url === 1) return true;
 
@@ -400,16 +450,40 @@ function pickRule(rules: SmmProductRuleRow[], providerId: string) {
   return filtered[0] ?? null;
 }
 
-function resolveTarget(rule: SmmProductRuleRow, itemObj: any, _platformHint?: "tiktok" | "instagram" | null): string | null {
+export function resolveTarget(rule: SmmProductRuleRow, itemObj: any, _platformHint?: "tiktok" | "instagram" | null): string | null {
   const expectsUrl = ruleExpectsUrl(rule);
 
   // URL-based services must use a URL that came from Salla.
   // Never manufacture a profile URL from a username and never fall back to rule defaults/url_handler.
   if (expectsUrl) {
     const trusted = itemObj?._f5r?.salla_target_url;
-    if (typeof trusted !== "string") return null;
-    const exact = trusted.trim();
-    return /^https?:\/\/\S+$/i.test(exact) ? exact : null;
+    if (typeof trusted === "string") {
+      const exact = extractUrlFromText(trusted) ?? normalizeUrlish(trusted);
+      if (exact) return exact;
+    }
+
+    const field = typeof rule.target_field === "string" ? rule.target_field.trim() : "";
+    const explicitValues = [
+      field ? getByPath(itemObj, field) : undefined,
+      field ? getByCaseInsensitiveKey(itemObj, field) : undefined,
+      field ? findValueByLabelDeep(itemObj, normalizeLabelKey(field)) : undefined,
+      itemObj?.target,
+      itemObj?.link,
+      itemObj?.url,
+      itemObj?.post_link,
+      itemObj?.video_link,
+      itemObj?.fields?.link,
+      itemObj?.custom_fields?.link,
+      itemObj?.customFields?.link,
+    ];
+    for (const value of explicitValues) {
+      const exact = findUrlDeep(value, false);
+      if (exact) return exact;
+    }
+
+    // Salla changes the nesting of product inputs between webhook payload versions.
+    // A social URL anywhere inside the purchased item is safe to use and avoids losing valid orders.
+    return findUrlDeep(itemObj, true);
   }
 
   const tryRawSallaValue = (val: any) => {

@@ -220,7 +220,7 @@ sellerSallaRouter.get("/recent-activity", (req, res) => {
        FROM orders
        WHERE seller_id = ?
        ORDER BY updated_at DESC
-       LIMIT 8`,
+       LIMIT 50`,
     )
     .all(sellerId) as any[];
 
