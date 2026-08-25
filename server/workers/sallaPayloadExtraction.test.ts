@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { resolveTarget } from "./fulfillmentWorker";
-import { buildTargetJson, extractOrder } from "./sallaWebhookWorker";
+import { buildTargetJson, extractOrder, extractOrderId } from "./sallaWebhookWorker";
 
 const linkRule = {
   target_field: "link",
@@ -36,6 +36,21 @@ describe("Salla invoice payload extraction", () => {
     const extracted = extractOrder(payload);
     expect(extracted.orderId).toBe("order-900");
     expect(extracted.items).toHaveLength(1);
+  });
+
+  it("prefers the merchant-visible Salla order reference over internal ids", () => {
+    const payload = {
+      event: "invoice.created",
+      data: {
+        id: 873456789,
+        order_id: 812345678,
+        order_reference_id: 241770081,
+        items: [{ id: "item-1", product_id: "product-1" }],
+      },
+    };
+
+    expect(extractOrder(payload).orderId).toBe("241770081");
+    expect(extractOrderId(payload)).toBe("241770081");
   });
 
   it("recovers a link from existing stored item JSON without extraction metadata", () => {

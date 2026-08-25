@@ -1,13 +1,10 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
-import { BarChart3, CreditCard, LayoutDashboard, Link2, Menu, Package, Server, ShoppingBag } from 'lucide-react';
+import { BarChart3, CreditCard, LayoutDashboard, Link2, Package, Server, ShoppingBag } from 'lucide-react';
+
 import { MainLayout } from '@/components/layout';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Button } from '@/components/ui/button';
 
 const sellerNavItems = [
   { path: '/seller/dashboard', icon: LayoutDashboard, labelKey: 'seller.nav.dashboard' },
@@ -20,102 +17,103 @@ const sellerNavItems = [
 ];
 
 export default function SellerLayout() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const location = useLocation();
   const { user } = useAuthStore();
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const isRTL = i18n.dir() === 'rtl';
+
+  const isActivePath = (path: string) => location.pathname === path || location.pathname.startsWith(`${path}/`);
 
   return (
     <MainLayout showFooter={false}>
-      <div className="flex min-h-[calc(100vh-4rem)]">
-        {/* Sidebar */}
-        <motion.aside
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="hidden w-64 border-r bg-card lg:block lg:sticky lg:top-16 lg:h-[calc(100vh-4rem)] lg:overflow-y-auto"
+      <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-primary/[0.035] via-background to-background lg:flex">
+        <aside
+          className={cn(
+            'hidden w-64 shrink-0 bg-card/80 backdrop-blur-xl lg:sticky lg:top-16 lg:block lg:h-[calc(100vh-4rem)] lg:overflow-y-auto',
+            isRTL ? 'border-l' : 'border-r',
+          )}
         >
-          <div className="p-4 pb-8">
-            <h2 className="mb-4 px-4 text-lg font-semibold">{t('seller.title')}</h2>
-            <nav className="space-y-1">
+          <div className="flex min-h-full flex-col p-4">
+            <div className="mb-5 rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-base font-bold text-primary-foreground shadow-sm">
+                  {(user?.name || 'F').charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold">{user?.name || t('seller.title')}</p>
+                  <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
+                </div>
+              </div>
+            </div>
+
+            <nav className="space-y-1.5" aria-label={t('seller.title')}>
               {sellerNavItems.map((item) => {
-                const isActive = location.pathname === item.path || location.pathname.startsWith(item.path);
+                const active = isActivePath(item.path);
                 return (
                   <Link
                     key={item.path}
                     to={item.path}
+                    aria-current={active ? 'page' : undefined}
                     className={cn(
-                      "flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors",
-                      isActive
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                      'group flex min-h-11 items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors',
+                      active
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'text-muted-foreground hover:bg-primary/10 hover:text-foreground',
                     )}
                   >
-                    <item.icon className="h-5 w-5" />
-                    {t(item.labelKey)}
+                    <item.icon className="h-[18px] w-[18px] shrink-0" />
+                    <span>{t(item.labelKey)}</span>
                   </Link>
                 );
               })}
             </nav>
-          </div>
-        </motion.aside>
 
-        {/* Main Content */}
-        <main className="flex-1 overflow-auto px-4 pb-6 pt-4 sm:px-6 lg:p-8">
-          {/* Mobile seller nav */}
-          <div className="mb-4 flex items-center justify-between lg:hidden">
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="shrink-0"
-              onClick={() => setMobileNavOpen(true)}
-              aria-label={t('seller.title')}
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
-            <h2 className="text-base font-semibold">{t('seller.title')}</h2>
-            <div className="w-10" />
-          </div>
-          <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
-            <SheetContent side="right" className="w-72 p-0">
-              <SheetHeader className="border-b p-4">
-                <SheetTitle>{t('seller.title')}</SheetTitle>
-              </SheetHeader>
-              <div className="max-h-[calc(100vh-5rem)] overflow-y-auto p-4 pb-8">
-                <nav className="space-y-1">
-                  {sellerNavItems.map((item) => {
-                    const isActive = location.pathname === item.path || location.pathname.startsWith(item.path);
-                    return (
-                      <Link
-                        key={item.path}
-                        to={item.path}
-                        onClick={() => setMobileNavOpen(false)}
-                        className={cn(
-                          "flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors",
-                          isActive
-                            ? "bg-primary text-primary-foreground"
-                            : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                        )}
-                      >
-                        <item.icon className="h-5 w-5" />
-                        {t(item.labelKey)}
-                      </Link>
-                    );
-                  })}
-                </nav>
-              </div>
-            </SheetContent>
-          </Sheet>
-
-          {user?.role !== 'seller' ? (
-            <div className="mx-auto max-w-xl rounded-lg border bg-card p-6 text-center">
-              <h1 className="text-xl font-semibold">{t('auth.unauthorized')}</h1>
-              <p className="mt-2 text-sm text-muted-foreground">{t('seller.unauthorizedHint')}</p>
+            <div className="mt-auto rounded-xl border border-border/70 bg-background/70 px-3 py-2.5 text-xs text-muted-foreground">
+              <span className="me-2 inline-block h-2 w-2 rounded-full bg-emerald-500" />
+              {isRTL ? 'النظام يعمل' : 'System operational'}
             </div>
-          ) : (
-            <Outlet />
-          )}
-        </main>
+          </div>
+        </aside>
+
+        <div className="min-w-0 flex-1">
+          <nav
+            className="sticky top-16 z-30 border-b bg-background/95 backdrop-blur-xl lg:hidden"
+            aria-label={t('seller.title')}
+          >
+            <div className="scrollbar-hide flex gap-2 overflow-x-auto px-3 py-2.5 sm:px-5">
+              {sellerNavItems.map((item) => {
+                const active = isActivePath(item.path);
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    aria-current={active ? 'page' : undefined}
+                    className={cn(
+                      'flex min-h-10 shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition-colors sm:text-sm',
+                      active
+                        ? 'border-primary bg-primary text-primary-foreground shadow-sm'
+                        : 'border-border/70 bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground',
+                    )}
+                  >
+                    <item.icon className="h-4 w-4 shrink-0" />
+                    <span>{t(item.labelKey)}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </nav>
+
+          <main className="mx-auto w-full max-w-[1600px] px-3 py-4 sm:px-5 sm:py-6 lg:px-7 xl:px-9">
+            {user?.role !== 'seller' ? (
+              <div className="mx-auto max-w-xl rounded-2xl border bg-card p-6 text-center shadow-sm">
+                <h1 className="text-xl font-semibold">{t('auth.unauthorized')}</h1>
+                <p className="mt-2 text-sm text-muted-foreground">{t('seller.unauthorizedHint')}</p>
+              </div>
+            ) : (
+              <Outlet />
+            )}
+          </main>
+        </div>
       </div>
     </MainLayout>
   );

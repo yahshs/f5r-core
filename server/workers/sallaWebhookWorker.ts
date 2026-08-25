@@ -7,7 +7,7 @@ import {
   touchSallaLastEventAtByConnectionId,
   touchSallaLastEventAtBySellerId,
 } from "../db/sallaConnectionsRepo";
-import { getOrderBySellerAndSallaId, upsertOrder, upsertOrderItem } from "../db/ordersRepo";
+import { getOrderBySellerAndSallaId, replaceOrderSallaIdById, upsertOrder, upsertOrderItem } from "../db/ordersRepo";
 import { getSellerProductBySallaProductId, getSellerProductBySku } from "../db/productsRepo";
 import { listRulesForProduct, type SmmProductRuleRow } from "../db/smmRulesRepo";
 import { getProviderByIdForSeller } from "../db/smmProvidersRepo";
@@ -628,6 +628,14 @@ export function extractOrder(payload: any): {
     data;
 
   const orderIdCandidate = firstByPaths(root, [
+    "order.order_reference_id",
+    "data.order.order_reference_id",
+    "data.invoice.order.order_reference_id",
+    "data.invoice.order_reference_id",
+    "invoice.order.order_reference_id",
+    "invoice.order_reference_id",
+    "data.order_reference_id",
+    "order_reference_id",
     "order.reference_id",
     "data.order.reference_id",
     "data.invoice.order.reference_id",
@@ -723,12 +731,20 @@ export function extractOrder(payload: any): {
   };
 }
 
-function extractOrderId(payload: any): string | null {
+export function extractOrderId(payload: any): string | null {
   const root = payload && typeof payload === "object" ? payload : {};
   const data = (root as any).data ?? {};
   const order = (root as any).order ?? (data as any).order ?? {};
 
   const candidate =
+    (order as any).order_reference_id ??
+    (data as any).order?.order_reference_id ??
+    (data as any).invoice?.order?.order_reference_id ??
+    (data as any).invoice?.order_reference_id ??
+    (root as any).invoice?.order?.order_reference_id ??
+    (root as any).invoice?.order_reference_id ??
+    (data as any).order_reference_id ??
+    (root as any).order_reference_id ??
     (order as any).reference_id ??
     (data as any).order?.reference_id ??
     (data as any).invoice?.order?.reference_id ??
@@ -979,9 +995,9 @@ export async function processNextSallaWebhookEvent() {
       ? getSallaConnectionById(job.connection_id) ?? getSallaConnectionBySellerId(job.seller_id)
       : getSallaConnectionBySellerId(job.seller_id);
 
+    const apiOrderId = extractSallaApiOrderId(payload);
     let processingPayload = payload;
     if (job.topic === "invoice.created" && conn?.connection_mode === "app") {
-      const apiOrderId = extractSallaApiOrderId(payload);
       const accessToken = getSallaAccessToken(conn);
       if (apiOrderId && accessToken) {
         try {
@@ -1021,7 +1037,17 @@ export async function processNextSallaWebhookEvent() {
       }
     }
 
-    const existingOrder = getOrderBySellerAndSallaId(job.seller_id, orderId);
+    let existingOrder = getOrderBySellerAndSallaId(job.seller_id, orderId);
+    if (!existingOrder && apiOrderId && apiOrderId !== orderId) {
+      const legacyInternalOrder = getOrderBySellerAndSallaId(job.seller_id, apiOrderId);
+      if (legacyInternalOrder) {
+        existingOrder = replaceOrderSallaIdById({
+          id: legacyInternalOrder.id,
+          sellerId: job.seller_id,
+          sallaOrderId: orderId,
+        });
+      }
+    }
     const order = upsertOrder({
       sellerId: job.seller_id,
       sallaOrderId: orderId,

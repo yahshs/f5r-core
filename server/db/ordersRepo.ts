@@ -41,6 +41,24 @@ export function getOrderBySellerAndSallaId(sellerId: string, sallaOrderId: strin
     .get(sellerId, sallaOrderId) as OrderRow | undefined;
 }
 
+export function replaceOrderSallaIdById(input: { id: string; sellerId: string; sallaOrderId: string }) {
+  const db = getDb();
+  const current = getOrderById(input.id);
+  if (!current || current.seller_id !== input.sellerId) return undefined;
+  if (current.salla_order_id === input.sallaOrderId) return current;
+
+  const existingTarget = getOrderBySellerAndSallaId(input.sellerId, input.sallaOrderId);
+  if (existingTarget) return existingTarget;
+
+  db.prepare(
+    `UPDATE orders
+     SET salla_order_id = ?, updated_at = ?
+     WHERE id = ? AND seller_id = ?`,
+  ).run(input.sallaOrderId, new Date().toISOString(), input.id, input.sellerId);
+
+  return getOrderById(input.id);
+}
+
 export function upsertOrder(input: {
   sellerId: string;
   sallaOrderId: string;
