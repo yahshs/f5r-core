@@ -8,6 +8,7 @@ interface AuthState {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  setSession: (user: User, token: string) => void;
   setUser: (user: User | null) => void;
   setToken: (token: string | null) => void;
   setLoading: (loading: boolean) => void;
@@ -21,14 +22,23 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       isAuthenticated: false,
       isLoading: true,
-      setUser: (user) => set({ user, isAuthenticated: !!user }),
-      setToken: (token) => set({ token }),
+      setSession: (user, token) => set({ user, token, isAuthenticated: true, isLoading: false }),
+      setUser: (user) => set((state) => ({ user, isAuthenticated: !!user && !!state.token })),
+      setToken: (token) => set((state) => ({ token, isAuthenticated: !!token && !!state.user })),
       setLoading: (isLoading) => set({ isLoading }),
-      logout: () => set({ user: null, token: null, isAuthenticated: false }),
+      logout: () => set({ user: null, token: null, isAuthenticated: false, isLoading: false }),
     }),
     {
       name: 'auth-storage',
       partialize: (state) => ({ user: state.user, token: state.token }),
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState as Partial<AuthState>;
+        const merged = { ...currentState, ...persisted };
+        return {
+          ...merged,
+          isAuthenticated: !!merged.user && !!merged.token,
+        };
+      },
     }
   )
 );

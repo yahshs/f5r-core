@@ -19,8 +19,15 @@ npm install
 Create a `.env` file in the `f5s-connect` directory with the following variables:
 
 ```env
-# Required for JWT authentication
+# Recommended for JWT authentication. If omitted, a separate JWT key is
+# derived from ENCRYPTION_KEY so login still works.
 JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+
+# Required in production to create/update the administrator account
+ADMIN_PASSWORD=use-a-strong-password
+
+# Optional: defaults to admin@f5s.sa when ADMIN_PASSWORD is set
+# ADMIN_EMAIL=admin@f5s.sa
 
 # Required for encrypting sensitive data (must be exactly 32 bytes)
 # Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
@@ -34,6 +41,10 @@ ENCRYPTION_KEY=0123456789abcdef0123456789abcdef
 
 # Optional: Demo password for test accounts (defaults to "demo1234")
 # DEMO_PASSWORD=demo1234
+
+# Optional frontend API URL. Both forms below are accepted.
+# VITE_API_BASE_URL=https://backend.example.com
+# VITE_API_BASE_URL=https://backend.example.com/api
 
 # Optional: Disable background workers (set to "0" to disable)
 # WORKERS_ENABLED=1
@@ -85,13 +96,14 @@ npm run dev
 
 ### Admin Account
 - **Email**: `admin@f5s.sa`
-- **Password**: `demo1234` (or your `DEMO_PASSWORD` env var)
+- **Password in production**: your `ADMIN_PASSWORD` value
+- **Password in development**: `demo1234` (or your `DEMO_PASSWORD` env var)
 
 ### Seller Account
 - **Email**: `seller@f5s.sa`
 - **Password**: `demo1234` (or your `DEMO_PASSWORD` env var)
 
-> **Note**: Demo accounts are automatically created in development mode (when `NODE_ENV !== "production"`).
+> **Note**: Demo accounts are created automatically in development. In production they are created only when `DEMO_PASSWORD` is explicitly set.
 
 ## Production Build
 

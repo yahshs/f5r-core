@@ -9,9 +9,22 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   headers.set('content-type', 'application/json');
   if (token) headers.set('authorization', `Bearer ${token}`);
 
-  const res = await fetch(`${config.API_BASE_URL}${path}`, { ...init, headers });
+  let res: Response;
+  try {
+    res = await fetch(`${config.API_BASE_URL}${path}`, { ...init, headers });
+  } catch {
+    throw new Error('Unable to reach the server. Please try again.');
+  }
+
   const text = await res.text();
-  const json = text ? JSON.parse(text) : null;
+  let json: { message?: string } | null = null;
+  if (text) {
+    try {
+      json = JSON.parse(text);
+    } catch {
+      throw new Error(`Invalid server response (${res.status}).`);
+    }
+  }
 
   if (!res.ok) {
     const message = json?.message || `Request failed (${res.status})`;

@@ -27,16 +27,17 @@ export async function ensureDbReady() {
   const database = getDb();
   runMigrations(database);
 
-  const adminEmail = process.env.ADMIN_EMAIL?.trim();
-  const adminPassword = process.env.ADMIN_PASSWORD;
-  if (adminEmail && adminPassword) {
-    const passwordHash = await hashPassword(adminPassword);
-    ensureAdminUser({ email: adminEmail, passwordHash });
+  const demoPassword = process.env.DEMO_PASSWORD || (process.env.NODE_ENV !== "production" ? "demo1234" : undefined);
+  if (demoPassword) {
+    const passwordHash = await hashPassword(demoPassword);
+    ensureDemoUsers({ passwordHash });
   }
 
-  if (process.env.NODE_ENV !== "production") {
-    const passwordHash = await hashPassword(process.env.DEMO_PASSWORD || "demo1234");
-    ensureDemoUsers({ passwordHash });
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  if (adminPassword) {
+    const adminEmail = process.env.ADMIN_EMAIL?.trim() || "admin@f5s.sa";
+    const passwordHash = await hashPassword(adminPassword);
+    ensureAdminUser({ email: adminEmail, passwordHash });
   }
 }
 

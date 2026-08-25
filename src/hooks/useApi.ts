@@ -80,38 +80,32 @@ export const useRejectOrder = () => {
 
 // Auth Hooks
 export const useLogin = () => {
-  const { setUser, setToken, setLoading } = useAuthStore();
+  const { setSession } = useAuthStore();
   return useMutation({
     mutationFn: ({ email, password }: { email: string; password: string }) =>
       authApi.login(email, password),
     onSuccess: ({ user, token }) => {
-      setUser(user);
-      setToken(token);
-      setLoading(false);
+      setSession(user, token);
     },
   });
 };
 
 export const useDemoLogin = () => {
-  const { setUser, setToken, setLoading } = useAuthStore();
+  const { setSession } = useAuthStore();
   return useMutation({
     mutationFn: (role: UserRole) => authApi.demoLogin(role),
     onSuccess: ({ user, token }) => {
-      setUser(user);
-      setToken(token);
-      setLoading(false);
+      setSession(user, token);
     },
   });
 };
 
 export const useRegister = () => {
-  const { setUser, setToken, setLoading } = useAuthStore();
+  const { setSession } = useAuthStore();
   return useMutation({
     mutationFn: authApi.register,
     onSuccess: ({ user, token }) => {
-      setUser(user);
-      setToken(token);
-      setLoading(false);
+      setSession(user, token);
     },
   });
 };
@@ -129,24 +123,23 @@ export const useLogout = () => {
 };
 
 export const useCurrentUser = () => {
-  const { setUser, setLoading, token } = useAuthStore();
+  const { setUser, setLoading, token, logout } = useAuthStore();
   return useQuery({
     queryKey: ['currentUser', token],
     queryFn: async () => {
       if (!token) {
-        setUser(null);
-        setLoading(false);
+        logout();
         return null;
       }
       try {
         const user = await authApi.getCurrentUser();
-        setUser(user);
+        if (useAuthStore.getState().token === token) setUser(user);
         return user;
       } catch {
-        setUser(null);
+        if (useAuthStore.getState().token === token) logout();
         return null;
       } finally {
-        setLoading(false);
+        if (useAuthStore.getState().token === token) setLoading(false);
       }
     },
     staleTime: Infinity,

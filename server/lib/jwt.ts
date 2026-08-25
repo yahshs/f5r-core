@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import jwt from "jsonwebtoken";
 import type { UserRole } from "../db/usersRepo";
 
@@ -9,9 +10,13 @@ export type AuthTokenClaims = {
 };
 
 function getJwtSecret() {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) throw new Error("JWT_SECRET is required");
-  return secret;
+  const secret = process.env.JWT_SECRET?.trim();
+  if (secret) return secret;
+
+  const encryptionKey = process.env.ENCRYPTION_KEY?.trim();
+  if (!encryptionKey) throw new Error("JWT_SECRET or ENCRYPTION_KEY is required");
+
+  return crypto.createHmac("sha256", encryptionKey).update("f5r-auth-jwt-v1").digest("hex");
 }
 
 export function signAuthToken(claims: AuthTokenClaims) {
@@ -21,4 +26,3 @@ export function signAuthToken(claims: AuthTokenClaims) {
 export function verifyAuthToken(token: string) {
   return jwt.verify(token, getJwtSecret()) as AuthTokenClaims;
 }
-

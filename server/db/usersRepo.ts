@@ -122,7 +122,11 @@ export function ensureDemoUsers(input: { passwordHash: string }) {
   const tx = db.transaction(() => {
     for (const u of demo) {
       const exists = getUserByEmail(u.email);
-      if (exists) continue;
+      if (exists) {
+        updateUserPassword(exists.id, input.passwordHash);
+        updateUser(exists.id, { role: u.role, emailVerified: true, isDisabled: false });
+        continue;
+      }
       insert.run(
         crypto.randomUUID(),
         u.email,
