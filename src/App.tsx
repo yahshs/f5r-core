@@ -66,7 +66,7 @@ const AppContent = () => {
           <Route
             path="/account"
             element={
-              <RequireRole>
+              <RequireRole roles={["user"]}>
                 <AccountLayout />
               </RequireRole>
             }
@@ -110,7 +110,7 @@ const AppContent = () => {
               </RequireRole>
             }
           >
-            <Route index element={<Navigate to="account" replace />} />
+            <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<SellerDashboardPage />} />
             <Route path="analytics" element={<SellerAnalyticsPage />} />
             <Route path="orders" element={<SellerOrdersPage />} />

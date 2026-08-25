@@ -46,7 +46,7 @@ export default function RegisterPage() {
         password,
       });
       toast({ title: "Welcome!", description: "Account created successfully" });
-      navigate(user.role === "seller" ? "/seller/smm-providers" : "/account");
+      navigate(user.role === "seller" ? "/seller/dashboard" : "/account");
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     }

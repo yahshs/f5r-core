@@ -28,7 +28,7 @@ export default function LoginPage() {
     try {
       const { user } = await loginMutation.mutateAsync({ email, password });
       toast({ title: 'Welcome back!', description: 'Login successful' });
-      navigate(user.role === 'seller' ? '/seller/account' : user.role === 'admin' ? '/admin' : '/account');
+      navigate(user.role === 'seller' ? '/seller/dashboard' : user.role === 'admin' ? '/admin' : '/account');
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     }
@@ -38,7 +38,7 @@ export default function LoginPage() {
     try {
       await demoLoginMutation.mutateAsync(role);
       toast({ title: 'Welcome!', description: `Logged in as demo ${role}` });
-      navigate(role === 'admin' ? '/admin' : '/seller/account');
+      navigate(role === 'admin' ? '/admin' : '/seller/dashboard');
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     }

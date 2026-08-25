@@ -47,6 +47,36 @@ describe.sequential("authentication api", () => {
     }
   });
 
+  it("registers a new seller and keeps the session valid for later login", async () => {
+    const app = await createApp();
+
+    const register = await request(app)
+      .post("/api/auth/register")
+      .send({
+        name: "New Seller",
+        email: "new-seller@example.com",
+        phone: "+966500000000",
+        password: "Seller1234",
+      })
+      .expect(201);
+
+    expect(register.body.data.user.role).toBe("seller");
+    expect(register.body.data.token).toEqual(expect.any(String));
+
+    await request(app)
+      .get("/api/auth/me")
+      .set("authorization", `Bearer ${register.body.data.token}`)
+      .expect(200);
+
+    const login = await request(app)
+      .post("/api/auth/login")
+      .send({ email: "new-seller@example.com", password: "Seller1234" })
+      .expect(200);
+
+    expect(login.body.data.user.email).toBe("new-seller@example.com");
+    expect(login.body.data.user.role).toBe("seller");
+  });
+
   it("creates the production admin with the default email and completes login", async () => {
     process.env.ADMIN_PASSWORD = "Aa112233";
     const app = await createApp();

@@ -14,7 +14,7 @@ export default function RequireRole({ roles, children }: RequireRoleProps) {
 
   const fallbackPath = useMemo(() => {
     if (user?.role === "admin") return "/admin";
-    if (user?.role === "seller") return "/seller/account";
+    if (user?.role === "seller") return "/seller/dashboard";
     return "/account";
   }, [user?.role]);
 
