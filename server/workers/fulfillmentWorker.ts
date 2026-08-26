@@ -102,6 +102,131 @@ function findValueByLabel(itemObj: any, label: string) {
   return findValueByLabelDeep(itemObj, target);
 }
 
+function extractQuantityFromSelectedValue(raw: any, depth = 0): number {
+  if (depth > 5 || raw == null) return NaN;
+  if (typeof raw === "string" || typeof raw === "number") {
+    return parsePositiveIntFromUnknown(raw);
+  }
+  if (Array.isArray(raw)) {
+    for (const entry of raw) {
+      const parsed = extractQuantityFromSelectedValue(entry, depth + 1);
+      if (isPlausibleOrderQuantity(parsed)) return parsed;
+    }
+    return NaN;
+  }
+  if (typeof raw !== "object") return NaN;
+
+  // Only inspect customer-visible selected values. IDs and prices are deliberately
+  // excluded because Salla option IDs can look like valid SMM quantities.
+  const preferredKeys = [
+    "selected",
+    "selection",
+    "selected_value",
+    "selectedValue",
+    "option_value",
+    "optionValue",
+    "choice",
+    "answer",
+    "input",
+    "value",
+    "name",
+    "text",
+    "title",
+    "label",
+  ];
+  for (const key of preferredKeys) {
+    const value = getByCaseInsensitiveKey(raw, key);
+    if (value == null) continue;
+    const parsed = extractQuantityFromSelectedValue(value, depth + 1);
+    if (isPlausibleOrderQuantity(parsed)) return parsed;
+  }
+  return NaN;
+}
+
+function quantityLabelScore(label: unknown, configuredField: string) {
+  if (typeof label !== "string") return 0;
+  const normalized = normalizeLabelKey(label);
+  const configured = normalizeLabelKey(configuredField);
+  if (!normalized) return 0;
+  if (configured && (normalized === configured || normalized.includes(configured) || configured.includes(normalized))) return 100;
+  if (/\b(quantity|qty|count)\b/i.test(normalized) || normalized.includes("عدد") || normalized.includes("كمية")) return 80;
+  if (
+    normalized.includes("مشاهد") ||
+    normalized.includes("متابع") ||
+    normalized.includes("لايك") ||
+    normalized.includes("اعجاب") ||
+    normalized.includes("حفظ") ||
+    normalized.includes("شير") ||
+    normalized.includes("تعليق")
+  ) return 50;
+  return 0;
+}
+
+function findQuantityInSallaOrderItem(itemObj: any, configuredField: string) {
+  const containers = [
+    itemObj?.options,
+    itemObj?.product?.options,
+    itemObj?.meta?.options,
+    itemObj?.details?.options,
+    itemObj?.variants,
+    itemObj?.choices,
+    itemObj?.fields,
+    itemObj?.custom_fields,
+    itemObj?.customFields,
+  ].filter((value) => value && typeof value === "object");
+
+  const candidates: Array<{ quantity: number; score: number }> = [];
+  const stack: Array<{ value: any; depth: number }> = containers.map((value) => ({ value, depth: 0 }));
+  const seen = new Set<any>();
+  let nodes = 0;
+
+  while (stack.length && nodes < 1200) {
+    const current = stack.pop()!;
+    nodes += 1;
+    const value = current.value;
+    if (!value || typeof value !== "object" || current.depth > 6 || seen.has(value)) continue;
+    seen.add(value);
+
+    if (Array.isArray(value)) {
+      for (let index = value.length - 1; index >= 0; index -= 1) {
+        stack.push({ value: value[index], depth: current.depth + 1 });
+      }
+      continue;
+    }
+
+    const label =
+      getByCaseInsensitiveKey(value, "label") ??
+      getByCaseInsensitiveKey(value, "name") ??
+      getByCaseInsensitiveKey(value, "title") ??
+      getByCaseInsensitiveKey(value, "question") ??
+      getByCaseInsensitiveKey(value, "key");
+    const score = quantityLabelScore(label, configuredField);
+    if (score > 0) {
+      const selected =
+        getByCaseInsensitiveKey(value, "selected") ??
+        getByCaseInsensitiveKey(value, "selection") ??
+        getByCaseInsensitiveKey(value, "selected_value") ??
+        getByCaseInsensitiveKey(value, "selectedValue") ??
+        getByCaseInsensitiveKey(value, "option_value") ??
+        getByCaseInsensitiveKey(value, "optionValue") ??
+        getByCaseInsensitiveKey(value, "choice") ??
+        getByCaseInsensitiveKey(value, "answer") ??
+        getByCaseInsensitiveKey(value, "input") ??
+        getByCaseInsensitiveKey(value, "value") ??
+        label;
+      const quantity = extractQuantityFromSelectedValue(selected);
+      if (isPlausibleOrderQuantity(quantity)) candidates.push({ quantity: Math.floor(quantity), score });
+    }
+
+    for (const child of Object.values(value)) {
+      if (child && typeof child === "object") stack.push({ value: child, depth: current.depth + 1 });
+    }
+  }
+
+  candidates.sort((a, b) => b.score - a.score || b.quantity - a.quantity);
+  return candidates[0]?.quantity ?? null;
+}
+
 function toLatinDigits(input: string) {
   return String(input ?? "")
     .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660))
@@ -549,7 +674,7 @@ function normalizeProviderErrorMessage(message: string) {
   return message;
 }
 
-function resolveQuantityDetailed(rule: SmmProductRuleRow, itemObj: any, fallback: number) {
+export function resolveQuantityDetailed(rule: SmmProductRuleRow, itemObj: any, fallback: number) {
   const orderQty = Number.isFinite(fallback) && fallback > 0 ? Math.floor(fallback) : 1;
 
   if (rule.quantity_type === "fixed") {
@@ -590,6 +715,15 @@ function resolveQuantityDetailed(rule: SmmProductRuleRow, itemObj: any, fallback
       return {
         quantity: base * Math.max(1, orderQty),
         meta: { mode: "from_field" as const, base, orderQty, field: rule.quantity_field, rawType: typeof raw },
+      };
+    }
+
+    const selectedFromOrder = findQuantityInSallaOrderItem(itemObj, rule.quantity_field);
+    if (selectedFromOrder !== null) {
+      const base = Math.floor(selectedFromOrder);
+      return {
+        quantity: base * Math.max(1, orderQty),
+        meta: { mode: "from_field" as const, base, orderQty, field: rule.quantity_field, rawType: "salla_order_option" },
       };
     }
 

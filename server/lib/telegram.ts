@@ -57,6 +57,46 @@ function requestTelegram(method: string, body: Record<string, unknown>) {
   });
 }
 
+type TelegramRequester = typeof requestTelegram;
+
+export async function configureTelegramWebhook(options?: {
+  basePublicUrl?: string;
+  request?: TelegramRequester;
+}) {
+  if (!getBotToken()) {
+    return { configured: false as const, reason: "token_missing" as const };
+  }
+
+  const rawBase = options?.basePublicUrl ?? process.env.BASE_PUBLIC_URL?.trim() ?? "";
+  let base: URL;
+  try {
+    base = new URL(rawBase);
+  } catch {
+    return { configured: false as const, reason: "base_url_invalid" as const };
+  }
+  if (base.protocol !== "https:") {
+    return { configured: false as const, reason: "base_url_not_https" as const };
+  }
+
+  const webhookUrl = new URL("/api/webhooks/telegram", base).toString();
+  const secret = getTelegramWebhookSecret();
+  if (secret && !/^[A-Za-z0-9_-]{1,256}$/.test(secret)) {
+    return { configured: false as const, reason: "secret_invalid" as const };
+  }
+
+  const request = options?.request ?? requestTelegram;
+  const response = await request("setWebhook", {
+    url: webhookUrl,
+    secret_token: secret || undefined,
+    allowed_updates: ["message", "edited_message", "callback_query"],
+    drop_pending_updates: false,
+  });
+  if (!response.ok) {
+    throw new Error(response.description || "Telegram rejected webhook configuration");
+  }
+  return { configured: true as const, url: webhookUrl };
+}
+
 export async function sendTelegramMessage(
   chatId: string,
   text: string,

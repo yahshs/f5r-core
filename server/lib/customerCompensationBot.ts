@@ -18,7 +18,11 @@ export type CustomerFulfillmentSnapshot = {
   fulfillmentId: string;
   itemName: string;
   status: CustomerVisibleStatus;
+  startCount: number | null;
+  requestedQuantity: number | null;
+  deliveredQuantity: number | null;
   remains: number | null;
+  hasVerifiedShortage: boolean;
   providerOrderAvailable: boolean;
   liveStatusAvailable: boolean;
 };
@@ -62,21 +66,31 @@ function aggregateStatus(values: CustomerVisibleStatus[]): CustomerVisibleStatus
   return values[0] ?? "pending";
 }
 
-function itemNameById(items: OrderItemWithProductRow[]) {
-  return new Map(items.map((item) => [item.id, item.product_name?.trim() || item.salla_sku?.trim() || "الخدمة"]));
+function itemById(items: OrderItemWithProductRow[]) {
+  return new Map(items.map((item) => [item.id, item]));
+}
+
+export function hasVerifiedProviderShortage(status: CustomerVisibleStatus, remains: number | null) {
+  if (remains === null || remains <= 0) return false;
+  return status === "partial" || status === "completed";
 }
 
 async function fetchLiveFulfillmentSnapshot(input: {
   sellerId: string;
   fulfillment: FulfillmentRow;
   itemName: string;
+  itemQuantity: number | null;
 }): Promise<CustomerFulfillmentSnapshot> {
   const providerOrderAvailable = !!input.fulfillment.provider_order_id?.trim();
   const fallback: CustomerFulfillmentSnapshot = {
     fulfillmentId: input.fulfillment.id,
     itemName: input.itemName,
     status: localFulfillmentStatus(input.fulfillment),
+    startCount: null,
+    requestedQuantity: input.fulfillment.submitted_quantity ?? input.itemQuantity,
+    deliveredQuantity: null,
     remains: null,
+    hasVerifiedShortage: false,
     providerOrderAvailable,
     liveStatusAvailable: false,
   };
@@ -90,10 +104,19 @@ async function fetchLiveFulfillmentSnapshot(input: {
     const apiKey = decryptSecret(provider.api_key_encrypted);
     const result = await fetchPanelV2OrderStatus(baseUrl, apiKey, input.fulfillment.provider_order_id!.trim());
     if (!result.ok) return fallback;
+    const status = normalizeProviderStatus(result.status);
+    const requestedQuantity = input.fulfillment.submitted_quantity ?? input.itemQuantity;
+    const deliveredQuantity = requestedQuantity !== null && result.remains !== null
+      ? Math.max(0, Math.min(requestedQuantity, requestedQuantity - Math.max(0, result.remains)))
+      : null;
     return {
       ...fallback,
-      status: normalizeProviderStatus(result.status),
+      status,
+      startCount: result.startCount,
+      requestedQuantity,
+      deliveredQuantity,
       remains: result.remains,
+      hasVerifiedShortage: hasVerifiedProviderShortage(status, result.remains),
       liveStatusAvailable: true,
     };
   } catch {
@@ -112,16 +135,18 @@ export async function getCustomerOrderSnapshot(input: {
   if (!settings) return null;
 
   const items = listOrderItemsWithProductByOrderId(input.sellerId, order.id);
-  const names = itemNameById(items);
+  const itemsById = itemById(items);
   const rows = listFulfillmentsByOrderId(order.id);
   const fulfillmentSnapshots = await Promise.all(
-    rows.slice(0, 20).map((fulfillment) =>
-      fetchLiveFulfillmentSnapshot({
+    rows.slice(0, 20).map((fulfillment) => {
+      const item = itemsById.get(fulfillment.order_item_id);
+      return fetchLiveFulfillmentSnapshot({
         sellerId: input.sellerId,
         fulfillment,
-        itemName: names.get(fulfillment.order_item_id) || "الخدمة",
-      }),
-    ),
+        itemName: item?.product_name?.trim() || item?.salla_sku?.trim() || "الخدمة",
+        itemQuantity: item?.quantity ?? null,
+      });
+    }),
   );
   const hasProviderOrder = fulfillmentSnapshots.some((entry) => entry.providerOrderAvailable);
   const compensation = evaluateCompensationEligibility({
@@ -165,8 +190,15 @@ function eligibilityMessage(snapshot: CustomerOrderSnapshot) {
 export function buildCustomerOrderMessage(snapshot: CustomerOrderSnapshot) {
   const details = snapshot.fulfillments.length
     ? snapshot.fulfillments.map((entry, index) => {
-        const remains = entry.remains !== null ? ` — المتبقي: ${Math.max(0, entry.remains)}` : "";
-        return `${index + 1}. ${entry.itemName}: ${customerStatusLabel(entry.status)}${remains}`;
+        const metrics = entry.liveStatusAvailable
+          ? [
+              `عدد البدء: ${entry.startCount ?? "غير متاح"}`,
+              `الكمية المطلوبة: ${entry.requestedQuantity ?? "غير متاح"}`,
+              `تم التوصيل: ${entry.deliveredQuantity ?? "غير متاح"}`,
+              `المتبقي: ${entry.remains !== null ? Math.max(0, entry.remains) : "غير متاح"}`,
+            ]
+          : ["تعذر جلب الإحصائيات الحية من المزود حاليًا."];
+        return [`${index + 1}. ${entry.itemName}`, `الحالة: ${customerStatusLabel(entry.status)}`, ...metrics].join("\n");
       })
     : ["لم يبدأ تنفيذ خدمات هذا الطلب حتى الآن."];
 
@@ -176,7 +208,9 @@ export function buildCustomerOrderMessage(snapshot: CustomerOrderSnapshot) {
     "",
     ...details,
     "",
-    eligibilityMessage(snapshot),
+    snapshot.fulfillments.some((entry) => entry.hasVerifiedShortage)
+      ? eligibilityMessage(snapshot)
+      : "لا يوجد نقص مؤكد قابل للتعويض حاليًا.",
   ].join("\n");
 }
 
@@ -184,7 +218,7 @@ export function buildCustomerOrderReplyMarkup(snapshot: CustomerOrderSnapshot) {
   const buttons: Array<{ text: string; callback_data: string }> = [
     { text: "تحديث الحالة 🔄", callback_data: `cs:${snapshot.order.id}` },
   ];
-  if (snapshot.compensation.eligible) {
+  if (snapshot.compensation.eligible && snapshot.fulfillments.some((entry) => entry.hasVerifiedShortage)) {
     buttons.push({ text: "طلب تعويض ♻️", callback_data: `cr:${snapshot.order.id}` });
   }
   return { inline_keyboard: [buttons] };

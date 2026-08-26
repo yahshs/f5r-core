@@ -5,6 +5,7 @@ import { getProviderByIdForSeller } from "../db/smmProvidersRepo";
 import { decryptSecret } from "../lib/encryption";
 import { sendTelegramMessage } from "../lib/telegram";
 import { assertPublicHttpsUrl } from "../lib/ssrf";
+import { getCustomerOrderSnapshot } from "../lib/customerCompensationBot";
 import { requestPanelV2Refill, type PanelV2RefillResult } from "../smm/panelV2Adapter";
 
 type RefillExecutor = (baseUrl: URL, apiKey: string, providerOrderId: string) => Promise<PanelV2RefillResult>;
@@ -27,7 +28,19 @@ export async function processNextCompensationRequest(opts?: { requestRefill?: Re
     const order = getOrderById(job.order_id);
     if (!order || order.seller_id !== job.seller_id) throw new Error("Order not found");
 
+    const liveSnapshot = await getCustomerOrderSnapshot({
+      sellerId: job.seller_id,
+      orderNumber: order.salla_order_id,
+    });
+    const shortageFulfillmentIds = new Set(
+      liveSnapshot?.fulfillments.filter((entry) => entry.hasVerifiedShortage).map((entry) => entry.fulfillmentId) ?? [],
+    );
+    if (!shortageFulfillmentIds.size) {
+      throw new Error("لا يوجد نقص مؤكد في الطلب حاليًا، ولم يتم إرسال تعويض للمزود.");
+    }
+
     const eligible = listFulfillmentsByOrderId(order.id)
+      .filter((entry) => shortageFulfillmentIds.has(entry.id))
       .filter((entry) => entry.status === "SUCCESS" && !!entry.provider_order_id?.trim())
       .filter((entry, index, rows) =>
         rows.findIndex(

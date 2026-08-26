@@ -291,6 +291,13 @@ export function getOrderBySallaIdAny(sallaOrderId: string) {
     .get(sallaOrderId) as OrderRow | undefined;
 }
 
+export function listOrdersBySallaIdAny(sallaOrderId: string, limit = 2) {
+  const db = getDb();
+  return db
+    .prepare(`SELECT * FROM orders WHERE salla_order_id = ? ORDER BY created_at DESC LIMIT ?`)
+    .all(sallaOrderId, Math.max(1, Math.min(10, limit))) as OrderRow[];
+}
+
 export function deleteOrderById(id: string) {
   const db = getDb();
   const res = db.prepare(`DELETE FROM orders WHERE id = ?`).run(id);
