@@ -68,6 +68,25 @@ describe("Salla order item quantity", () => {
     expect(result.quantity).toBe(10000);
   });
 
+  it("reads the selected count when Salla nests the option label separately", () => {
+    const result = resolveQuantityDetailed(
+      rule,
+      {
+        quantity: 1,
+        custom_fields: [
+          {
+            option: { id: 715001, name: "اختر عدد" },
+            selected_options: [{ id: 815001, name: "1,000 لايك" }],
+          },
+        ],
+      },
+      1,
+    );
+
+    expect(result.quantity).toBe(1000);
+    expect(result.meta.rawType).toBe("salla_order_option");
+  });
+
   it("uses a real native Salla line quantity but never falls back to one", () => {
     expect(resolveQuantityDetailed(rule, { quantity: 500 }, 500).quantity).toBe(500);
     expect(() => resolveQuantityDetailed(rule, { quantity: 1 }, 1)).toThrow("Quantity value missing");

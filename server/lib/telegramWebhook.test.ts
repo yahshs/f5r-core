@@ -30,4 +30,21 @@ describe("Telegram webhook configuration", () => {
       drop_pending_updates: false,
     });
   });
+
+  it("uses Railway's public domain automatically when BASE_PUBLIC_URL is not set", async () => {
+    delete process.env.BASE_PUBLIC_URL;
+    delete process.env.RAILWAY_STATIC_URL;
+    process.env.RAILWAY_PUBLIC_DOMAIN = "f5r-core-production.up.railway.app";
+    const request = vi.fn(async () => ({ ok: true, result: true }));
+
+    const result = await configureTelegramWebhook({ request });
+
+    expect(result).toEqual({
+      configured: true,
+      url: "https://f5r-core-production.up.railway.app/api/webhooks/telegram",
+    });
+    expect(request).toHaveBeenCalledWith("setWebhook", expect.objectContaining({
+      url: "https://f5r-core-production.up.railway.app/api/webhooks/telegram",
+    }));
+  });
 });

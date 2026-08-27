@@ -195,7 +195,16 @@ function findQuantityInSallaOrderItem(itemObj: any, configuredField: string) {
       getByCaseInsensitiveKey(value, "name") ??
       getByCaseInsensitiveKey(value, "title") ??
       getByCaseInsensitiveKey(value, "question") ??
-      getByCaseInsensitiveKey(value, "key");
+      getByCaseInsensitiveKey(value, "key") ??
+      // Salla can separate the option definition from the selected value:
+      // { option: { name: "اختر عدد" }, value: { name: "5000" } }.
+      // Read the definition solely as a label; ids/prices remain excluded.
+      getByCaseInsensitiveKey(getByCaseInsensitiveKey(value, "option"), "label") ??
+      getByCaseInsensitiveKey(getByCaseInsensitiveKey(value, "option"), "name") ??
+      getByCaseInsensitiveKey(getByCaseInsensitiveKey(value, "field"), "label") ??
+      getByCaseInsensitiveKey(getByCaseInsensitiveKey(value, "field"), "name") ??
+      getByCaseInsensitiveKey(getByCaseInsensitiveKey(value, "attribute"), "label") ??
+      getByCaseInsensitiveKey(getByCaseInsensitiveKey(value, "attribute"), "name");
     const score = quantityLabelScore(label, configuredField);
     if (score > 0) {
       const selected =
@@ -203,6 +212,10 @@ function findQuantityInSallaOrderItem(itemObj: any, configuredField: string) {
         getByCaseInsensitiveKey(value, "selection") ??
         getByCaseInsensitiveKey(value, "selected_value") ??
         getByCaseInsensitiveKey(value, "selectedValue") ??
+        getByCaseInsensitiveKey(value, "selected_option") ??
+        getByCaseInsensitiveKey(value, "selectedOption") ??
+        getByCaseInsensitiveKey(value, "selected_options") ??
+        getByCaseInsensitiveKey(value, "selectedOptions") ??
         getByCaseInsensitiveKey(value, "option_value") ??
         getByCaseInsensitiveKey(value, "optionValue") ??
         getByCaseInsensitiveKey(value, "choice") ??

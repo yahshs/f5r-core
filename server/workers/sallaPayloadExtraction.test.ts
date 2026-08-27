@@ -38,6 +38,38 @@ describe("Salla invoice payload extraction", () => {
     expect(extracted.items).toHaveLength(1);
   });
 
+  it("prefers enriched order items over shortened invoice items", () => {
+    const payload = {
+      event: "invoice.created",
+      data: {
+        order_id: "order-901",
+        items: [
+          {
+            id: "short-item",
+            product_id: "product-1",
+            quantity: 1,
+          },
+        ],
+        order: {
+          id: "order-901",
+          items: [
+            {
+              id: "full-item",
+              product_id: "product-1",
+              quantity: 1,
+              options: [{ name: "اختر عدد", value: { name: "5000" } }],
+            },
+          ],
+        },
+      },
+    };
+
+    const extracted = extractOrder(payload);
+    expect(extracted.items).toHaveLength(1);
+    expect(extracted.items[0].id).toBe("full-item");
+    expect(extracted.items[0].options[0].value.name).toBe("5000");
+  });
+
   it("prefers the merchant-visible Salla order reference over internal ids", () => {
     const payload = {
       event: "invoice.created",

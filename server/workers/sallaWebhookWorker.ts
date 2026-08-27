@@ -663,15 +663,19 @@ export function extractOrder(payload: any): {
     firstByPaths(root, [
       "order.items",
       "order.items.data",
-      "data.items",
-      "data.items.data",
+      // invoice.created often contains a shortened data.items list. When the
+      // worker enriches the payload from Salla's Orders API, the complete
+      // product options (including fields such as "اختر عدد") live here.
+      // Prefer those complete items before falling back to invoice items.
       "data.order.items",
       "data.order.items.data",
+      "data.invoice.order.items",
+      "data.invoice.order.items.data",
+      "data.items",
+      "data.items.data",
       "data.invoice.items",
       "data.invoice.items.data",
       "data.invoice.products",
-      "data.invoice.order.items",
-      "data.invoice.order.items.data",
       "data.products",
       "data.order.products",
       "invoice.items",
@@ -997,8 +1001,12 @@ export async function processNextSallaWebhookEvent() {
 
     const apiOrderId = extractSallaApiOrderId(payload);
     let processingPayload = payload;
-    if (job.topic === "invoice.created" && conn?.connection_mode === "app") {
-      const accessToken = getSallaAccessToken(conn);
+    if (job.topic === "invoice.created") {
+      // Do not depend on connection_mode here. Older installations can still
+      // have a valid encrypted access token while their mode remains manual.
+      // If a token exists, always use the complete Salla order as the source
+      // of product options before extracting fulfillment fields.
+      const accessToken = conn ? getSallaAccessToken(conn) : null;
       if (apiOrderId && accessToken) {
         try {
           const orderDetails = await fetchSallaOrderDetails(accessToken, apiOrderId);

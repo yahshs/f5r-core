@@ -10,6 +10,36 @@ function getBotToken() {
   return token || null;
 }
 
+/**
+ * Railway exposes the public address as a hostname. Earlier versions only
+ * accepted BASE_PUBLIC_URL, which left the Telegram webhook unregistered on
+ * otherwise correctly deployed Railway services.
+ */
+function getPublicBaseUrl(explicit?: string) {
+  const candidates = [
+    explicit,
+    process.env.BASE_PUBLIC_URL,
+    process.env.RAILWAY_STATIC_URL,
+    process.env.RAILWAY_PUBLIC_DOMAIN,
+    process.env.RAILWAY_DEPLOYMENT_URL,
+    process.env.RENDER_EXTERNAL_URL,
+  ];
+
+  for (const candidate of candidates) {
+    const value = String(candidate || "").trim();
+    if (!value) continue;
+    const withProtocol = /^https?:\/\//i.test(value) ? value : `https://${value}`;
+    try {
+      const url = new URL(withProtocol);
+      if (url.protocol === "https:") return url.toString();
+    } catch {
+      // Try the next platform-provided address.
+    }
+  }
+
+  return null;
+}
+
 export function getTelegramBotUsername() {
   return getSetting("telegram_bot_username")?.value?.trim() || process.env.TELEGRAM_BOT_USERNAME?.trim() || null;
 }
@@ -67,16 +97,11 @@ export async function configureTelegramWebhook(options?: {
     return { configured: false as const, reason: "token_missing" as const };
   }
 
-  const rawBase = options?.basePublicUrl ?? process.env.BASE_PUBLIC_URL?.trim() ?? "";
-  let base: URL;
-  try {
-    base = new URL(rawBase);
-  } catch {
+  const rawBase = getPublicBaseUrl(options?.basePublicUrl);
+  if (!rawBase) {
     return { configured: false as const, reason: "base_url_invalid" as const };
   }
-  if (base.protocol !== "https:") {
-    return { configured: false as const, reason: "base_url_not_https" as const };
-  }
+  const base = new URL(rawBase);
 
   const webhookUrl = new URL("/api/webhooks/telegram", base).toString();
   const secret = getTelegramWebhookSecret();
