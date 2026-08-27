@@ -247,4 +247,39 @@ describe("customer compensation bot", () => {
     expect(finalSettings.body.data.telegram.deepLink).toBe(stableLink);
     expect(finalSettings.body.data.stats.successful).toBe(1);
   });
+
+  it("reports any platform order number without a deep link or enabled compensation", async () => {
+    const app = await createApp();
+    const sellerId = "seller-public-order-status";
+    insertSeller(sellerId);
+    const order = upsertOrder({
+      sellerId,
+      sallaOrderId: "280128286",
+      status: "paid",
+      paymentStatus: "paid",
+    });
+    upsertOrderItem({
+      orderId: order.id,
+      sallaItemId: "item-public",
+      sallaProductId: "product-public",
+      sallaSku: "900088",
+      quantity: 1,
+      lineKey: "item-public",
+      targetJson: JSON.stringify({ link: "https://www.tiktok.com/@example/video/1" }),
+    });
+
+    await request(app)
+      .post("/api/webhooks/telegram")
+      .send({
+        update_id: 20,
+        message: {
+          text: "280128286",
+          chat: { id: 9010, type: "private" },
+          from: { id: 9010, username: "any_customer" },
+        },
+      })
+      .expect(200);
+
+    expect(vi.mocked(sendTelegramMessage).mock.calls.some((call) => String(call[1]).includes("280128286"))).toBe(true);
+  });
 });

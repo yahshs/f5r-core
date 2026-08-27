@@ -53,4 +53,23 @@ describe("Salla order item quantity", () => {
       ),
     ).toThrow("Quantity value missing");
   });
+
+  it("reads a flattened custom quantity field from the complete order item", () => {
+    const result = resolveQuantityDetailed(
+      rule,
+      {
+        quantity: 1,
+        services: {
+          inputs: { "اختر العدد المطلوب": { selected: { name: "10 آلاف" } } },
+        },
+      },
+      1,
+    );
+    expect(result.quantity).toBe(10000);
+  });
+
+  it("uses a real native Salla line quantity but never falls back to one", () => {
+    expect(resolveQuantityDetailed(rule, { quantity: 500 }, 500).quantity).toBe(500);
+    expect(() => resolveQuantityDetailed(rule, { quantity: 1 }, 1)).toThrow("Quantity value missing");
+  });
 });

@@ -4,6 +4,7 @@ import { requireAdmin } from "../auth";
 import { listSettings, setSetting, getSetting } from "../db/settingsRepo";
 import { insertAuditLog } from "../db/auditLogsRepo";
 import { getNotificationJobStats, listFailedNotificationJobs } from "../db/notificationJobsRepo";
+import { configureTelegramWebhook } from "../lib/telegram";
 
 export const adminSettingsRouter = Router();
 adminSettingsRouter.use(requireAdmin);
@@ -37,7 +38,7 @@ adminSettingsRouter.get("/:key", (req, res) => {
   res.json({ success: true, data: row });
 });
 
-adminSettingsRouter.put("/", (req, res) => {
+adminSettingsRouter.put("/", async (req, res) => {
   const parsed = updateSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ success: false, message: "Invalid input" });
 
@@ -52,5 +53,16 @@ adminSettingsRouter.put("/", (req, res) => {
     details: JSON.stringify(parsed.data),
   });
 
-  res.json({ success: true, data: row });
+  let telegramWebhook: Awaited<ReturnType<typeof configureTelegramWebhook>> | null = null;
+  if (["telegram_bot_token", "telegram_webhook_secret"].includes(parsed.data.key)) {
+    try {
+      telegramWebhook = await configureTelegramWebhook();
+    } catch (error) {
+      console.error("[telegram] webhook configuration after settings update failed", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  res.json({ success: true, data: row, telegramWebhook });
 });

@@ -166,11 +166,6 @@ async function handleCustomerMessage(message: any) {
   if (sellerId) {
     const linkedSnapshot = await getCustomerOrderSnapshot({ sellerId, orderNumber });
     if (linkedSnapshot) {
-      const settings = getCustomerBotSettingsBySellerId(sellerId);
-      if (!settings?.is_enabled) {
-        await sendTelegramMessage(chatId, "خدمة متابعة الطلبات والتعويض متوقفة مؤقتًا لدى هذا المتجر.");
-        return true;
-      }
       await sendTelegramMessage(chatId, buildCustomerOrderMessage(linkedSnapshot), {
         replyMarkup: buildCustomerOrderReplyMarkup(linkedSnapshot),
       });
@@ -178,10 +173,7 @@ async function handleCustomerMessage(message: any) {
     }
   }
 
-  const candidates = listOrdersBySallaIdAny(orderNumber, 10).filter((order) => {
-    const settings = getCustomerBotSettingsBySellerId(order.seller_id);
-    return !!settings?.is_enabled;
-  });
+  const candidates = listOrdersBySallaIdAny(orderNumber, 10);
   const sellerIds = [...new Set(candidates.map((order) => order.seller_id))];
   if (sellerIds.length === 0) {
     await sendTelegramMessage(chatId, "رقم الطلب غير صحيح أو لم يصل للمنصة بعد. تأكد من الرقم وأرسله مرة أخرى.");

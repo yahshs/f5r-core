@@ -126,9 +126,12 @@ function extractQuantityFromSelectedValue(raw: any, depth = 0): number {
     "option_value",
     "optionValue",
     "choice",
+    "option",
     "answer",
     "input",
     "value",
+    "values",
+    "data",
     "name",
     "text",
     "title",
@@ -163,17 +166,10 @@ function quantityLabelScore(label: unknown, configuredField: string) {
 }
 
 function findQuantityInSallaOrderItem(itemObj: any, configuredField: string) {
-  const containers = [
-    itemObj?.options,
-    itemObj?.product?.options,
-    itemObj?.meta?.options,
-    itemObj?.details?.options,
-    itemObj?.variants,
-    itemObj?.choices,
-    itemObj?.fields,
-    itemObj?.custom_fields,
-    itemObj?.customFields,
-  ].filter((value) => value && typeof value === "object");
+  // Start from the complete Salla order item. The same selected option has
+  // appeared under options, product.options, services, attributes and custom
+  // fields across different invoice/order payload versions.
+  const containers = [itemObj].filter((value) => value && typeof value === "object");
 
   const candidates: Array<{ quantity: number; score: number }> = [];
   const stack: Array<{ value: any; depth: number }> = containers.map((value) => ({ value, depth: 0 }));
@@ -216,6 +212,18 @@ function findQuantityInSallaOrderItem(itemObj: any, configuredField: string) {
         label;
       const quantity = extractQuantityFromSelectedValue(selected);
       if (isPlausibleOrderQuantity(quantity)) candidates.push({ quantity: Math.floor(quantity), score });
+    }
+
+    // Some Salla/Make payloads flatten custom inputs as a map:
+    // { "اختر عدد": "5000" }. Treat the map key as the label.
+    for (const [key, child] of Object.entries(value)) {
+      if (current.depth === 0 && ["quantity", "qty", "count"].includes(String(key).trim().toLowerCase())) continue;
+      const keyScore = quantityLabelScore(key, configuredField);
+      if (keyScore <= 0) continue;
+      const quantity = extractQuantityFromSelectedValue(child);
+      if (isPlausibleOrderQuantity(quantity)) {
+        candidates.push({ quantity: Math.floor(quantity), score: keyScore });
+      }
     }
 
     for (const child of Object.values(value)) {
@@ -724,6 +732,16 @@ export function resolveQuantityDetailed(rule: SmmProductRuleRow, itemObj: any, f
       return {
         quantity: base * Math.max(1, orderQty),
         meta: { mode: "from_field" as const, base, orderQty, field: rule.quantity_field, rawType: "salla_order_option" },
+      };
+    }
+
+    // If the buyer selected the service count through Salla's native line-item
+    // quantity, use it directly. Small values are kept as multipliers only and
+    // are not silently sent as an SMM quantity.
+    if (orderQty >= 10 && isPlausibleOrderQuantity(orderQty)) {
+      return {
+        quantity: orderQty,
+        meta: { mode: "from_field" as const, base: orderQty, orderQty: 1, field: rule.quantity_field, rawType: "salla_line_quantity" },
       };
     }
 
