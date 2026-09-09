@@ -1,3 +1,5 @@
+import { mergeSallaOrderItems } from "./sallaOrderItems";
+
 type SallaTokenResponse = {
   accessToken: string;
   refreshToken: string | null;
@@ -149,6 +151,7 @@ export async function fetchSallaOrderDetails(accessToken: string, orderId: strin
   const apiBaseUrl = trimSlash(getEnv("SALLA_API_BASE_URL", "https://api.salla.dev/admin/v2"));
   const orderUrl = new URL(`orders/${encodeURIComponent(orderId)}`, `${apiBaseUrl}/`);
   const res = await fetch(orderUrl, {
+    signal: AbortSignal.timeout(10_000),
     headers: {
       authorization: `Bearer ${accessToken}`,
       accept: "application/json",
@@ -156,5 +159,36 @@ export async function fetchSallaOrderDetails(accessToken: string, orderId: strin
   });
   const json = (await res.json().catch(() => null)) as any;
   if (!res.ok) throw new Error(json?.message || `Failed to fetch Salla order (${res.status})`);
-  return json?.data ?? json ?? {};
+  const order = json?.data ?? json ?? {};
+  if (!order || typeof order !== "object" || Array.isArray(order)) throw new Error("Invalid Salla order response");
+  return order;
+}
+
+export async function fetchSallaOrderItems(accessToken: string, orderId: string) {
+  const apiBaseUrl = trimSlash(getEnv("SALLA_API_BASE_URL", "https://api.salla.dev/admin/v2"));
+  const url = new URL("orders/items", `${apiBaseUrl}/`);
+  url.searchParams.set("order_id", orderId);
+  const res = await fetch(url, {
+    signal: AbortSignal.timeout(10_000),
+    headers: { authorization: `Bearer ${accessToken}`, accept: "application/json" },
+  });
+  if (!res.ok) throw new Error(`Salla order items HTTP ${res.status}`);
+  const json = await res.json() as any;
+  const items = json?.data?.data ?? json?.data;
+  if (!Array.isArray(items)) throw new Error("Invalid Salla order items response");
+  return items;
+}
+
+export async function fetchSallaOrderWithItems(accessToken: string, orderId: string) {
+  const order = await fetchSallaOrderDetails(accessToken, orderId);
+  const base = Array.isArray(order.items) ? order.items : Array.isArray(order.items?.data) ? order.items.data : [];
+  try {
+    const items = await fetchSallaOrderItems(accessToken, orderId);
+    return { ...order, items: mergeSallaOrderItems(base, items) };
+  } catch (error) {
+    // A supplemental endpoint failure must not discard complete, freshly
+    // fetched order details. The quantity parser still fails closed if absent.
+    if (!base.length) throw error;
+    return { ...order, items: base, itemDetailsUnavailable: true };
+  }
 }

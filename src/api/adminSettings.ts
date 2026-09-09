@@ -7,6 +7,17 @@ export type AdminSetting = {
   updated_at: string;
 };
 
+export type TelegramWebhookResult = { configured: boolean; message?: string; url?: string; botUsername?: string };
+export type TelegramDiagnostics = {
+  connected: boolean;
+  expectedUrl: string | null;
+  currentUrl: string | null;
+  botUsername: string | null;
+  pendingUpdates: number;
+  lastError: string | null;
+  message: string;
+};
+
 export type AdminNotificationSummary = {
   stats:
     | Array<{
@@ -46,10 +57,12 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 export const adminSettingsApi = {
   list: async () => apiFetch<{ success: boolean; data: AdminSetting[] }>('/admin/settings'),
   update: async (key: string, value: string) =>
-    apiFetch<{ success: boolean; data: AdminSetting }>('/admin/settings', {
+    apiFetch<{ success: boolean; data: AdminSetting; telegramWebhook?: TelegramWebhookResult | null }>('/admin/settings', {
       method: 'PUT',
       body: JSON.stringify({ key, value }),
     }),
+  getTelegramStatus: () => apiFetch<{ success: boolean; data: TelegramDiagnostics }>('/admin/settings/__meta/telegram-status'),
+  repairTelegram: () => apiFetch<{ success: boolean; data: TelegramDiagnostics; telegramWebhook: TelegramWebhookResult }>('/admin/settings/__meta/telegram-repair', { method: 'POST' }),
   getNotificationSummary: async () =>
     apiFetch<{ success: boolean; data: AdminNotificationSummary }>('/admin/settings/__meta/notifications-summary'),
 };

@@ -1,5 +1,6 @@
 import https from "node:https";
-import { getSetting } from "../db/settingsRepo";
+import { randomBytes } from "node:crypto";
+import { getSetting, setSetting } from "../db/settingsRepo";
 
 type ReplyMarkup = {
   inline_keyboard: Array<Array<{ text: string; callback_data?: string; url?: string }>>;
@@ -16,22 +17,23 @@ function getBotToken() {
  * otherwise correctly deployed Railway services.
  */
 function getPublicBaseUrl(explicit?: string) {
+  const override = explicit || getSetting("telegram_webhook_base_url")?.value?.trim();
   const candidates = [
-    explicit,
-    process.env.BASE_PUBLIC_URL,
-    process.env.RAILWAY_STATIC_URL,
+    override,
     process.env.RAILWAY_PUBLIC_DOMAIN,
-    process.env.RAILWAY_DEPLOYMENT_URL,
+    process.env.RAILWAY_STATIC_URL,
+    process.env.BASE_PUBLIC_URL,
     process.env.RENDER_EXTERNAL_URL,
   ];
 
-  for (const candidate of candidates) {
+  for (const candidate of override ? [override] : candidates) {
     const value = String(candidate || "").trim();
     if (!value) continue;
     const withProtocol = /^https?:\/\//i.test(value) ? value : `https://${value}`;
     try {
       const url = new URL(withProtocol);
-      if (url.protocol === "https:") return url.toString();
+      if (url.protocol === "https:" && !url.username && !url.password && !url.search && !url.hash &&
+        !/^(localhost|127\.|0\.|\[::1\])/.test(url.hostname) && !url.hostname.endsWith(".internal")) return url.origin;
     } catch {
       // Try the next platform-provided address.
     }
@@ -41,19 +43,20 @@ function getPublicBaseUrl(explicit?: string) {
 }
 
 export function getTelegramBotUsername() {
-  return getSetting("telegram_bot_username")?.value?.trim() || process.env.TELEGRAM_BOT_USERNAME?.trim() || null;
+  const raw = getSetting("telegram_bot_username")?.value?.trim() || process.env.TELEGRAM_BOT_USERNAME?.trim() || "";
+  const username = raw.replace(/^https?:\/\/t\.me\//i, "").replace(/^@/, "").split(/[/?#]/)[0];
+  return /^[A-Za-z0-9_]+$/.test(username) ? username : null;
 }
 
 export function getTelegramWebhookSecret() {
   return getSetting("telegram_webhook_secret")?.value?.trim() || process.env.TELEGRAM_WEBHOOK_SECRET?.trim() || null;
 }
 
-function requestTelegram(method: string, body: Record<string, unknown>) {
-  const token = getBotToken();
+function requestTelegram(method: string, body: Record<string, unknown>, token = getBotToken()) {
   if (!token) throw new Error("Telegram bot token is not configured");
 
   const raw = JSON.stringify(body);
-  return new Promise<{ ok: boolean; result?: any; description?: string }>((resolve, reject) => {
+  return new Promise<{ ok: boolean; result?: any; description?: string; error_code?: number }>((resolve, reject) => {
     const req = https.request(
       {
         hostname: "api.telegram.org",
@@ -87,39 +90,92 @@ function requestTelegram(method: string, body: Record<string, unknown>) {
   });
 }
 
-type TelegramRequester = typeof requestTelegram;
+type TelegramRequester = (method: string, body: Record<string, unknown>) => ReturnType<typeof requestTelegram>;
+
+export function telegramSetupMessage(reason: string) {
+  const messages: Record<string, string> = {
+    token_missing: "رمز البوت هو API Token من BotFather. احفظه أولًا في خانة Bot Token.",
+    token_invalid: "صيغة رمز البوت غير صحيحة؛ انسخ API Token من BotFather كاملًا، وليس اسم البوت.",
+    token_rejected: "تيليجرام رفض رمز البوت. تحقق من API Token الحالي لدى BotFather.",
+    base_url_invalid: "احفظ رابط خدمة Railway العام بصيغة https في خانة رابط خادم البوت.",
+    secret_invalid: "سر الويب هوك يقبل حروفًا إنجليزية وأرقامًا وشرطة وشرطة سفلية فقط، بحد أقصى 256 حرفًا.",
+    telegram_unreachable: "تعذر الاتصال بتيليجرام. تحقق من اتصال الخادم ثم اضغط إصلاح الربط.",
+    webhook_rejected: "تيليجرام رفض رابط الويب هوك. تحقق أن الرابط عام ويعمل عبر HTTPS ثم أعد الربط.",
+  };
+  return messages[reason] || "تعذر تأكيد اتصال البوت؛ اضغط فحص الربط لمعرفة الحالة.";
+}
+
+export function validateTelegramSetting(key: string, value: string) {
+  if (key === "telegram_bot_token" && value && !/^\d+:[A-Za-z0-9_-]+$/.test(value)) return telegramSetupMessage("token_invalid");
+  if (key === "telegram_webhook_secret" && value && !/^[A-Za-z0-9_-]{1,256}$/.test(value)) return telegramSetupMessage("secret_invalid");
+  if (key === "telegram_webhook_base_url" && value && !getPublicBaseUrl(value)) return telegramSetupMessage("base_url_invalid");
+  return null;
+}
+
+function setupFailure(reason: string) { return { configured: false as const, reason, message: telegramSetupMessage(reason) }; }
 
 export async function configureTelegramWebhook(options?: {
   basePublicUrl?: string;
   request?: TelegramRequester;
 }) {
-  if (!getBotToken()) {
-    return { configured: false as const, reason: "token_missing" as const };
-  }
+  const token = getBotToken();
+  if (!token) return setupFailure("token_missing");
+  if (validateTelegramSetting("telegram_bot_token", token)) return setupFailure("token_invalid");
 
   const rawBase = getPublicBaseUrl(options?.basePublicUrl);
   if (!rawBase) {
-    return { configured: false as const, reason: "base_url_invalid" as const };
+    return setupFailure("base_url_invalid");
   }
   const base = new URL(rawBase);
 
   const webhookUrl = new URL("/api/webhooks/telegram", base).toString();
-  const secret = getTelegramWebhookSecret();
+  const secret = getTelegramWebhookSecret() || randomBytes(32).toString("hex");
   if (secret && !/^[A-Za-z0-9_-]{1,256}$/.test(secret)) {
-    return { configured: false as const, reason: "secret_invalid" as const };
+    return setupFailure("secret_invalid");
   }
 
-  const request = options?.request ?? requestTelegram;
-  const response = await request("setWebhook", {
-    url: webhookUrl,
-    secret_token: secret || undefined,
-    allowed_updates: ["message", "edited_message", "callback_query"],
-    drop_pending_updates: false,
-  });
-  if (!response.ok) {
-    throw new Error(response.description || "Telegram rejected webhook configuration");
+  const request = options?.request ?? ((method, body) => requestTelegram(method, body, token));
+  try {
+    const me = await request("getMe", {});
+    if (!me.ok || !me.result?.is_bot || !me.result?.username) return setupFailure("token_rejected");
+    // Persist the exact secret used for registration; never rotate it on restart.
+    if (!getTelegramWebhookSecret()) setSetting("telegram_webhook_secret", secret);
+    const response = await request("setWebhook", {
+      url: webhookUrl,
+      secret_token: secret || undefined,
+      allowed_updates: ["message", "edited_message", "callback_query"],
+      drop_pending_updates: false,
+    });
+    if (!response.ok) return setupFailure("webhook_rejected");
+    if (getBotToken() === token) setSetting("telegram_bot_username", me.result.username);
+    return { configured: true as const, url: webhookUrl, botUsername: String(me.result.username) };
+  } catch {
+    return setupFailure("telegram_unreachable");
   }
-  return { configured: true as const, url: webhookUrl };
+}
+
+export async function getTelegramDiagnostics(options?: { request?: TelegramRequester }) {
+  const token = getBotToken();
+  const base = getPublicBaseUrl();
+  const expectedUrl = base ? new URL("/api/webhooks/telegram", base).toString() : null;
+  const empty = { connected: false, expectedUrl, currentUrl: null as string | null, botUsername: getTelegramBotUsername(), pendingUpdates: 0, lastError: null as string | null };
+  if (!token) return { ...empty, message: telegramSetupMessage("token_missing") };
+  if (validateTelegramSetting("telegram_bot_token", token)) return { ...empty, message: telegramSetupMessage("token_invalid") };
+  const request = options?.request ?? ((method, body) => requestTelegram(method, body, token));
+  try {
+    const me = await request("getMe", {});
+    if (!me.ok || !me.result?.is_bot) return { ...empty, message: telegramSetupMessage("token_rejected") };
+    const webhook = await request("getWebhookInfo", {});
+    if (!webhook.ok) return { ...empty, message: telegramSetupMessage("telegram_unreachable") };
+    const currentUrl = typeof webhook.result?.url === "string" ? webhook.result.url : "";
+    const lastError = typeof webhook.result?.last_error_message === "string" ? webhook.result.last_error_message.replaceAll(token, "[redacted]").slice(0, 500) : null;
+    const matching = Boolean(expectedUrl && currentUrl === expectedUrl);
+    return {
+      connected: matching && !lastError, expectedUrl, currentUrl: currentUrl.replaceAll(token, "[redacted]"), botUsername: String(me.result.username || ""),
+      pendingUpdates: Number(webhook.result?.pending_update_count) || 0, lastError,
+      message: !base ? telegramSetupMessage("base_url_invalid") : !matching ? "رابط تيليجرام غير مطابق للخادم؛ اضغط إصلاح الربط." : lastError ? "الربط مسجل لكن تيليجرام أبلغ عن خطأ تسليم. جرّب رسالة جديدة ثم أعد الفحص." : "التوكن صحيح ورابط الاستقبال مطابق. أرسل رقم طلب للبوت للتأكد من الرد.",
+    };
+  } catch { return { ...empty, message: telegramSetupMessage("telegram_unreachable") }; }
 }
 
 export async function sendTelegramMessage(
@@ -135,7 +191,10 @@ export async function sendTelegramMessage(
   });
 
   if (!res.ok) {
-    throw new Error(typeof res.description === "string" ? res.description : "Failed to send Telegram message");
+    const error = new Error(typeof res.description === "string" ? res.description : "Failed to send Telegram message");
+    // A blocked/deleted chat cannot be repaired by retrying the same update.
+    Object.assign(error, { retryable: res.error_code !== 403 });
+    throw error;
   }
 
   return res.result;
@@ -148,6 +207,7 @@ export async function answerTelegramCallbackQuery(callbackQueryId: string, text?
   });
 
   if (!res.ok) {
+    if (res.error_code === 400 && /query is too old|query id is invalid/i.test(res.description || "")) return null;
     throw new Error(typeof res.description === "string" ? res.description : "Failed to answer Telegram callback");
   }
 

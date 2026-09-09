@@ -7,6 +7,7 @@ import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAdminNotificationSummary, useAdminSettings, useUpdateAdminSetting } from '@/hooks/useApi';
 import { Badge } from '@/components/ui/badge';
+import { adminSettingsApi, type TelegramDiagnostics } from '@/api/adminSettings';
 
 export default function AdminSettingsPage() {
   const { t } = useTranslation();
@@ -16,6 +17,10 @@ export default function AdminSettingsPage() {
   const [customKey, setCustomKey] = useState('');
   const [customValue, setCustomValue] = useState('');
   const [saveError, setSaveError] = useState('');
+  const [saveNotice, setSaveNotice] = useState('');
+  const [telegramStatus, setTelegramStatus] = useState<TelegramDiagnostics | null>(null);
+  const [checkingTelegram, setCheckingTelegram] = useState(false);
+  const [telegramBaseDraft, setTelegramBaseDraft] = useState<string | null>(null);
 
   const settings = settingsQuery.data?.data ?? [];
   const notificationSummary = notificationSummaryQuery.data?.data;
@@ -33,6 +38,7 @@ export default function AdminSettingsPage() {
   const telegramBotToken = settings.find((s) => s.key === 'telegram_bot_token')?.value ?? '';
   const telegramBotUsername = settings.find((s) => s.key === 'telegram_bot_username')?.value ?? '';
   const telegramWebhookSecret = settings.find((s) => s.key === 'telegram_webhook_secret')?.value ?? '';
+  const telegramWebhookBase = settings.find((s) => s.key === 'telegram_webhook_base_url')?.value ?? '';
   const telegramReminderDays = settings.find((s) => s.key === 'telegram_subscription_reminder_days')?.value ?? '7,3,1';
   const telegramLowBalanceCooldown = settings.find((s) => s.key === 'telegram_low_balance_cooldown_minutes')?.value ?? '360';
 
@@ -56,12 +62,33 @@ export default function AdminSettingsPage() {
     clearDraft?: () => void,
   ) => {
     setSaveError('');
+    setSaveNotice('');
     try {
-      await updateSetting.mutateAsync({ key, value });
+      const result = await updateSetting.mutateAsync({ key, value });
+      if (result.telegramWebhook) {
+        setTelegramStatus(null);
+        if (result.telegramWebhook.configured) setSaveNotice(`تم حفظ الإعداد وتسجيل رابط البوت @${result.telegramWebhook.botUsername || ''}. جرّب إرسال رقم طلب.`);
+        else setSaveError(`تم حفظ الإعداد، لكن البوت لم يُربط: ${result.telegramWebhook.message || 'تعذر تأكيد الربط.'}`);
+      }
       clearDraft?.();
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : 'Failed to save setting');
     }
+  };
+
+  const checkTelegram = async (repair = false) => {
+    setCheckingTelegram(true);
+    setSaveError('');
+    setSaveNotice('');
+    try {
+      if (repair) {
+        const result = await adminSettingsApi.repairTelegram();
+        setTelegramStatus(result.data);
+        if (!result.telegramWebhook.configured) setSaveError(result.telegramWebhook.message || 'تعذر الربط.');
+        await settingsQuery.refetch();
+      } else setTelegramStatus((await adminSettingsApi.getTelegramStatus()).data);
+    } catch (error) { setSaveError(error instanceof Error ? error.message : 'تعذر فحص البوت.'); }
+    finally { setCheckingTelegram(false); }
   };
 
   return (
@@ -95,7 +122,29 @@ export default function AdminSettingsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {saveError ? <p className="text-sm text-red-400">{saveError}</p> : null}
+          {saveNotice ? <p className="text-sm text-emerald-400" role="status">{saveNotice}</p> : null}
+          <div className="space-y-3 rounded-lg border p-3 text-sm" dir="rtl">
+            <p>رمز البوت هو API Token من BotFather، وليس اسم البوت. يُستخرج الاسم الصحيح تلقائيًا عند نجاح الربط.</p>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" disabled={checkingTelegram || updateSetting.isPending} onClick={() => checkTelegram()}>{checkingTelegram ? 'جاري الفحص…' : 'فحص ربط البوت'}</Button>
+              <Button disabled={checkingTelegram || updateSetting.isPending} onClick={() => checkTelegram(true)}>إصلاح الربط</Button>
+            </div>
+            {telegramStatus ? <div className="space-y-2 break-words" role="status">
+              <p>{telegramStatus.message}</p>
+              {telegramStatus.botUsername ? <p dir="ltr">@{telegramStatus.botUsername}</p> : null}
+              <p>رسائل بانتظار التسليم: {telegramStatus.pendingUpdates}</p>
+              <p>رابط الخادم المتوقع: <span dir="ltr" className="break-all">{telegramStatus.expectedUrl || 'غير محدد'}</span></p>
+              <p>المسجل لدى تيليجرام: <span dir="ltr" className="break-all">{telegramStatus.currentUrl || 'غير مسجل'}</span></p>
+              {telegramStatus.lastError ? <p className="text-red-400" dir="ltr">{telegramStatus.lastError}</p> : null}
+            </div> : null}
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2 sm:col-span-2">
+              <p className="text-xs text-muted-foreground">رابط خادم البوت (اختياري؛ يُكتشف من Railway تلقائيًا)</p>
+              <Input dir="ltr" value={telegramBaseDraft ?? telegramWebhookBase} onChange={(e) => setTelegramBaseDraft(e.target.value)} placeholder="https://your-service.up.railway.app" />
+              <p className="text-xs text-muted-foreground">رابط خدمة المنصة نفسها، وليس رابط t.me أو رابط متجر سلة. لا يغيّر هذا الإعداد ويب هوك سلة.</p>
+              <Button size="sm" disabled={updateSetting.isPending || checkingTelegram} onClick={() => upsertSetting('telegram_webhook_base_url', telegramBaseDraft ?? telegramWebhookBase, () => setTelegramBaseDraft(null))}>{t('common.save')}</Button>
+            </div>
             <div className="space-y-2">
               <p className="text-xs text-muted-foreground">{t('admin.telegram.botToken')}</p>
               <Input

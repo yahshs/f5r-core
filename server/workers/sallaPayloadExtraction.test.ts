@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { resolveTarget } from "./fulfillmentWorker";
-import { buildTargetJson, extractOrder, extractOrderId } from "./sallaWebhookWorker";
+import { buildTargetJson, extractOrder, extractOrderId, mergeOrderDetailsIntoPayload } from "./sallaWebhookWorker";
 
 const linkRule = {
   target_field: "link",
@@ -9,6 +9,12 @@ const linkRule = {
 } as any;
 
 describe("Salla invoice payload extraction", () => {
+  it("does not let a stale root order mask freshly fetched order items", () => {
+    const enriched = mergeOrderDetailsIntoPayload({ order: { id: 81234, items: [{ id: 55, quantity: 1 }] }, data: { order_id: 81234 } },
+      { id: 81234, reference_id: 21234, items: [{ id: 55, options: [{ name: "اختر عدد", value: "5000" }] }] });
+    expect(extractOrder(enriched).items[0].options[0].value).toBe("5000");
+    expect(extractOrderId(enriched)).toBe("21234");
+  });
   it("extracts a deeply nested customer link from an invoice item", () => {
     const link = "https://www.tiktok.com/@f5r/video/123";
     const item = {

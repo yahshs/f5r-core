@@ -11,6 +11,7 @@ import { ensureNotificationSettings } from "../db/notificationSettingsRepo";
 import { createPanelV2Order, listPanelV2Services, type CreateOrderResult } from "../smm/panelV2Adapter";
 import { enqueueNotification } from "../lib/notifications";
 import { sha256Hex } from "../lib/hash";
+import { recoverSallaOrderItem } from "../lib/sallaOrderRecovery";
 
 type ServiceSnapshot = { rate: number | null; min: number | null; max: number | null };
 
@@ -105,14 +106,21 @@ function findValueByLabel(itemObj: any, label: string) {
 function extractQuantityFromSelectedValue(raw: any, depth = 0): number {
   if (depth > 5 || raw == null) return NaN;
   if (typeof raw === "string" || typeof raw === "number") {
-    return parsePositiveIntFromUnknown(raw);
+    if (typeof raw === "number") return Number.isSafeInteger(raw) ? raw : NaN;
+    const clean = toLatinDigits(raw).normalize("NFKC")
+      .replace(/[\u200E\u200F\u061C\u202A-\u202E\u2066-\u2069]/g, "")
+      .replace(/\u066B/g, ".").replace(/[\u066C\u060C]/g, ",").trim();
+    // A selected count, not an id embedded in a URL or a price/duration.
+    if (/https?:|www\.|@|ريال|SAR|USD|دولار|يوم|ساعة|شهر|\$|%/i.test(clean)) return NaN;
+    if (!/^\d/.test(clean)) return NaN;
+    const numbers = clean.match(/\d[\d,]*(?:\.\d+)?/g) ?? [];
+    if (numbers.length > 1 && !clean.includes("+")) return NaN;
+    return parsePositiveIntFromUnknown(clean);
   }
   if (Array.isArray(raw)) {
-    for (const entry of raw) {
-      const parsed = extractQuantityFromSelectedValue(entry, depth + 1);
-      if (isPlausibleOrderQuantity(parsed)) return parsed;
-    }
-    return NaN;
+    const values = [...new Set(raw.map((entry) => extractQuantityFromSelectedValue(entry, depth + 1)).filter(isPlausibleOrderQuantity))];
+    if (values.length > 1) throw new Error("Quantity selection ambiguous: multiple different selected counts");
+    return values[0] ?? NaN;
   }
   if (typeof raw !== "object") return NaN;
 
@@ -123,19 +131,23 @@ function extractQuantityFromSelectedValue(raw: any, depth = 0): number {
     "selection",
     "selected_value",
     "selectedValue",
+    "selected_option",
+    "selectedOption",
+    "selected_options",
+    "selectedOptions",
     "option_value",
     "optionValue",
     "choice",
-    "option",
+    "submitted",
     "answer",
     "input",
-    "value",
-    "values",
-    "data",
     "name",
     "text",
     "title",
     "label",
+    "value",
+    "values",
+    "data",
   ];
   for (const key of preferredKeys) {
     const value = getByCaseInsensitiveKey(raw, key);
@@ -201,6 +213,7 @@ function findQuantityInSallaOrderItem(itemObj: any, configuredField: string) {
       // Read the definition solely as a label; ids/prices remain excluded.
       getByCaseInsensitiveKey(getByCaseInsensitiveKey(value, "option"), "label") ??
       getByCaseInsensitiveKey(getByCaseInsensitiveKey(value, "option"), "name") ??
+      getByCaseInsensitiveKey(getByCaseInsensitiveKey(value, "option"), "title") ??
       getByCaseInsensitiveKey(getByCaseInsensitiveKey(value, "field"), "label") ??
       getByCaseInsensitiveKey(getByCaseInsensitiveKey(value, "field"), "name") ??
       getByCaseInsensitiveKey(getByCaseInsensitiveKey(value, "attribute"), "label") ??
@@ -219,10 +232,11 @@ function findQuantityInSallaOrderItem(itemObj: any, configuredField: string) {
         getByCaseInsensitiveKey(value, "option_value") ??
         getByCaseInsensitiveKey(value, "optionValue") ??
         getByCaseInsensitiveKey(value, "choice") ??
+        getByCaseInsensitiveKey(value, "submitted") ??
         getByCaseInsensitiveKey(value, "answer") ??
         getByCaseInsensitiveKey(value, "input") ??
         getByCaseInsensitiveKey(value, "value") ??
-        label;
+        getByCaseInsensitiveKey(value, "values");
       const quantity = extractQuantityFromSelectedValue(selected);
       if (isPlausibleOrderQuantity(quantity)) candidates.push({ quantity: Math.floor(quantity), score });
     }
@@ -239,12 +253,17 @@ function findQuantityInSallaOrderItem(itemObj: any, configuredField: string) {
       }
     }
 
-    for (const child of Object.values(value)) {
+    for (const [key, child] of Object.entries(value)) {
+      if (/^(id|.*_id|price|amounts|stock|metadata|_f5r)$/i.test(key)) continue;
       if (child && typeof child === "object") stack.push({ value: child, depth: current.depth + 1 });
     }
   }
 
   candidates.sort((a, b) => b.score - a.score || b.quantity - a.quantity);
+  const best = candidates.filter((entry) => entry.score === candidates[0]?.score);
+  if (new Set(best.map((entry) => entry.quantity)).size > 1) {
+    throw new Error("Quantity selection ambiguous: more than one matching count field");
+  }
   return candidates[0]?.quantity ?? null;
 }
 
@@ -678,6 +697,7 @@ function isPermanentFulfillmentError(message: string) {
   return (
     m.includes("target value missing") ||
     m.includes("quantity value missing") ||
+    m.includes("quantity selection ambiguous") ||
     m.includes("missing quantity_value") ||
     m.includes("no seller product mapping") ||
     m.includes("no smm rules for product") ||
@@ -709,33 +729,15 @@ export function resolveQuantityDetailed(rule: SmmProductRuleRow, itemObj: any, f
 
   if (rule.quantity_type === "from_field" && rule.quantity_field) {
     const rawPath = getByPath(itemObj, rule.quantity_field);
-    const rawLabel = findValueByLabel(itemObj, rule.quantity_field);
-    const raw = rawPath ?? rawLabel;
+    const raw = rawPath;
 
-    const direct = parsePositiveIntFromUnknown(raw);
+    const direct = extractQuantityFromSelectedValue(raw);
     if (isPlausibleOrderQuantity(direct)) {
       const base = Math.floor(direct);
+      const nativeQuantity = /^(quantity|qty|count)$/i.test(rule.quantity_field.trim());
       return {
-        quantity: base * Math.max(1, orderQty),
-        meta: { mode: "from_field" as const, base, orderQty, field: rule.quantity_field, rawType: typeof raw },
-      };
-    }
-
-    const objectHint = extractPositiveIntFromObject(raw);
-    if (isPlausibleOrderQuantity(objectHint)) {
-      const base = Math.floor(objectHint);
-      return {
-        quantity: base * Math.max(1, orderQty),
-        meta: { mode: "from_field" as const, base, orderQty, field: rule.quantity_field, rawType: typeof raw },
-      };
-    }
-
-    const nested = findFirstNumericPrimitiveDeep(raw);
-    if (nested !== null && isPlausibleOrderQuantity(nested)) {
-      const base = Math.floor(nested);
-      return {
-        quantity: base * Math.max(1, orderQty),
-        meta: { mode: "from_field" as const, base, orderQty, field: rule.quantity_field, rawType: typeof raw },
+        quantity: nativeQuantity ? base : base * Math.max(1, orderQty),
+        meta: { mode: "from_field" as const, base, orderQty: nativeQuantity ? 1 : orderQty, field: rule.quantity_field, rawType: typeof raw },
       };
     }
 
@@ -981,7 +983,21 @@ export async function processNextFulfillment(opts?: {
       throw new Error(`Target value missing (field=${field})`);
     }
 
-    const { quantity, meta: quantityMeta } = resolveQuantityDetailed(rule, itemObj, orderItem.quantity);
+    let resolved: ReturnType<typeof resolveQuantityDetailed>;
+    try {
+      resolved = resolveQuantityDetailed(rule, itemObj, orderItem.quantity);
+    } catch (error) {
+      if (!(error instanceof Error) || !error.message.startsWith("Quantity value missing") || alreadySubmittedProviderOrderId) throw error;
+      const recovery = await recoverSallaOrderItem(order, orderItem);
+      try { resolved = resolveQuantityDetailed(rule, recovery.item, recovery.quantity); }
+      catch (retryError) {
+        if (retryError instanceof Error && retryError.message.startsWith("Quantity value missing")) {
+          throw new Error(`${retryError.message} — ${recovery.reason}`);
+        }
+        throw retryError;
+      }
+    }
+    const { quantity, meta: quantityMeta } = resolved;
     if (!Number.isFinite(quantity) || quantity <= 0) throw new Error("Quantity invalid");
 
     const link = rule.normalize_url ? target.trim() : target;
@@ -1137,7 +1153,8 @@ export async function processNextFulfillment(opts?: {
       }
     }
 
-    const next = isPermanentFulfillmentError(message)
+    const retryMissingQuantity = message.startsWith("Quantity value missing") && job.attempts <= 3;
+    const next = isPermanentFulfillmentError(message) && !retryMissingQuantity
       ? addSeconds(nowIso2, 60 * 60 * 24 * 365)
       : addSeconds(nowIso2, backoffSeconds(job.attempts, 1800));
     markFulfillmentFailed(job.id, { error: message, nextAttemptAtIso: next, nowIso: new Date().toISOString() });

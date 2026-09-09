@@ -8,6 +8,29 @@ const rule = {
 } as SmmProductRuleRow;
 
 describe("Salla order item quantity", () => {
+  it.each([
+    ["١٬٠٠٠", 1000], ["25,000", 25000], ["2.5K", 2500], ["1.5M", 1500000],
+    ["10 ألف", 10000], ["500 لايك", 500], ["100 + 50 لايك", 150],
+  ])("retains supported count format %s", (value, expected) => {
+    expect(resolveQuantityDetailed(rule, { options: [{ name: "اختر عدد", value }] }, 1).quantity).toBe(expected);
+  });
+  it("does not read a price from an exact matching option without a selected count", () => {
+    expect(() => resolveQuantityDetailed(rule, {
+      quantity: 1,
+      options: [{ name: "اختر عدد", value: { id: 987, price: { amount: 5000 } } }],
+    }, 1)).toThrow("Quantity value missing");
+  });
+
+  it("does not square the native line quantity when quantity is explicitly mapped", () => {
+    expect(resolveQuantityDetailed({ ...rule, quantity_field: "quantity" }, { quantity: 500 }, 500).quantity).toBe(500);
+  });
+
+  it("rejects conflicting selected quantities instead of choosing the largest", () => {
+    expect(() => resolveQuantityDetailed(rule, {
+      quantity: 1,
+      options: [{ name: "اختر عدد", value: [{ name: "1000" }, { name: "5000" }] }],
+    }, 1)).toThrow(/Quantity .*ambiguous/);
+  });
   it("reads the selected count from the order option even when Salla changes the label", () => {
     const result = resolveQuantityDetailed(
       rule,

@@ -4,7 +4,7 @@ import { requireAdmin } from "../auth";
 import { listSettings, setSetting, getSetting } from "../db/settingsRepo";
 import { insertAuditLog } from "../db/auditLogsRepo";
 import { getNotificationJobStats, listFailedNotificationJobs } from "../db/notificationJobsRepo";
-import { configureTelegramWebhook } from "../lib/telegram";
+import { configureTelegramWebhook, getTelegramDiagnostics, validateTelegramSetting } from "../lib/telegram";
 
 export const adminSettingsRouter = Router();
 adminSettingsRouter.use(requireAdmin);
@@ -16,6 +16,15 @@ const updateSchema = z.object({
 
 adminSettingsRouter.get("/", (_req, res) => {
   res.json({ success: true, data: listSettings() });
+});
+
+adminSettingsRouter.get("/__meta/telegram-status", async (_req, res) => {
+  res.json({ success: true, data: await getTelegramDiagnostics() });
+});
+
+adminSettingsRouter.post("/__meta/telegram-repair", async (_req, res) => {
+  const result = await configureTelegramWebhook();
+  res.json({ success: true, telegramWebhook: result, data: await getTelegramDiagnostics() });
 });
 
 adminSettingsRouter.get("/__meta/notifications-summary", (_req, res) => {
@@ -41,6 +50,8 @@ adminSettingsRouter.get("/:key", (req, res) => {
 adminSettingsRouter.put("/", async (req, res) => {
   const parsed = updateSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ success: false, message: "Invalid input" });
+  const validationError = validateTelegramSetting(parsed.data.key, parsed.data.value);
+  if (validationError) return res.status(400).json({ success: false, message: validationError });
 
   const row = setSetting(parsed.data.key, parsed.data.value);
 
@@ -50,17 +61,16 @@ adminSettingsRouter.put("/", async (req, res) => {
     action: "admin.setting.update",
     entityType: "setting",
     entityId: parsed.data.key,
-    details: JSON.stringify(parsed.data),
+    details: JSON.stringify({ key: parsed.data.key, value: /token|secret|password|api_key/i.test(parsed.data.key) ? "[redacted]" : parsed.data.value }),
   });
 
   let telegramWebhook: Awaited<ReturnType<typeof configureTelegramWebhook>> | null = null;
-  if (["telegram_bot_token", "telegram_webhook_secret"].includes(parsed.data.key)) {
+  if (["telegram_bot_token", "telegram_webhook_secret", "telegram_webhook_base_url", "telegram_bot_username"].includes(parsed.data.key)) {
     try {
       telegramWebhook = await configureTelegramWebhook();
     } catch (error) {
-      console.error("[telegram] webhook configuration after settings update failed", {
-        error: error instanceof Error ? error.message : String(error),
-      });
+      telegramWebhook = { configured: false, reason: "configuration_failed", message: "تم حفظ الإعداد لكن تعذر ربط البوت. اضغط فحص الربط." };
+      console.error("[telegram] webhook configuration after settings update failed");
     }
   }
 

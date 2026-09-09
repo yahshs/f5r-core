@@ -73,6 +73,16 @@ describe("customer compensation bot", () => {
     vi.clearAllMocks();
   });
 
+  it("does not acknowledge a failed Telegram reply as delivered", async () => {
+    const app = await createApp();
+    vi.mocked(sendTelegramMessage).mockRejectedValueOnce(new Error("Telegram request timeout"));
+    const update = { update_id: 901234, message: { text: "/start", chat: { id: 901234, type: "private" } } };
+    await request(app).post("/api/webhooks/telegram").send(update).expect(503);
+    await request(app).post("/api/webhooks/telegram").send(update).expect(200);
+    await request(app).post("/api/webhooks/telegram").send(update).expect(200);
+    expect(sendTelegramMessage).toHaveBeenCalledTimes(2);
+  });
+
   it("keeps one stable customer link, reports live status, and enforces the refill limit", async () => {
     const app = await createApp();
     const sellerId = "seller-customer-bot";

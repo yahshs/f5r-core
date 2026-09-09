@@ -19,6 +19,7 @@ import {
   getTelegramWebhookSecret,
   sendTelegramMessage,
 } from "../lib/telegram";
+import { claimTelegramUpdate, finishTelegramUpdate } from "../db/telegramUpdateReceiptsRepo";
 import {
   buildFailedFulfillmentDetailsMessage,
   buildRetryConfirmReplyMarkup,
@@ -463,13 +464,18 @@ export async function handleTelegramWebhook(req: Request, res: Response) {
     }
   }
 
+  let receipt: ReturnType<typeof claimTelegramUpdate> = null;
   try {
     const update = req.body && typeof req.body === "object" ? req.body : {};
+    receipt = claimTelegramUpdate(update.update_id);
+    if (receipt?.status === "done") return res.json({ ok: true });
+    if (receipt?.status === "processing") return res.status(503).set("Retry-After", "5").json({ ok: false });
     const callbackQuery = (update as any).callback_query;
     const message = (update as any).message ?? (update as any).edited_message;
 
     if (callbackQuery) {
       await handleCallbackQuery(callbackQuery);
+      finishTelegramUpdate(receipt, true);
       return res.json({ ok: true });
     }
 
@@ -482,11 +488,17 @@ export async function handleTelegramWebhook(req: Request, res: Response) {
       }
     }
 
+    finishTelegramUpdate(receipt, true);
     return res.json({ ok: true });
   } catch (error) {
+    const permanent = error instanceof Error && "retryable" in error && error.retryable === false;
+    finishTelegramUpdate(receipt, permanent);
     console.error("[telegram-webhook] failed", {
-      error: error instanceof Error ? error.message : String(error),
+      // The response must never include bot tokens or customer message contents.
+      retryable: !permanent,
+      updateId: receipt?.id ?? null,
     });
-    return res.json({ ok: true });
+    if (permanent) return res.json({ ok: true });
+    return res.status(503).set("Retry-After", "5").json({ ok: false });
   }
 }

@@ -661,14 +661,14 @@ export function extractOrder(payload: any): {
 
   const itemsCandidate =
     firstByPaths(root, [
-      "order.items",
-      "order.items.data",
       // invoice.created often contains a shortened data.items list. When the
       // worker enriches the payload from Salla's Orders API, the complete
       // product options (including fields such as "اختر عدد") live here.
       // Prefer those complete items before falling back to invoice items.
       "data.order.items",
       "data.order.items.data",
+      "order.items",
+      "order.items.data",
       "data.invoice.order.items",
       "data.invoice.order.items.data",
       "data.items",
@@ -782,7 +782,7 @@ export function extractOrderId(payload: any): string | null {
   return null;
 }
 
-function extractSallaApiOrderId(payload: any): string | null {
+export function extractSallaApiOrderId(payload: any): string | null {
   const root = payload && typeof payload === "object" ? payload : {};
   const data = (root as any).data ?? {};
   const order = (root as any).order ?? (data as any).order ?? {};
@@ -793,17 +793,19 @@ function extractSallaApiOrderId(payload: any): string | null {
     (order as any).id ??
     (root as any).order_id ??
     (data as any).order?.id ??
+    (typeof (data as any).order === "number" || typeof (data as any).order === "string" ? (data as any).order : null) ??
     null;
   if (candidate === null || candidate === undefined) return null;
   const value = String(candidate).trim();
   return value || null;
 }
 
-function mergeOrderDetailsIntoPayload(payload: any, orderDetails: any) {
+export function mergeOrderDetailsIntoPayload(payload: any, orderDetails: any) {
   const root = payload && typeof payload === "object" ? payload : {};
   const data = root.data && typeof root.data === "object" ? root.data : {};
   return {
     ...root,
+    ...(root.order && typeof root.order === "object" ? { order: orderDetails } : {}),
     data: {
       ...data,
       order: orderDetails,
@@ -955,7 +957,7 @@ function tryParseWrappedJson(raw: string): any | undefined {
   return undefined;
 }
 
-function parseWebhookPayloadRaw(raw: string): any {
+export function parseWebhookPayloadRaw(raw: string): any {
   const trimmed = raw.trim();
   if (!trimmed) return {};
 
@@ -1124,7 +1126,8 @@ export async function processNextSallaWebhookEvent() {
         sallaSku: sku,
         quantity,
         lineKey,
-        targetJson: buildTargetJson(item),
+        targetJson: buildTargetJson({ ...item, _f5r: { ...item?._f5r,
+          salla_api_order_id: apiOrderId, webhook_event_id: job.id } }),
       });
 
       const sellerProduct =
