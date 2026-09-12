@@ -30,22 +30,29 @@ const adminNavItems = [
 ];
 
 export default function AdminLayout() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const location = useLocation();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const isRTL = i18n.dir() === 'rtl';
 
   return (
-    <MainLayout showFooter={false}>
-      <div className="flex min-h-[calc(100vh-4rem)]">
+    <MainLayout showFooter={false} className="dark bg-background text-foreground">
+      <div className="f5r-workspace-bg flex min-h-[calc(100vh-4rem)]">
         {/* Sidebar */}
         <motion.aside
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="hidden w-64 border-r bg-card lg:block lg:sticky lg:top-16 lg:h-[calc(100vh-4rem)] lg:overflow-y-auto"
+          className={cn(
+            'hidden w-64 bg-[#0b0e0f]/90 backdrop-blur-2xl lg:sticky lg:top-16 lg:block lg:h-[calc(100vh-4rem)] lg:overflow-y-auto',
+            isRTL ? 'border-l border-primary/10' : 'border-r border-primary/10',
+          )}
         >
           <div className="p-4 pb-8">
-            <h2 className="mb-4 px-4 text-lg font-semibold">{t('admin.title')}</h2>
-            <nav className="space-y-1">
+            <div className="mb-6 px-2 pt-1">
+              <p className="text-sm font-semibold tracking-wide">F5R CORE</p>
+              <p className="mt-1 text-xs text-muted-foreground">{t('admin.title')}</p>
+            </div>
+            <nav className="space-y-1.5">
               {adminNavItems.map((item) => {
                 const isActive = location.pathname === item.path ||
                   (item.path !== '/admin' && location.pathname.startsWith(item.path));
@@ -54,10 +61,10 @@ export default function AdminLayout() {
                     key={item.path}
                     to={item.path}
                     className={cn(
-                      "flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors",
+                      "flex min-h-11 items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors",
                       isActive
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                        ? "bg-gradient-to-l from-primary/[0.16] to-primary/[0.035] text-primary shadow-[inset_-2px_0_hsl(var(--primary))]"
+                        : "text-muted-foreground hover:bg-white/[0.035] hover:text-foreground"
                     )}
                   >
                     <item.icon className="h-5 w-5" />
@@ -70,14 +77,14 @@ export default function AdminLayout() {
         </motion.aside>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-auto px-4 pb-6 pt-4 sm:px-6 lg:p-8">
+        <main className="min-w-0 flex-1 overflow-auto px-4 pb-6 pt-4 sm:px-6 lg:p-7 xl:p-9">
           {/* Mobile admin nav */}
-          <div className="mb-4 flex items-center justify-between lg:hidden">
+          <div className="mb-4 flex items-center justify-between rounded-2xl border border-white/[0.07] bg-card/75 p-2.5 backdrop-blur-xl lg:hidden">
             <Button
               type="button"
               variant="outline"
               size="icon"
-              className="shrink-0"
+              className="shrink-0 rounded-xl border-primary/20 bg-primary/[0.06]"
               onClick={() => setMobileNavOpen(true)}
               aria-label={t('admin.title')}
             >

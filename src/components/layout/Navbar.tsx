@@ -38,6 +38,7 @@ export default function Navbar() {
   const { language, setLanguage } = useLanguageStore();
   const logoutMutation = useLogout();
   const { theme, setTheme } = useTheme();
+  const isWorkspace = location.pathname.startsWith('/seller') || location.pathname.startsWith('/admin');
 
   const logoTo = !isAuthenticated
     ? "/"
@@ -72,23 +73,38 @@ export default function Navbar() {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl">
+    <header
+      className={cn(
+        'sticky top-0 z-50 w-full border-b backdrop-blur-xl',
+        isWorkspace
+          ? 'border-primary/15 bg-[#090c0c]/90 shadow-[0_10px_35px_rgba(0,0,0,0.18)]'
+          : 'border-border/40 bg-background/80',
+      )}
+    >
       <nav className="section-container">
         <div className="relative flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link to={logoTo} className="flex items-center gap-2">
+          <Link to={logoTo} className="flex items-center gap-2.5">
             <img
               src={logoUrl}
               alt="F5R"
-              className="h-11 w-11 rounded-lg object-contain"
+              className={cn(
+                'h-11 w-11 rounded-xl object-contain',
+                isWorkspace && 'border border-primary/20 bg-primary/[0.055] shadow-[0_8px_30px_hsl(var(--primary)/0.13)]',
+              )}
               loading="eager"
               decoding="async"
             />
-            <span className="text-xl font-bold tracking-tight sr-only">F5R</span>
+            <span className={cn('leading-tight', isWorkspace ? 'block' : 'sr-only')}>
+              <strong className="block text-sm font-semibold tracking-wide">F5R CORE</strong>
+              <small className="block text-[11px] text-muted-foreground">
+                {user?.role === 'admin' ? t('admin.title') : t('seller.title')}
+              </small>
+            </span>
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden items-center gap-1 lg:flex absolute left-1/2 -translate-x-1/2">
+          <div className={cn('absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 lg:flex', isWorkspace && 'lg:hidden')}>
             {navLinks.map((link) => (
               <Link
                 key={link.href}
@@ -125,7 +141,7 @@ export default function Navbar() {
               variant="ghost"
               size="icon"
               onClick={toggleTheme}
-              className="hidden sm:flex"
+              className={cn('hidden sm:flex', isWorkspace && 'sm:hidden')}
             >
               {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
               <span className="sr-only">Toggle theme</span>
@@ -208,7 +224,7 @@ export default function Navbar() {
               className="overflow-hidden lg:hidden"
             >
               <div className="space-y-1 pb-4 pt-2">
-                {navLinks.map((link) => (
+                {!isWorkspace && navLinks.map((link) => (
                   <Link
                     key={link.href}
                     to={link.href}
@@ -240,10 +256,12 @@ export default function Navbar() {
                     </span>
                   </Button>
 
-                  <Button variant="outline" onClick={toggleTheme} className="w-full justify-start">
-                    {theme === 'dark' ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
-                    <span className="font-medium">{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
-                  </Button>
+                  {!isWorkspace && (
+                    <Button variant="outline" onClick={toggleTheme} className="w-full justify-start">
+                      {theme === 'dark' ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
+                      <span className="font-medium">{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
+                    </Button>
+                  )}
 
                   {!isAuthenticated && (
                     <>

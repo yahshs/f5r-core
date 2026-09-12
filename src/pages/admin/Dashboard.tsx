@@ -24,19 +24,26 @@ export default function AdminDashboardPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">{t('admin.title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('admin.dashboardSubtitle')}</p>
+    <div className="space-y-5">
+      <div className="f5r-glass-panel f5r-gold-panel relative overflow-hidden rounded-[24px] p-5 sm:p-6">
+        <div className="pointer-events-none absolute -bottom-24 -start-16 h-48 w-48 rounded-full border-[28px] border-primary/[0.055]" />
+        <div className="relative">
+          <div className="mb-2 flex items-center gap-2 text-xs text-emerald-400">
+            <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_0_4px_rgba(52,211,153,0.09)]" />
+            <span>{t('common.active', { defaultValue: 'النظام يعمل' })}</span>
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t('admin.title')}</h1>
+          <p className="mt-1.5 text-sm text-muted-foreground">{t('admin.dashboardSubtitle')}</p>
+        </div>
       </div>
 
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+        className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
       >
         {stats.map((s) => (
-          <Card key={s.label}>
+          <Card key={s.label} className="f5r-glass-panel overflow-hidden rounded-[20px]">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">{s.label}</CardTitle>
             </CardHeader>
@@ -47,8 +54,8 @@ export default function AdminDashboardPage() {
         ))}
       </motion.div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
+      <div className="grid gap-3 lg:grid-cols-2">
+        <Card className="f5r-glass-panel rounded-[22px]">
           <CardHeader>
             <CardTitle>{t('admin.analytics.ordersByDayTitle')}</CardTitle>
           </CardHeader>
@@ -88,7 +95,7 @@ export default function AdminDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="f5r-glass-panel rounded-[22px]">
           <CardHeader>
             <CardTitle>{t('admin.analytics.topSellersTitle')}</CardTitle>
           </CardHeader>
@@ -130,8 +137,8 @@ export default function AdminDashboardPage() {
         </Card>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
+      <div className="grid gap-3 lg:grid-cols-2">
+        <Card className="f5r-glass-panel rounded-[22px]">
           <CardHeader>
             <CardTitle>{t('admin.analytics.topProvidersTitle')}</CardTitle>
           </CardHeader>
@@ -169,7 +176,7 @@ export default function AdminDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="f5r-glass-panel rounded-[22px]">
           <CardHeader>
             <CardTitle>{t('admin.analytics.fulfillmentsTitle')}</CardTitle>
           </CardHeader>
