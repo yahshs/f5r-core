@@ -3,7 +3,7 @@ import { getSallaAccessToken, getSallaConnectionBySellerId, isSallaConnectionOpe
 import { listOrderItemsByOrderId, upsertOrderItem, type OrderItemRow, type OrderRow } from "../db/ordersRepo";
 import { buildTargetJson, extractOrder, extractOrderId, extractSallaApiOrderId, parseWebhookPayloadRaw } from "../workers/sallaWebhookWorker";
 import { fetchSallaOrderWithItems } from "./sallaClient";
-import { matchSallaItem } from "./sallaOrderItems";
+import { matchSallaItem, mergeSallaOrderItems } from "./sallaOrderItems";
 
 export async function recoverSallaOrderItem(order: OrderRow, item: OrderItemRow) {
   const stored = item.target_json ? JSON.parse(item.target_json) : {};
@@ -42,8 +42,8 @@ export async function recoverSallaOrderItem(order: OrderRow, item: OrderItemRow)
       if (reference != null && order.salla_order_id !== String(apiOrderId) && String(reference) !== order.salla_order_id) {
         throw new Error("Salla order reference mismatch");
       }
-      const match = matchSallaItem(identity, details.items, siblings);
-      if (match) recovered = { ...stored, ...match };
+      const match = matchSallaItem({ ...recovered, ...identity, item_id: recovered.item_id ?? identity.item_id }, details.items, siblings);
+      if (match) recovered = mergeSallaOrderItems([recovered], [match])[0];
       reason = match ? "تم جلب تفاصيل سلة، لكن خيار العدد غير موجود أو غير صالح. راجع ربط حقل العدد في المنتج." :
         "تعذر مطابقة عنصر الطلب بشكل آمن مع سلة؛ يوجد أكثر من عنصر مطابق أو تغير معرفه.";
       if (details.itemDetailsUnavailable) reason = "تعذر جلب خيارات عناصر الطلب من سلة. تحقق من صلاحية قراءة الطلبات ثم أعد المحاولة.";

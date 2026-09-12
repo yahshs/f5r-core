@@ -7,8 +7,19 @@ function skuKey(item: any) {
 }
 export function matchSallaItem(item: any, candidates: any[], siblings: any[] = [item]) {
   const id = String(item?.id ?? "");
-  const exact = id ? candidates.filter((entry) => String(entry?.id ?? "") === id) : [];
+  const orderItemId = String(item?.item_id ?? "");
+  // invoice.items.id identifies an invoice line; item_id identifies its order
+  // item. Orders API items expose that latter identifier as id.
+  const exact = candidates.filter((entry) => {
+    const entryId = String(entry?.id ?? "");
+    const entryOrderItemId = String(entry?.item_id ?? "");
+    if (orderItemId && entryOrderItemId) return orderItemId === entryOrderItemId;
+    if (orderItemId && orderItemId === entryId) return true;
+    if (entryOrderItemId && entryOrderItemId === id) return true;
+    return !!id && id === entryId;
+  });
   if (exact.length === 1) return exact[0];
+  if (exact.length > 1) return null;
   const sameProduct = (entry: any) =>
     (productKey(item) && productKey(entry) === productKey(item)) ||
     (skuKey(item) && skuKey(entry) === skuKey(item));
@@ -22,6 +33,9 @@ export function mergeSallaOrderItems(base: any[], details: any[]) {
     const detail = matchSallaItem(item, details, base);
     // Keep line identity; a replay must not create a second order item.
     return detail ? { ...item, ...detail, id: item.id ?? detail.id,
+      // The original invoice description contains submitted buyer inputs;
+      // the order API may return no description or catalogue prose instead.
+      description: item.description || detail.description,
       product: { ...item.product, ...detail.product } } : item;
   });
 }

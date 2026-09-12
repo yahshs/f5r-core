@@ -12,6 +12,7 @@ import { createPanelV2Order, listPanelV2Services, type CreateOrderResult } from 
 import { enqueueNotification } from "../lib/notifications";
 import { sha256Hex } from "../lib/hash";
 import { recoverSallaOrderItem } from "../lib/sallaOrderRecovery";
+import { extractSallaUrlFromText, invoiceDescriptionFields } from "../lib/sallaItemText";
 
 type ServiceSnapshot = { rate: number | null; min: number | null; max: number | null };
 
@@ -163,6 +164,7 @@ function quantityLabelScore(label: unknown, configuredField: string) {
   const normalized = normalizeLabelKey(label);
   const configured = normalizeLabelKey(configuredField);
   if (!normalized) return 0;
+  if (/سعر|تكلف|مبلغ|رقم الطلب|أيام|ايام|يوم|ساع|شهر|مدة|price|cost|duration|days|hours/i.test(normalized)) return 0;
   if (configured && (normalized === configured || normalized.includes(configured) || configured.includes(normalized))) return 100;
   if (/\b(quantity|qty|count)\b/i.test(normalized) || normalized.includes("عدد") || normalized.includes("كمية")) return 80;
   if (
@@ -184,6 +186,15 @@ function findQuantityInSallaOrderItem(itemObj: any, configuredField: string) {
   const containers = [itemObj].filter((value) => value && typeof value === "object");
 
   const candidates: Array<{ quantity: number; score: number }> = [];
+  // Salla invoice.created places the actual buyer count in the purchased
+  // item's description, e.g. "عدد المشاهدات : 1000.", even with quantity: 1.
+  // Read that item only, never the product's catalogue description.
+  for (const field of invoiceDescriptionFields(itemObj?.description)) {
+    const score = quantityLabelScore(field.label, configuredField);
+    if (!score) continue;
+    const quantity = extractQuantityFromSelectedValue(field.value);
+    if (isPlausibleOrderQuantity(quantity)) candidates.push({ quantity, score });
+  }
   const stack: Array<{ value: any; depth: number }> = containers.map((value) => ({ value, depth: 0 }));
   const seen = new Set<any>();
   let nodes = 0;
@@ -515,9 +526,7 @@ function normalizeUrlish(s: string) {
 }
 
 function extractUrlFromText(s: string) {
-  const m = String(s || "").match(/(https?:\/\/\S+|www\.\S+)/i);
-  if (!m) return null;
-  return normalizeUrlish(m[1] ?? "") ?? null;
+  return extractSallaUrlFromText(s);
 }
 
 function isSocialTargetUrl(value: string) {

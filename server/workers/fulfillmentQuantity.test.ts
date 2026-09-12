@@ -8,6 +8,34 @@ const rule = {
 } as SmmProductRuleRow;
 
 describe("Salla order item quantity", () => {
+  it.each(["1000", "١٬٠٠٠", "1,000", "1K"])("reads the labelled invoice description count %s", (count) => {
+    const item = { quantity: 1, description: `ضع رابط المقطع : https://vt.tiktok.com/test123/. عدد المشاهدات : ${count}. ` };
+    expect(resolveQuantityDetailed(rule, item, 1).quantity).toBe(1000);
+    expect(resolveQuantityDetailed(rule, item, 2).quantity).toBe(2000);
+  });
+
+  it("uses the configured description label when several services have different counts", () => {
+    const item = { description: "عدد المشاهدات : 1000. عدد اللايكات : 200. " };
+    expect(() => resolveQuantityDetailed(rule, item, 1)).toThrow(/Quantity .*ambiguous/);
+    expect(resolveQuantityDetailed({ ...rule, quantity_field: "عدد اللايكات" }, item, 1).quantity).toBe(200);
+  });
+
+  it.each([
+    "ضع رابط المقطع : https://vt.tiktok.com/1000/. السعر : 500. ",
+    "رقم الطلب : 1000. عدد الأيام : 30. ",
+    "عدد المشاهدات : https://example.com/1000. ",
+    "عدد المشاهدات : 10 ريال. ",
+    "عدد المشاهدات : 1000 أو 5000. ",
+  ])("does not guess a count from unrelated description numbers: %s", (description) => {
+    expect(() => resolveQuantityDetailed(rule, { quantity: 1, description }, 1)).toThrow("Quantity value missing");
+  });
+
+  it("keeps the fixed rule quantity for a package whose invoice only contains a link", () => {
+    const item = { quantity: 1, description: "ضع رابط المقطع : https://vt.tiktok.com/test123/. " };
+    expect(resolveQuantityDetailed({ ...rule, quantity_type: "fixed", quantity_value: 2500 }, item, 1).quantity).toBe(2500);
+    expect(() => resolveQuantityDetailed({ ...rule, quantity_type: "fixed", quantity_value: null }, item, 1)).toThrow("missing quantity_value");
+  });
+
   it.each([
     ["١٬٠٠٠", 1000], ["25,000", 25000], ["2.5K", 2500], ["1.5M", 1500000],
     ["10 ألف", 10000], ["500 لايك", 500], ["100 + 50 لايك", 150],

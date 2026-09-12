@@ -15,7 +15,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:regression": "vitest run server/workers/fulfillmentQuantity.test.ts server/workers/sallaPayloadExtraction.test.ts server/lib/sallaOrderRecovery.test.ts server/lib/telegramWebhook.test.ts server/routes/adminTelegram.api.test.ts server/routes/customerCompensationBot.api.test.ts server/routes/auth.api.test.ts server/db/ordersRepo.test.ts server/db/fulfillmentsRepo.test.ts server/db/webhookEventsRepo.test.ts server/db/telegramUpdateReceiptsRepo.test.ts server/lib/ssrf.test.ts"
+    "test:regression": "vitest run server/workers/fulfillmentQuantity.test.ts server/workers/sallaPayloadExtraction.test.ts server/workers/sallaInvoiceDescription.test.ts server/lib/sallaOrderRecovery.test.ts server/lib/telegramWebhook.test.ts server/routes/adminTelegram.api.test.ts server/routes/customerCompensationBot.api.test.ts server/routes/auth.api.test.ts server/db/ordersRepo.test.ts server/db/fulfillmentsRepo.test.ts server/db/webhookEventsRepo.test.ts server/db/telegramUpdateReceiptsRepo.test.ts server/lib/ssrf.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

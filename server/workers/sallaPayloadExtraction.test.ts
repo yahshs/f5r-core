@@ -9,6 +9,24 @@ const linkRule = {
 } as any;
 
 describe("Salla invoice payload extraction", () => {
+  it.each([
+    "ضع رابط المقطع : https://vt.tiktok.com/test123/. عدد المشاهدات : 1000. ",
+    "ضع رابط المقطع : [https://vt.tiktok.com/test123/](https://vt.tiktok.com/test123/). عدد المشاهدات : 1000. ",
+  ])("extracts the exact URL from an invoice description: %s", (description) => {
+    const item = { id: 51, item_id: 71, product_id: 31, quantity: 1, description };
+    expect(resolveTarget(linkRule, JSON.parse(buildTargetJson(item)))).toBe("https://vt.tiktok.com/test123/");
+    expect(resolveTarget(linkRule, item)).toBe("https://vt.tiktok.com/test123/");
+  });
+
+  it("retains invoice descriptions and line ids when API items are reordered and omit descriptions", () => {
+    const items = [1, 2].map((i) => ({ id: 50 + i, item_id: 70 + i, product_id: 31, quantity: 1,
+      description: `ضع رابط المقطع : https://vt.tiktok.com/test${i}/. عدد المشاهدات : 1000. ` }));
+    const enriched = mergeOrderDetailsIntoPayload({ event: "invoice.created", data: { order_id: 800, order_reference_id: 200, items } },
+      { id: 800, reference_id: 200, items: [{ id: 72, product_id: 31, description: null, options: ["two"] }, { id: 71, product_id: 31, description: "", options: ["one"] }] });
+    expect(extractOrder(enriched).items.map((item) => ({ id: item.id, description: item.description, options: item.options }))).toEqual(
+      items.map((item, i) => ({ id: item.id, description: item.description, options: [i === 0 ? "one" : "two"] })));
+  });
+
   it("does not let a stale root order mask freshly fetched order items", () => {
     const enriched = mergeOrderDetailsIntoPayload({ order: { id: 81234, items: [{ id: 55, quantity: 1 }] }, data: { order_id: 81234 } },
       { id: 81234, reference_id: 21234, items: [{ id: 55, options: [{ name: "اختر عدد", value: "5000" }] }] });

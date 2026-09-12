@@ -7,7 +7,7 @@ import {
   touchSallaLastEventAtByConnectionId,
   touchSallaLastEventAtBySellerId,
 } from "../db/sallaConnectionsRepo";
-import { getOrderBySellerAndSallaId, replaceOrderSallaIdById, upsertOrder, upsertOrderItem } from "../db/ordersRepo";
+import { getOrderBySellerAndSallaId, listOrderItemsByOrderId, replaceOrderSallaIdById, upsertOrder, upsertOrderItem } from "../db/ordersRepo";
 import { getSellerProductBySallaProductId, getSellerProductBySku } from "../db/productsRepo";
 import { listRulesForProduct, type SmmProductRuleRow } from "../db/smmRulesRepo";
 import { getProviderByIdForSeller } from "../db/smmProvidersRepo";
@@ -16,6 +16,8 @@ import { getSellerSubscription } from "../db/subscriptionRepo";
 import { countSubscriptionUsedOrdersForSellerSince } from "../db/ordersRepo";
 import { getPlanOrderLimit } from "../lib/subscriptionLimits";
 import { fetchSallaOrderDetails } from "../lib/sallaClient";
+import { extractSallaUrlFromText } from "../lib/sallaItemText";
+import { matchSallaItem, mergeSallaOrderItems } from "../lib/sallaOrderItems";
 
 function backoffSeconds(attempts: number, capSeconds: number) {
   const exp = Math.max(0, attempts - 1);
@@ -154,7 +156,8 @@ function looksLikeUrl(s: string) {
 function normalizeUrlish(s: string) {
   const v = s.trim();
   if (!v) return null;
-  if (v.toLowerCase().startsWith("http://") || v.toLowerCase().startsWith("https://")) return v;
+  if (/\s/.test(v)) return null;
+  if (/^https?:\/\//i.test(v)) return extractSallaUrlFromText(v);
   return null;
 }
 
@@ -241,9 +244,7 @@ function extractUsernameFromStoreLikeUrl(url: string, opts?: { allowDigitsOnly?:
 }
 
 function extractUrlFromText(s: string) {
-  const m = String(s || "").match(/(https?:\/\/\S+|www\.\S+)/i);
-  if (!m) return null;
-  return normalizeUrlish(m[1] ?? "") ?? null;
+  return extractSallaUrlFromText(s);
 }
 
 function scoreTargetLabel(label: string) {
@@ -803,12 +804,14 @@ export function extractSallaApiOrderId(payload: any): string | null {
 export function mergeOrderDetailsIntoPayload(payload: any, orderDetails: any) {
   const root = payload && typeof payload === "object" ? payload : {};
   const data = root.data && typeof root.data === "object" ? root.data : {};
+  const mergedOrder = { ...orderDetails,
+    items: mergeSallaOrderItems(extractOrder(payload).items, normalizeArray(orderDetails?.items)) };
   return {
     ...root,
-    ...(root.order && typeof root.order === "object" ? { order: orderDetails } : {}),
+    ...(root.order && typeof root.order === "object" ? { order: mergedOrder } : {}),
     data: {
       ...data,
-      order: orderDetails,
+      order: mergedOrder,
     },
   };
 }
@@ -1106,6 +1109,12 @@ export async function processNextSallaWebhookEvent() {
       subscriptionBlocked: 0,
     };
 
+    const existingItems = listOrderItemsByOrderId(order.id).map((row) => {
+      let stored: any = {};
+      try { stored = JSON.parse(row.target_json || "{}"); } catch { /* Use the persisted identifiers. */ }
+      return { ...stored, id: row.salla_item_id ?? stored.id, product_id: row.salla_product_id,
+        sku: row.salla_sku ?? stored.sku, localRow: row };
+    });
     for (let idx = 0; idx < extracted.items.length; idx++) {
       const item = extracted.items[idx];
       const productId = extractProductId(item);
@@ -1116,8 +1125,11 @@ export async function processNextSallaWebhookEvent() {
         continue;
       }
       const quantity = extractQuantity(item);
-      const sallaItemId = item?.id !== undefined && item?.id !== null ? String(item.id) : null;
-      const lineKey = sallaItemId ? sallaItemId : `${productKey}:${idx}`;
+      // Earlier versions stored API item ids; manual invoices stored invoice
+      // line ids. Reuse either identity on replay, including repeated SKUs.
+      const existingItem = matchSallaItem(item, existingItems, extracted.items)?.localRow;
+      const sallaItemId = existingItem?.salla_item_id ?? (item?.id != null ? String(item.id) : null);
+      const lineKey = existingItem?.line_key ?? (sallaItemId || `${productKey}:${idx}`);
 
       const orderItem = upsertOrderItem({
         orderId: order.id,

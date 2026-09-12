@@ -70,6 +70,20 @@ describe("fresh Salla quantity recovery", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it("retains a recovered invoice description when the API omits buyer inputs", async () => {
+    const { order, item, rule } = fixture();
+    const db = getDb();
+    const row = db.prepare("SELECT payload_raw FROM webhook_events WHERE event_key = 'invoice-1'").get() as { payload_raw: string };
+    const raw = JSON.parse(row.payload_raw);
+    raw.data.order.items[0].description = "ضع رابط المقطع : https://instagram.com/p/test. عدد المشاهدات : 1000. ";
+    db.prepare("UPDATE webhook_events SET payload_raw = ? WHERE event_key = 'invoice-1'").run(JSON.stringify(raw));
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: 812345, reference_id: 212345, items: [{ id: 555, description: null }] } }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: [] }), { status: 200 }));
+    const recovered = await recoverSallaOrderItem(order, item);
+    expect(resolveQuantityDetailed(rule, recovered.item, recovered.quantity).quantity).toBe(1000);
+  });
+
   it("keeps complete order details when the supplemental items request fails", async () => {
     const { order, item, rule } = fixture();
     vi.spyOn(globalThis, "fetch")
@@ -113,11 +127,11 @@ describe("fresh Salla quantity recovery", () => {
     expect(matchSallaItem(base[0], [{ product_id: 20, quantity: 1000 }], base)).toBeNull();
   });
 
-  it("the migration requeues an unsubmitted failure but never an already charged or superseded attempt", () => {
+  it.each(["037_recover_missing_quantity_with_fresh_items.sql", "039_recover_invoice_description_quantity.sql"])("migration %s requeues an unsubmitted failure but never an already charged or superseded attempt", (migration) => {
     const { job, item, rule } = fixture(false);
     const db = getDb();
     db.prepare("UPDATE fulfillments SET status = 'FAILED', last_error = 'Quantity value missing (field=اختر عدد)' WHERE id = ?").run(job.id);
-    const repeatMigration = () => { db.prepare("DELETE FROM migrations WHERE id = '037_recover_missing_quantity_with_fresh_items.sql'").run(); runMigrations(db); };
+    const repeatMigration = () => { db.prepare("DELETE FROM migrations WHERE id = ?").run(migration); runMigrations(db); };
     repeatMigration();
     expect(getFulfillmentById(job.id)?.status).toBe("PENDING");
     db.prepare("UPDATE fulfillments SET status = 'FAILED', provider_order_id = 'charged' WHERE id = ?").run(job.id);
