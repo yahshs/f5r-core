@@ -26,7 +26,7 @@ const updateRuleSchema = z.object({
   provider_connection_id: z.string().trim().optional(),
   provider_service_id: z.number().int().min(1).optional(),
   service_name: z.string().trim().min(1).max(200).optional(),
-  platform: z.enum(["tiktok", "instagram"]).nullable().optional(),
+  platform: z.enum(["tiktok", "instagram", "twitter"]).nullable().optional(),
   target_field: z.enum(["link", "username", "post_link", "video_link", "custom"]).optional(),
   target_value: z.string().trim().max(500).nullable().optional(),
   quantity_type: z.enum(["fixed", "from_field"]).optional(),

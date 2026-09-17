@@ -28,7 +28,7 @@ import {
   useSellerSmmProviders,
   useUpdateSellerProductRule,
 } from "@/hooks/useApi";
-import type { SellerProduct, SmmProductRule } from "@/api/sellerProducts";
+import type { SellerProduct, SmmProductRule, SmmRuleCondition } from "@/api/sellerProducts";
 
 import RuleModal, { RuleFormValues } from "./RuleModal";
 
@@ -70,6 +70,8 @@ export default function RulesCard(props: { productId: string; products: SellerPr
           provider_connection_id: values.provider_connection_id,
           provider_service_id: values.provider_service_id,
           service_name: values.service_name,
+          platform: values.platform ?? null,
+          target_field: values.target_field,
           target_value: values.target_value ?? null,
           quantity_type: values.quantity_type,
           quantity_value: values.quantity_value ?? null,
@@ -78,7 +80,7 @@ export default function RulesCard(props: { productId: string; products: SellerPr
           execution_order: values.execution_order,
           normalize_url: values.normalize_url,
           url_handler: values.url_handler ?? null,
-          conditions: values.conditions ?? [],
+          conditions: (values.conditions ?? []) as SmmRuleCondition[],
         },
       });
       toast({ title: t("common.success"), description: t("seller.products.rules.toasts.created") });
@@ -95,6 +97,8 @@ export default function RulesCard(props: { productId: string; products: SellerPr
           provider_connection_id: values.provider_connection_id,
           provider_service_id: values.provider_service_id,
           service_name: values.service_name,
+          platform: values.platform ?? null,
+          target_field: values.target_field,
           target_value: values.target_value ?? null,
           quantity_type: values.quantity_type,
           quantity_value: values.quantity_value ?? null,
@@ -103,7 +107,7 @@ export default function RulesCard(props: { productId: string; products: SellerPr
           execution_order: values.execution_order,
           normalize_url: values.normalize_url,
           url_handler: values.url_handler ?? null,
-          conditions: values.conditions ?? [],
+          conditions: (values.conditions ?? []) as SmmRuleCondition[],
         },
       });
       toast({ title: t("common.success"), description: t("seller.products.rules.toasts.updated") });
@@ -208,7 +212,9 @@ export default function RulesCard(props: { productId: string; products: SellerPr
                     <TableCell className="font-medium">
                       <div className="min-w-0">
                         <p className="truncate">{r.service_name}</p>
-                        <p className="text-xs text-muted-foreground">#{r.provider_service_id}</p>
+                        <p className="text-xs text-muted-foreground">
+                          #{r.provider_service_id} · {r.platform ? t(`seller.products.rules.platforms.${r.platform}`) : t("seller.products.rules.platforms.none")} · {r.target_field}
+                        </p>
                       </div>
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">{providerNameById.get(r.provider_connection_id) ?? r.provider_connection_id}</TableCell>

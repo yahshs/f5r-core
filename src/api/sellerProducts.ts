@@ -15,6 +15,8 @@ export type SellerProduct = {
   base_cost: number | null;
   description: string | null;
   status: 'active' | 'inactive';
+  source: 'manual' | 'invoice';
+  rules_count?: number;
   created_at: string;
   updated_at: string;
 };
@@ -32,7 +34,7 @@ export type SmmProductRule = {
   provider_connection_id: string;
   provider_service_id: number;
   service_name: string;
-  platform: 'tiktok' | 'instagram' | null;
+  platform: 'tiktok' | 'instagram' | 'twitter' | null;
   target_field: 'link' | 'username' | 'post_link' | 'video_link' | 'custom';
   target_value: string | null;
   quantity_type: 'fixed' | 'from_field';

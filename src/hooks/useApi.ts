@@ -71,7 +71,7 @@ export const useRejectOrder = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ orderId, reason }: { orderId: string; reason: string }) =>
-      ordersApi.rejectOrder(orderId, reason),
+      ordersApi.rejectOrder(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
     },
@@ -747,6 +747,7 @@ export const useCreateSellerProductRule = () => {
       sellerProductsApi.createRule(productId, input),
     onSuccess: (_data, vars) => {
       queryClient.invalidateQueries({ queryKey: ['seller', 'productRules', user?.id, vars.productId] });
+      queryClient.invalidateQueries({ queryKey: ['seller', 'products'] });
     },
   });
 };
@@ -756,7 +757,10 @@ export const useUpdateSellerProductRule = () => {
   return useMutation({
     mutationFn: ({ ruleId, input }: { ruleId: string; input: Parameters<typeof sellerProductsApi.updateRule>[1] }) =>
       sellerProductsApi.updateRule(ruleId, input),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['seller', 'productRules'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['seller', 'productRules'] });
+      queryClient.invalidateQueries({ queryKey: ['seller', 'products'] });
+    },
   });
 };
 
@@ -764,7 +768,10 @@ export const useDeleteSellerProductRule = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: sellerProductsApi.deleteRule,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['seller', 'productRules'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['seller', 'productRules'] });
+      queryClient.invalidateQueries({ queryKey: ['seller', 'products'] });
+    },
   });
 };
 

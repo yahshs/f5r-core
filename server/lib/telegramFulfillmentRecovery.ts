@@ -21,7 +21,7 @@ export type FailedFulfillmentContext = {
   target: string | null;
   lastError: string | null;
   failedAt: string;
-  platform: "tiktok" | "instagram" | null;
+  platform: "tiktok" | "instagram" | "twitter" | null;
   dashboardUrl: string;
 };
 
@@ -136,6 +136,7 @@ function inferPlatformHint(rule: SmmProductRuleRow, sellerProduct: SellerProduct
   if (joined.includes("instagram") || joined.includes("insta") || joined.includes("Ø§Ù†Ø³ØªØ§") || joined.includes("Ø¥Ù†Ø³ØªØ§")) {
     return "instagram" as const;
   }
+  if (joined.includes("twitter") || joined.includes("x.com") || joined.includes("تويتر") || joined.includes("اكس") || joined.includes("إكس")) return "twitter" as const;
   return null;
 }
 
@@ -158,13 +159,14 @@ function normalizeUsernameCandidate(raw: string) {
   return /^[A-Za-z0-9._-]{2,80}$/.test(value) ? value : null;
 }
 
-function buildProfileUrl(username: string, platform: "tiktok" | "instagram" | null) {
+function buildProfileUrl(username: string, platform: "tiktok" | "instagram" | "twitter" | null) {
   if (platform === "tiktok") return `https://www.tiktok.com/@${username}`;
   if (platform === "instagram") return `https://www.instagram.com/${username}`;
+  if (platform === "twitter") return `https://x.com/${username}`;
   return null;
 }
 
-export function normalizeRetryTarget(raw: string, platform: "tiktok" | "instagram" | null) {
+export function normalizeRetryTarget(raw: string, platform: "tiktok" | "instagram" | "twitter" | null) {
   const url = normalizeUrlish(raw);
   if (url) return url;
 
@@ -568,5 +570,4 @@ export function getTelegramBotText(localeInput?: string | null) {
   const locale = normalizeLocale(localeInput);
   return dictionary(locale);
 }
-
 

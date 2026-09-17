@@ -162,7 +162,7 @@ export default function AdminCategoriesPage() {
                     description: editForm.description,
                     description_ar: editForm.description_ar,
                     sort_order: editForm.sort_order,
-                    enabled: !!editForm.enabled,
+                    enabled: editForm.enabled ? 1 : 0,
                   },
                 });
                 setEditForm(null);
@@ -232,7 +232,7 @@ export default function AdminCategoriesPage() {
                   icon: createForm.icon,
                   description: createForm.description || null,
                   description_ar: createForm.description_ar || null,
-                  enabled: createForm.enabled,
+                  enabled: createForm.enabled ? 1 : 0,
                   sort_order: createForm.sort_order,
                 });
                 setCreateOpen(false);

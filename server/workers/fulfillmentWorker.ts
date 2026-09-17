@@ -538,7 +538,11 @@ function isSocialTargetUrl(value: string) {
       host === "instagram.com" ||
       host.endsWith(".instagram.com") ||
       host === "instagr.am" ||
-      host.endsWith(".instagr.am")
+      host.endsWith(".instagr.am") ||
+      host === "x.com" ||
+      host.endsWith(".x.com") ||
+      host === "twitter.com" ||
+      host.endsWith(".twitter.com")
     );
   } catch {
     return false;
@@ -612,9 +616,11 @@ function inferPlatformHint(
 
   if (joined.includes("tiktok") || joined.includes("tik tok") || joined.includes("تيك توك") || joined.includes("تيكتوك")) return "tiktok" as const;
   if (joined.includes("instagram") || joined.includes("insta") || joined.includes("انستقرام") || joined.includes("إنستقرام") || joined.includes("انستا")) return "instagram" as const;
+  if (joined.includes("twitter") || joined.includes("x.com") || joined.includes("تويتر") || joined.includes("منصة اكس") || joined.includes("منصة إكس")) return "twitter" as const;
 
   if (joined.includes("tiktok") || joined.includes("tik tok") || joined.includes("تيك") || joined.includes("تيكتوك")) return "tiktok" as const;
   if (joined.includes("instagram") || joined.includes("insta") || joined.includes("انستا") || joined.includes("انستقرام")) return "instagram" as const;
+  if (joined.includes("twitter") || joined.includes("x.com") || joined.includes("تويتر") || joined.includes("اكس") || joined.includes("إكس")) return "twitter" as const;
 
   return null;
 }
@@ -624,7 +630,7 @@ function pickRule(rules: SmmProductRuleRow[], providerId: string) {
   return filtered[0] ?? null;
 }
 
-export function resolveTarget(rule: SmmProductRuleRow, itemObj: any, _platformHint?: "tiktok" | "instagram" | null): string | null {
+export function resolveTarget(rule: SmmProductRuleRow, itemObj: any, _platformHint?: "tiktok" | "instagram" | "twitter" | null): string | null {
   const expectsUrl = ruleExpectsUrl(rule);
 
   // URL-based services must use a URL that came from Salla.
@@ -815,7 +821,9 @@ function extractTargetForSuccessNotification(
     if (rule) {
       const rawPlatform = typeof rule.platform === "string" ? rule.platform.trim().toLowerCase() : "";
       const platformHint =
-        rawPlatform === "tiktok" || rawPlatform === "instagram" ? (rawPlatform as "tiktok" | "instagram") : inferPlatformHint(rule, sellerProduct);
+        rawPlatform === "tiktok" || rawPlatform === "instagram" || rawPlatform === "twitter"
+          ? (rawPlatform as "tiktok" | "instagram" | "twitter")
+          : inferPlatformHint(rule, sellerProduct);
       const resolved = resolveTarget(rule, itemObj, platformHint);
       if (resolved) return resolved;
     }
@@ -849,7 +857,7 @@ export async function processNextFulfillment(opts?: {
   let lastProviderOrderId: string | null = job.provider_order_id ?? null;
   let lastProductName: string | null = null;
   let lastProductSku: string | null = null;
-  let lastPlatform: "tiktok" | "instagram" | null = null;
+  let lastPlatform: "tiktok" | "instagram" | "twitter" | null = null;
   const enqueueSuccessNotification = () => {
     if (!lastSellerId || !lastInternalOrderId) return;
     try {
@@ -984,7 +992,9 @@ export async function processNextFulfillment(opts?: {
     const itemObj = orderItem.target_json ? JSON.parse(orderItem.target_json) : {};
     const rawPlatform = typeof rule.platform === "string" ? rule.platform.trim().toLowerCase() : "";
     const platformHint =
-      rawPlatform === "tiktok" || rawPlatform === "instagram" ? (rawPlatform as "tiktok" | "instagram") : inferPlatformHint(rule, sellerProduct as any);
+      rawPlatform === "tiktok" || rawPlatform === "instagram" || rawPlatform === "twitter"
+        ? (rawPlatform as "tiktok" | "instagram" | "twitter")
+        : inferPlatformHint(rule, sellerProduct as any);
     lastPlatform = platformHint;
     const target = job.override_target?.trim() ? job.override_target.trim() : resolveTarget(rule, itemObj, platformHint);
     if (!target) {

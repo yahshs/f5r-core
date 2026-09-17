@@ -9,7 +9,7 @@ export type TargetField =
   | "custom";
 
 export type QuantityType = "fixed" | "from_field";
-export type Platform = "tiktok" | "instagram";
+export type Platform = "tiktok" | "instagram" | "twitter";
 
 export type SmmRuleCondition = {
   field: string;

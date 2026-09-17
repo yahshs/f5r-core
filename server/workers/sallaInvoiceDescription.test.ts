@@ -11,6 +11,8 @@ import { upsertSallaConnection } from "../db/sallaConnectionsRepo";
 import { encryptSecret } from "../lib/encryption";
 import { processNextSallaWebhookEvent } from "./sallaWebhookWorker";
 import { processNextFulfillment } from "./fulfillmentWorker";
+import { getSellerProductBySallaProductId, listSellerProducts } from "../db/productsRepo";
+import { requeueUnroutedInvoiceEventsForProduct } from "../db/webhookEventsRepo";
 
 // Matches the supplied invoice body shape. All identifiers/links are synthetic;
 // customer data, headers and n8n execution metadata are deliberately omitted.
@@ -88,6 +90,63 @@ describe("real-shaped Salla invoice descriptions through fulfillment", () => {
     const createOrder = mockOrder();
     await processNextFulfillment({ createOrder });
     expect(createOrder).toHaveBeenCalledWith(expect.any(URL), "fake-key", { service: 10, link: "https://vt.tiktok.com/test1/", quantity: 2500 });
+  });
+
+  it("submits Twitter/X status links from invoice descriptions without changing the URL", async () => {
+    const app = await createApp();
+    const { url } = setupProduct();
+    const payload = invoice();
+    payload.data.items = payload.data.items.slice(0, 1);
+    payload.data.items[0].name = "مشاهدات تويتر";
+    payload.data.items[0].description = "ضع رابط التغريدة : https://x.com/example/status/123456789?ref=f5r. عدد المشاهدات : 1000.";
+    await request(app).post(url).send(payload).expect(200);
+    expect(await processNextSallaWebhookEvent()).toBe(true);
+    const createOrder = mockOrder();
+    expect(await processNextFulfillment({ createOrder })).toBe(true);
+    expect(createOrder).toHaveBeenCalledWith(expect.any(URL), "fake-key", {
+      service: 10,
+      link: "https://x.com/example/status/123456789?ref=f5r",
+      quantity: 1000,
+    });
+  });
+
+  it("auto-adds an unknown Salla product, then routes its held invoice once after mapping", async () => {
+    const app = await createApp();
+    const conn = upsertSallaConnection({ sellerId: "description-seller", isEnabled: true, duplicateLinkDelaySeconds: 0 });
+    const url = `/api/webhooks/salla/${conn.public_webhook_id}`;
+    const payload = invoice();
+    payload.data.items = payload.data.items.slice(0, 1);
+    payload.data.items[0].name = "ريتويت تلقائي";
+    payload.data.items[0].sku = "AUTO-X-001";
+    payload.data.items[0].description = "رابط التغريدة: https://twitter.com/example/status/987654321. عدد الريتويت: 500.";
+
+    await request(app).post(url).send(payload).expect(200);
+    expect(await processNextSallaWebhookEvent()).toBe(true);
+
+    const product = getSellerProductBySallaProductId("description-seller", "3001")!;
+    expect(product).toMatchObject({ name: "ريتويت تلقائي", sku: "AUTO-X-001", source: "invoice", status: "active" });
+    expect(product.description).toBeNull();
+    expect(listSellerProducts("description-seller")[0].rules_count).toBe(0);
+    expect((getDb().prepare("SELECT COUNT(1) AS count FROM fulfillments").get() as any).count).toBe(0);
+
+    createProvider({ id: "description-provider", sellerId: "description-seller", name: "mock", baseUrl: "https://panel.example.com/api/v2",
+      apiKeyEncrypted: encryptSecret("fake-key"), apiKeyLast4: "-key", isActive: true, isDefault: true });
+    createRule({ sellerId: "description-seller", productId: product.id, providerConnectionId: "description-provider",
+      providerServiceId: 77, serviceName: "Twitter retweets", providerServiceRate: 1, platform: "twitter", targetField: "link",
+      quantityType: "from_field", quantityField: "عدد الريتويت", delaySeconds: 0, executionOrder: 1, normalizeUrl: true });
+    expect(requeueUnroutedInvoiceEventsForProduct({ sellerId: "description-seller", sallaProductId: "3001", sku: "AUTO-X-001",
+      sinceIso: new Date(Date.now() - 60_000).toISOString(), nowIso: new Date().toISOString() })).toBe(1);
+    expect(await processNextSallaWebhookEvent()).toBe(true);
+
+    const createOrder = mockOrder();
+    expect(await processNextFulfillment({ createOrder })).toBe(true);
+    expect(createOrder).toHaveBeenCalledWith(expect.any(URL), "fake-key", {
+      service: 77,
+      link: "https://twitter.com/example/status/987654321",
+      quantity: 500,
+    });
+    expect(await processNextFulfillment({ createOrder })).toBe(false);
+    expect(createOrder).toHaveBeenCalledTimes(1);
   });
 
   it("preserves buyer descriptions during API enrichment and reuses legacy API item ids", async () => {

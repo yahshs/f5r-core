@@ -10,14 +10,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAdminProducts, useUpdateAdminProduct, useDeleteAdminProduct, useAdminProductRules, useUpdateAdminRule, useDeleteAdminRule } from '@/hooks/useApi';
 import type { AdminProduct } from '@/api/adminProducts';
-import type { SellerProductRule } from '@/api/sellerProducts';
+import type { SmmProductRule } from '@/api/sellerProducts';
 
 export default function AdminProductsPage() {
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<AdminProduct | null>(null);
-  const [ruleForm, setRuleForm] = useState<SellerProductRule | null>(null);
+  const [ruleForm, setRuleForm] = useState<SmmProductRule | null>(null);
 
   const productsQuery = useAdminProducts();
   const updateProduct = useUpdateAdminProduct();
@@ -143,6 +143,10 @@ export default function AdminProductsPage() {
                   <div>
                     <p className="text-xs text-muted-foreground">{t('common.status')}</p>
                     <Badge variant="outline">{selected.status}</Badge>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">{t('seller.products.source')}</p>
+                    <Badge variant="outline">{selected.source === 'invoice' ? t('seller.products.sourceInvoice') : t('seller.products.sourceManual')}</Badge>
                   </div>
                 </div>
               )}
@@ -310,6 +314,18 @@ export default function AdminProductsPage() {
                 </Select>
               </div>
               <div>
+                <Label>{t('seller.products.rules.fields.platform')}</Label>
+                <Select value={ruleForm.platform ?? 'auto'} onValueChange={(v) => setRuleForm({ ...ruleForm, platform: v === 'auto' ? null : v as SmmProductRule['platform'] })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">{t('seller.products.rules.platforms.none')}</SelectItem>
+                    <SelectItem value="tiktok">{t('seller.products.rules.platforms.tiktok')}</SelectItem>
+                    <SelectItem value="instagram">{t('seller.products.rules.platforms.instagram')}</SelectItem>
+                    <SelectItem value="twitter">{t('seller.products.rules.platforms.twitter')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
                 <Label>{t('seller.products.rules.fields.quantityType')}</Label>
                 <Select value={ruleForm.quantity_type} onValueChange={(v) => setRuleForm({ ...ruleForm, quantity_type: v as any })}>
                   <SelectTrigger>
@@ -335,7 +351,7 @@ export default function AdminProductsPage() {
               </div>
               <div>
                 <Label>{t('seller.products.rules.fields.normalizeUrl')}</Label>
-                <Select value={ruleForm.normalize_url ? '1' : '0'} onValueChange={(v) => setRuleForm({ ...ruleForm, normalize_url: v === '1' })}>
+                <Select value={ruleForm.normalize_url ? '1' : '0'} onValueChange={(v) => setRuleForm({ ...ruleForm, normalize_url: v === '1' ? 1 : 0 })}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -358,15 +374,16 @@ export default function AdminProductsPage() {
                     service_name: ruleForm.service_name,
                     provider_service_id: ruleForm.provider_service_id,
                     target_field: ruleForm.target_field,
+                    platform: ruleForm.platform,
                     quantity_type: ruleForm.quantity_type,
                     quantity_value: ruleForm.quantity_value,
                     quantity_field: ruleForm.quantity_field,
                     delay_seconds: ruleForm.delay_seconds,
                     execution_order: ruleForm.execution_order,
-                    normalize_url: ruleForm.normalize_url,
+                    normalize_url: ruleForm.normalize_url === 1,
                     url_handler: ruleForm.url_handler,
                     provider_connection_id: ruleForm.provider_connection_id,
-                    conditions: ruleForm.conditions,
+                    conditions: ruleForm.conditions_json ? JSON.parse(ruleForm.conditions_json) : null,
                   },
                 });
                 setRuleForm(null);

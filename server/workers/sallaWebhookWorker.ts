@@ -8,7 +8,7 @@ import {
   touchSallaLastEventAtBySellerId,
 } from "../db/sallaConnectionsRepo";
 import { getOrderBySellerAndSallaId, listOrderItemsByOrderId, replaceOrderSallaIdById, upsertOrder, upsertOrderItem } from "../db/ordersRepo";
-import { getSellerProductBySallaProductId, getSellerProductBySku } from "../db/productsRepo";
+import { ensureSellerProductFromInvoice } from "../db/productsRepo";
 import { listRulesForProduct, type SmmProductRuleRow } from "../db/smmRulesRepo";
 import { getProviderByIdForSeller } from "../db/smmProvidersRepo";
 import { createFulfillmentIfMissing, markFulfillmentFailed } from "../db/fulfillmentsRepo";
@@ -188,6 +188,8 @@ function isLikelySocialTargetUrl(url: string) {
     if (host === "tiktok.com" || host.endsWith(".tiktok.com")) return true;
     if (host === "instagram.com" || host.endsWith(".instagram.com")) return true;
     if (host === "instagr.am" || host.endsWith(".instagr.am")) return true;
+    if (host === "x.com" || host.endsWith(".x.com")) return true;
+    if (host === "twitter.com" || host.endsWith(".twitter.com")) return true;
     return false;
   } catch {
     return false;
@@ -210,6 +212,10 @@ function isIncompleteSocialTargetUrl(url: string) {
       // Instagram profile/post URLs always have a non-empty path segment.
       if (path === "/" || path === "/#" || path === "/#/" || path === "") return true;
       return false;
+    }
+
+    if (host === "x.com" || host.endsWith(".x.com") || host === "twitter.com" || host.endsWith(".twitter.com")) {
+      return path === "/" || path === "";
     }
 
     return false;
@@ -830,8 +836,8 @@ function isPaidPayload(payload: any): boolean | null {
   );
   if (paymentStatus) {
     const s = paymentStatus.toLowerCase();
-    if (s.includes("paid") || s.includes("completed") || s.includes("success")) return true;
     if (s.includes("unpaid") || s.includes("pending") || s.includes("failed")) return false;
+    if (s.includes("paid") || s.includes("completed") || s.includes("success")) return true;
   }
 
   const isPaidFlag =
@@ -869,6 +875,12 @@ function extractSku(item: any) {
   if (candidate === undefined || candidate === null) return null;
   const s = String(candidate).trim();
   return s ? s : null;
+}
+
+function extractProductName(item: any, fallback: string) {
+  const candidate = item?.name ?? item?.product_name ?? item?.productName ?? item?.product?.name ?? item?.product?.title;
+  const value = candidate == null ? "" : String(candidate).trim();
+  return value || fallback;
 }
 
 function extractQuantity(item: any) {
@@ -1142,13 +1154,12 @@ export async function processNextSallaWebhookEvent() {
           salla_api_order_id: apiOrderId, webhook_event_id: job.id } }),
       });
 
-      const sellerProduct =
-        getSellerProductBySallaProductId(job.seller_id, productKey) ??
-        (sku ? getSellerProductBySku(job.seller_id, sku) : undefined);
-      if (!sellerProduct) {
-        routingStats.noSellerProduct += 1;
-        continue;
-      }
+      const sellerProduct = ensureSellerProductFromInvoice({
+        sellerId: job.seller_id,
+        sallaProductId: productId,
+        name: extractProductName(item, sku || `Salla product ${productKey}`),
+        sku,
+      });
       if (sellerProduct.status !== "active") {
         routingStats.inactiveProduct += 1;
         continue;

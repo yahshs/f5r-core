@@ -77,17 +77,17 @@ function WorkspaceNav({
   );
 }
 
-function WorkspaceStatus({ compact = false }: { compact?: boolean }) {
+function WorkspaceStatus({ compact = false, isRTL }: { compact?: boolean; isRTL: boolean }) {
   return (
     <div className={cn('rounded-2xl border border-white/[0.07] bg-white/[0.025]', compact ? 'p-3' : 'p-3.5')}>
-      <div className="flex items-center gap-2 text-xs text-emerald-300">
-        <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_0_4px_rgba(52,211,153,0.09),0_0_18px_rgba(52,211,153,0.28)]" />
-        <span>جميع الأنظمة تعمل</span>
+      <div className="flex items-center gap-2 text-xs text-primary">
+        <span className="h-2 w-2 rounded-full bg-primary shadow-[0_0_0_4px_hsl(var(--primary)/0.09),0_0_18px_hsl(var(--primary)/0.28)]" />
+        <span>{isRTL ? 'واجهة SIGNATURE' : 'SIGNATURE UI'}</span>
       </div>
       {!compact && (
         <>
-          <strong className="mt-2.5 block text-sm font-medium text-foreground">متصل بالكامل</strong>
-          <small className="mt-1 block text-[11px] text-muted-foreground">سلة · المزود · تيليجرام</small>
+          <strong className="mt-2.5 block text-sm font-medium text-foreground">{isRTL ? 'مركز التشغيل' : 'Operations center'}</strong>
+          <small className="mt-1 block text-[11px] text-muted-foreground">Salla · Provider · Telegram</small>
         </>
       )}
     </div>
@@ -128,7 +128,7 @@ export default function WorkspaceShell({ children, navItems, workspaceLabel, wor
           <div className="my-5 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
           <WorkspaceNav items={navItems} />
           <div className="mt-auto space-y-3 pt-6">
-            <WorkspaceStatus />
+            <WorkspaceStatus isRTL={isRTL} />
             <div className="flex items-center gap-2 px-1">
               <Button
                 type="button"
@@ -181,7 +181,7 @@ export default function WorkspaceShell({ children, navItems, workspaceLabel, wor
                   <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
                     <WorkspaceNav items={navItems} onNavigate={() => setMobileNavOpen(false)} />
                     <div className="mt-auto space-y-3 pt-6">
-                      <WorkspaceStatus />
+                      <WorkspaceStatus isRTL={isRTL} />
                       <Button
                         type="button"
                         variant="outline"
@@ -215,7 +215,7 @@ export default function WorkspaceShell({ children, navItems, workspaceLabel, wor
             <div className="flex shrink-0 items-center gap-2 sm:gap-3">
               <span className="hidden items-center gap-1.5 rounded-full border border-emerald-400/15 bg-emerald-400/[0.055] px-3 py-1.5 text-[11px] text-emerald-300 sm:inline-flex">
                 <Radio className="h-3.5 w-3.5" />
-                مباشر
+                SIGNATURE
               </span>
               <div className="hidden text-end md:block">
                 <p className="max-w-40 truncate text-xs font-medium">{user?.name || workspaceLabel}</p>

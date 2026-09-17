@@ -722,7 +722,7 @@
                                     "editTitle":  "Edit Product",
                                     "modalHint":  "Product information (mapped to Salla product id).",
                                     "listTitle":  "Products",
-                                    "listHint":  "Select a product to manage rules.",
+                                    "listHint":  "Salla products are added automatically from the first invoice; map each product to a provider service once.",
                                     "searchPlaceholder":  "Search products...",
                                     "empty":  "No products yet. Add one to get started.",
                                     "detailsTitle":  "Product Details",
@@ -730,6 +730,12 @@
                                     "selectHint":  "Select a product to view details and rules.",
                                     "sallaId":  "Salla ID",
                                     "noSallaId":  "Not linked to Salla",
+                                    "autoAdded":  "Auto-added",
+                                    "needsMapping":  "Needs mapping",
+                                    "mapped":  "Mapped",
+                                    "source":  "Product source",
+                                    "sourceInvoice":  "Salla invoice",
+                                    "sourceManual":  "Manual entry",
                                     "fields":  {
                                                    "name":  "Product name",
                                                    "sallaProductId":  "Salla product id",
@@ -831,7 +837,8 @@
                                                   "platforms":  {
                                                                     "none":  "Auto",
                                                                     "tiktok":  "TikTok",
-                                                                    "instagram":  "Instagram"
+                                                                    "instagram":  "Instagram",
+                                                                    "twitter":  "Twitter / X"
                                                                 },
                                                   "applyModes":  {
                                                                     "single":  "This product only",

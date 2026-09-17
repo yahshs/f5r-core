@@ -44,6 +44,7 @@ describe("seller products api", () => {
     expect(listB.body.data).toHaveLength(0);
 
     const id = listA.body.data[0].id as string;
+    expect(listA.body.data[0]).toMatchObject({ source: "manual", rules_count: 0 });
     await request(app).delete(`/api/seller/products/${id}`).set(sellerHeaders("seller-b")).expect(404);
   });
 
@@ -71,6 +72,7 @@ describe("seller products api", () => {
         provider_connection_id: providerA.body.data.id,
         provider_service_id: 123,
         service_name: "Likes",
+        platform: "twitter",
         target_field: "link",
         quantity_type: "fixed",
         quantity_value: 10,
@@ -87,6 +89,7 @@ describe("seller products api", () => {
       .set(sellerHeaders("seller-a"))
       .expect(200);
     expect(listRulesA.body.data).toHaveLength(1);
+    expect(listRulesA.body.data[0].platform).toBe("twitter");
 
     await request(app).get(`/api/seller/products/${productId}/rules`).set(sellerHeaders("seller-b")).expect(404);
 
@@ -152,4 +155,3 @@ describe("seller products api", () => {
       .expect(200);
   });
 });
-

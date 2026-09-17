@@ -43,6 +43,13 @@ function statusBadge(t: (key: string) => string, status: SellerProduct["status"]
   );
 }
 
+function mappingBadge(t: (key: string) => string, product: SellerProduct) {
+  if ((product.rules_count ?? 0) === 0) {
+    return <Badge className="border-amber-400/40 bg-amber-500/10 text-amber-600 dark:text-amber-300">{t("seller.products.needsMapping")}</Badge>;
+  }
+  return <Badge variant="outline" className="border-emerald-500/30 text-emerald-600 dark:text-emerald-300">{t("seller.products.mapped")}</Badge>;
+}
+
 export default function ProductsPage() {
   const { t, i18n } = useTranslation();
   const isRTL = i18n.language === "ar";
@@ -199,7 +206,10 @@ export default function ProductsPage() {
                           {p.salla_product_id ? `${t("seller.products.sallaId")}: ${p.salla_product_id}` : t("seller.products.noSallaId")}
                         </p>
                       </div>
-                      {statusBadge(t, p.status)}
+                      <div className="flex shrink-0 flex-col items-end gap-1">
+                        {p.source === "invoice" ? <Badge variant="outline">{t("seller.products.autoAdded")}</Badge> : null}
+                        {mappingBadge(t, p)}
+                      </div>
                     </button>
                   );
                 })}
@@ -225,6 +235,8 @@ export default function ProductsPage() {
                       <p className="text-sm text-muted-foreground">{selected.salla_product_id ?? t("seller.products.noSallaId")}</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
+                      {selected.source === "invoice" ? <Badge variant="outline">{t("seller.products.autoAdded")}</Badge> : null}
+                      {mappingBadge(t, selected)}
                       <ProductModal
                         mode="edit"
                         product={selected}
@@ -272,6 +284,10 @@ export default function ProductsPage() {
                     <div className="rounded-lg border p-3">
                       <p className="text-xs text-muted-foreground">{t("seller.products.fields.status")}</p>
                       <div className="mt-1">{statusBadge(t, selected.status)}</div>
+                    </div>
+                    <div className="rounded-lg border p-3">
+                      <p className="text-xs text-muted-foreground">{t("seller.products.source")}</p>
+                      <p className="mt-1 text-sm">{selected.source === "invoice" ? t("seller.products.sourceInvoice") : t("seller.products.sourceManual")}</p>
                     </div>
                     <div className="rounded-lg border p-3">
                       <p className="text-xs text-muted-foreground">{t("seller.products.fields.sku")}</p>

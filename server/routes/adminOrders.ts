@@ -17,13 +17,14 @@ const listSchema = z.object({
   limit: z.coerce.number().min(0).max(200).default(50),
 });
 
-type PlatformHint = "tiktok" | "instagram";
+type PlatformHint = "tiktok" | "instagram" | "twitter";
 
 function inferPlatformHintFromText(input: string | null | undefined): PlatformHint | null {
   const s = String(input ?? "").toLowerCase();
   if (!s) return null;
   if (s.includes("tiktok") || s.includes("tik tok") || s.includes("تيك توك") || s.includes("تيكتوك")) return "tiktok";
   if (s.includes("instagram") || s.includes("insta") || s.includes("انستقرام") || s.includes("إنستقرام") || s.includes("انستا")) return "instagram";
+  if (s.includes("twitter") || s.includes("x.com") || s.includes("تويتر") || s.includes("منصة اكس") || s.includes("منصة إكس")) return "twitter";
   return null;
 }
 
@@ -58,6 +59,7 @@ function platformMatchesUrl(url: string, platform: PlatformHint) {
     const host = u.hostname.toLowerCase();
     if (platform === "tiktok") return host === "tiktok.com" || host.endsWith(".tiktok.com");
     if (platform === "instagram") return host === "instagram.com" || host.endsWith(".instagram.com") || host === "instagr.am" || host.endsWith(".instagr.am");
+    if (platform === "twitter") return host === "x.com" || host.endsWith(".x.com") || host === "twitter.com" || host.endsWith(".twitter.com");
     return false;
   } catch {
     return false;
@@ -83,6 +85,7 @@ function coerceUrlForPlatform(url: string, platform: PlatformHint) {
   if (!username) return null;
   if (platform === "tiktok") return `https://www.tiktok.com/@${username}`;
   if (platform === "instagram") return `https://www.instagram.com/${username}`;
+  if (platform === "twitter") return `https://x.com/${username}`;
   return null;
 }
 
@@ -101,6 +104,7 @@ function normalizeTargetForPlatform(rawTarget: string, platformHint: PlatformHin
   if (!username) return raw;
   if (platformHint === "tiktok") return `https://www.tiktok.com/@${username}`;
   if (platformHint === "instagram") return `https://www.instagram.com/${username}`;
+  if (platformHint === "twitter") return `https://x.com/${username}`;
   return raw;
 }
 

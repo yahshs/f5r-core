@@ -109,7 +109,12 @@ export default function ProductModal(props: {
       setSubmitError(null);
       try {
         const sku = values.sku ?? values.salla_product_id ?? null;
-        await props.onSubmit({ ...values, sku });
+        await props.onSubmit({
+          ...values,
+          name: values.name,
+          status: values.status,
+          sku,
+        });
         setOpen(false);
         form.reset();
       } catch (e) {

@@ -51,6 +51,8 @@ const baseSchema = z
     provider_connection_id: z.string().trim().min(1),
     provider_service_id: zInt(1),
     service_name: z.string().trim().min(1).max(200),
+    platform: z.enum(["tiktok", "instagram", "twitter"]).nullable().optional(),
+    target_field: z.enum(["link", "username", "post_link", "video_link", "custom"]).default("link"),
     target_value: z
       .string()
       .trim()
@@ -170,6 +172,8 @@ export default function RuleModal(props: {
       provider_connection_id: props.rule?.provider_connection_id ?? props.providers[0]?.id ?? "",
       provider_service_id: props.rule?.provider_service_id ?? 1,
       service_name: props.rule?.service_name ?? "",
+      platform: props.rule?.platform ?? null,
+      target_field: props.rule?.target_field ?? "link",
       target_value: null,
       quantity_type: props.rule?.quantity_type ?? "fixed",
       quantity_value: props.rule?.quantity_value ?? null,
@@ -496,6 +500,39 @@ export default function RuleModal(props: {
                 ) : null}
               </div>
             ) : null}
+
+            <div className="space-y-2">
+              <Label>{t("seller.products.rules.fields.platform")}</Label>
+              <Select
+                value={form.watch("platform") ?? "auto"}
+                onValueChange={(value) => form.setValue("platform", value === "auto" ? null : value as RuleFormValues["platform"])}
+              >
+                <SelectTrigger><SelectValue placeholder={t("seller.products.rules.placeholders.platform")} /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="auto">{t("seller.products.rules.platforms.none")}</SelectItem>
+                  <SelectItem value="tiktok">{t("seller.products.rules.platforms.tiktok")}</SelectItem>
+                  <SelectItem value="instagram">{t("seller.products.rules.platforms.instagram")}</SelectItem>
+                  <SelectItem value="twitter">{t("seller.products.rules.platforms.twitter")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>{t("seller.products.rules.fields.targetField")}</Label>
+              <Select
+                value={form.watch("target_field")}
+                onValueChange={(value) => form.setValue("target_field", value as RuleFormValues["target_field"])}
+              >
+                <SelectTrigger><SelectValue placeholder={t("seller.products.rules.placeholders.targetField")} /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="link">{t("seller.products.rules.targets.link")}</SelectItem>
+                  <SelectItem value="post_link">{t("seller.products.rules.targets.postLink")}</SelectItem>
+                  <SelectItem value="video_link">{t("seller.products.rules.targets.videoLink")}</SelectItem>
+                  <SelectItem value="username">{t("seller.products.rules.targets.username")}</SelectItem>
+                  <SelectItem value="custom">{t("seller.products.rules.targets.custom")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
             <div className="space-y-2">
               <Label>{t("seller.products.rules.fields.quantityType")}</Label>

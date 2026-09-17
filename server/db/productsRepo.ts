@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { getDb } from "./db";
 
 export type SellerProductStatus = "active" | "inactive";
+export type SellerProductSource = "manual" | "invoice";
 
 export type SellerProductRow = {
   id: string;
@@ -16,6 +17,8 @@ export type SellerProductRow = {
   base_cost: number | null;
   description: string | null;
   status: SellerProductStatus;
+  source: SellerProductSource;
+  rules_count?: number;
   created_at: string;
   updated_at: string;
 };
@@ -24,14 +27,22 @@ export function listSellerProducts(sellerId: string) {
   const db = getDb();
   return db
     .prepare(
-      `SELECT * FROM seller_products WHERE seller_id = ? ORDER BY created_at DESC`,
+      `SELECT sp.*,
+         (SELECT COUNT(1) FROM smm_product_rules r WHERE r.seller_id = sp.seller_id AND r.product_id = sp.id) AS rules_count
+       FROM seller_products sp
+       WHERE sp.seller_id = ?
+       ORDER BY sp.created_at DESC`,
     )
     .all(sellerId) as SellerProductRow[];
 }
 
 export function listAllProducts() {
   const db = getDb();
-  return db.prepare(`SELECT * FROM seller_products ORDER BY created_at DESC`).all() as SellerProductRow[];
+  return db.prepare(
+    `SELECT sp.*,
+       (SELECT COUNT(1) FROM smm_product_rules r WHERE r.seller_id = sp.seller_id AND r.product_id = sp.id) AS rules_count
+     FROM seller_products sp ORDER BY sp.created_at DESC`,
+  ).all() as SellerProductRow[];
 }
 
 export function getProductByIdAny(id: string) {
@@ -72,6 +83,7 @@ export function createSellerProduct(input: {
   baseCost?: number | null;
   description?: string | null;
   status: SellerProductStatus;
+  source?: SellerProductSource;
 }) {
   const db = getDb();
   const now = new Date().toISOString();
@@ -80,9 +92,9 @@ export function createSellerProduct(input: {
   db.prepare(
     `INSERT INTO seller_products (
       id, seller_id, salla_product_id, name, sku, handler, product_type, category,
-      base_price, base_cost, description, status, created_at, updated_at
+      base_price, base_cost, description, status, source, created_at, updated_at
     )
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id,
     input.sellerId,
@@ -96,11 +108,68 @@ export function createSellerProduct(input: {
     input.baseCost ?? null,
     input.description ?? null,
     input.status,
+    input.source ?? "manual",
     now,
     now,
   );
 
   return getSellerProductById(input.sellerId, id)!;
+}
+
+/**
+ * Ensures an invoice product exists without requiring Salla API credentials.
+ * A Salla product id is authoritative; SKU is only used when the webhook has
+ * no product id so two different Salla products cannot be merged by accident.
+ */
+export function ensureSellerProductFromInvoice(input: {
+  sellerId: string;
+  sallaProductId: string | null;
+  name: string;
+  sku: string | null;
+}) {
+  const db = getDb();
+  const name = input.name.trim();
+  const sku = input.sku?.trim() || null;
+
+  const run = db.transaction(() => {
+    const existing = input.sallaProductId
+      ? getSellerProductBySallaProductId(input.sellerId, input.sallaProductId)
+      : sku
+        ? getSellerProductBySku(input.sellerId, sku)
+        : undefined;
+
+    if (existing) {
+      const nextName = name || existing.name;
+      const nextSku = sku || existing.sku;
+      if (nextName !== existing.name || nextSku !== existing.sku) {
+        return updateSellerProduct(input.sellerId, existing.id, { name: nextName, sku: nextSku });
+      }
+      return existing;
+    }
+
+    return createSellerProduct({
+      sellerId: input.sellerId,
+      sallaProductId: input.sallaProductId,
+      name: name || sku || `Salla product ${input.sallaProductId ?? "unknown"}`,
+      sku,
+      handler: "smm",
+      status: "active",
+      source: "invoice",
+    });
+  });
+
+  try {
+    return run();
+  } catch (error: any) {
+    if (!String(error?.message || "").includes("UNIQUE")) throw error;
+    const raced = input.sallaProductId
+      ? getSellerProductBySallaProductId(input.sellerId, input.sallaProductId)
+      : sku
+        ? getSellerProductBySku(input.sellerId, sku)
+        : undefined;
+    if (raced) return raced;
+    throw error;
+  }
 }
 
 export function updateSellerProduct(sellerId: string, id: string, patch: {

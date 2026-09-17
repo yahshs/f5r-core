@@ -110,3 +110,45 @@ export function countWebhookEventsByEventKey(eventKey: string) {
   const row = db.prepare(`SELECT COUNT(1) as c FROM webhook_events WHERE event_key = ?`).get(eventKey) as any;
   return Number(row?.c ?? 0);
 }
+
+export function requeueUnroutedInvoiceEventsForProduct(input: {
+  sellerId: string;
+  sallaProductId: string | null;
+  sku: string | null;
+  sinceIso: string;
+  nowIso: string;
+}) {
+  const db = getDb();
+  const itemMatch = input.sallaProductId
+    ? `oi.salla_product_id = @sallaProductId`
+    : `@sku IS NOT NULL AND oi.salla_sku = @sku`;
+
+  const rows = db.prepare(
+    `SELECT json_extract(oi.target_json, '$._f5r.webhook_event_id') AS event_id
+     FROM order_items oi
+     JOIN orders o ON o.id = oi.order_id
+     WHERE o.seller_id = @sellerId
+       AND ${itemMatch}
+       AND json_valid(oi.target_json)
+       AND json_extract(oi.target_json, '$._f5r.webhook_event_id') IS NOT NULL
+       AND oi.created_at >= @sinceIso
+       AND NOT EXISTS (SELECT 1 FROM fulfillments f WHERE f.order_item_id = oi.id)
+     GROUP BY event_id
+     ORDER BY MAX(oi.created_at) DESC
+     LIMIT 100`,
+  ).all({ sellerId: input.sellerId, sallaProductId: input.sallaProductId, sku: input.sku, sinceIso: input.sinceIso }) as Array<{ event_id: string }>;
+
+  if (!rows.length) return 0;
+  const update = db.prepare(
+    `UPDATE webhook_events
+     SET status = 'FAILED', next_attempt_at = ?, processed_at = NULL,
+         last_error = 'Product mapping added; routing retry queued'
+     WHERE id = ? AND seller_id = ? AND topic = 'invoice.created'`,
+  );
+  const tx = db.transaction(() => {
+    let changed = 0;
+    for (const row of rows) changed += update.run(input.nowIso, row.event_id, input.sellerId).changes;
+    return changed;
+  });
+  return tx();
+}

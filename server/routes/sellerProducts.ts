@@ -8,6 +8,7 @@ import { getSellerProductById } from "../db/productsRepo";
 import { decryptSecret } from "../lib/encryption";
 import { assertHostnameResolvesToPublicIp, assertPublicHttpsUrl } from "../lib/ssrf";
 import { listPanelV2Services } from "../smm/panelV2Adapter";
+import { requeueUnroutedInvoiceEventsForProduct } from "../db/webhookEventsRepo";
 
 export const sellerProductsRouter = Router();
 sellerProductsRouter.use(requireSeller);
@@ -176,7 +177,7 @@ const ruleCreateSchema = z.object({
   provider_connection_id: z.string().trim().min(1),
   provider_service_id: z.number().int().positive(),
   service_name: z.string().trim().min(1).max(200),
-  platform: z.enum(["tiktok", "instagram"]).optional().nullable(),
+  platform: z.enum(["tiktok", "instagram", "twitter"]).optional().nullable(),
   target_field: z.enum(["link", "username", "post_link", "video_link", "custom"]).optional().default("link"),
   target_value: z.string().trim().max(500).optional().nullable(),
   quantity_type: z.enum(["fixed", "from_field"]),
@@ -262,10 +263,21 @@ sellerProductsRouter.post("/:id/rules", async (req, res) => {
     conditions: parsed.data.conditions ?? null,
   });
 
+  const rerouted = product.source === "invoice"
+    ? requeueUnroutedInvoiceEventsForProduct({
+        sellerId,
+        sallaProductId: product.salla_product_id,
+        sku: product.sku,
+        sinceIso: new Date(Date.parse(product.created_at) - 5 * 60 * 1000).toISOString(),
+        nowIso: new Date().toISOString(),
+      })
+    : 0;
+
   res.status(201).json({
     success: true,
     data: row,
     pricing_snapshot: snapshot.ok ? { ok: true } : { ok: false, message: snapshot.message },
+    rerouted_events: rerouted,
   });
 });
 
