@@ -251,15 +251,79 @@
       hsl(var(--background));
   }
 
+  .f5r-workspace {
+    position: relative;
+    isolation: isolate;
+    overflow-x: clip;
+    background:
+      radial-gradient(circle at 7% 0%, hsl(171 62% 42% / 0.11), transparent 28rem),
+      radial-gradient(circle at 76% -4%, hsl(var(--primary) / 0.145), transparent 34rem),
+      linear-gradient(145deg, #07090a 0%, #090c0c 47%, #0a0b09 100%);
+  }
+
+  .f5r-workspace::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0.22;
+    background-image:
+      linear-gradient(hsl(0 0% 100% / 0.018) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(0 0% 100% / 0.018) 1px, transparent 1px);
+    background-size: 42px 42px;
+    mask-image: linear-gradient(to bottom, black, transparent 72%);
+  }
+
+  .f5r-workspace-grid {
+    position: relative;
+    z-index: 1;
+  }
+
+  .f5r-workspace-sidebar {
+    border-color: hsl(var(--primary) / 0.1);
+    background:
+      linear-gradient(180deg, hsl(165 10% 6% / 0.96), hsl(165 10% 4% / 0.92)),
+      hsl(var(--background));
+    box-shadow: 18px 0 70px hsl(0 0% 0% / 0.14);
+    backdrop-filter: blur(24px);
+  }
+
+  [dir='rtl'] .f5r-workspace-sidebar {
+    box-shadow: -18px 0 70px hsl(0 0% 0% / 0.14);
+  }
+
+  .f5r-workspace-topbar {
+    border-bottom: 1px solid hsl(var(--primary) / 0.095);
+    background: hsl(165 12% 4% / 0.76);
+    box-shadow: 0 14px 42px hsl(0 0% 0% / 0.11);
+    backdrop-filter: blur(24px) saturate(135%);
+  }
+
+  .f5r-workspace-main .bg-card {
+    border-color: hsl(var(--border) / 0.68);
+    background-color: hsl(var(--card) / 0.74);
+    box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.022), 0 18px 48px hsl(0 0% 0% / 0.105);
+    backdrop-filter: blur(17px);
+  }
+
+  .f5r-workspace-main table tbody tr {
+    transition: background-color 160ms ease;
+  }
+
+  .f5r-workspace-main table tbody tr:hover {
+    background: hsl(var(--primary) / 0.025);
+  }
+
   .f5r-glass-panel {
     @apply border border-border/60 bg-card/75 backdrop-blur-xl;
-    box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.025), 0 18px 48px hsl(0 0% 0% / 0.13);
+    box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.03), 0 18px 48px hsl(0 0% 0% / 0.15);
   }
 
   .f5r-gold-panel {
     background:
       radial-gradient(circle at 12% 0%, hsl(171 55% 42% / 0.11), transparent 19rem),
-      radial-gradient(circle at 85% 5%, hsl(var(--primary) / 0.15), transparent 24rem),
+      radial-gradient(circle at 85% 5%, hsl(var(--primary) / 0.18), transparent 24rem),
       hsl(var(--card) / 0.8);
   }
 }
