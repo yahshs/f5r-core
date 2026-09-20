@@ -21,6 +21,7 @@ import { sellerNotificationsApi } from '@/api/sellerNotifications';
 import { adminSubscriptionRequestsApi } from '@/api/adminSubscriptionRequests';
 import { OrderFilters, TicketPriority, UserRole } from '@/types';
 import { useAuthStore } from '@/store';
+import { isDefinitiveAuthFailure, shouldRetryAuthRequest } from '@/api/authErrors';
 
 // Orders Hooks
 export const useUserOrders = (filters: OrderFilters = {}, page = 1, limit = 10) => {
@@ -135,15 +136,19 @@ export const useCurrentUser = () => {
         const user = await authApi.getCurrentUser();
         if (useAuthStore.getState().token === token) setUser(user);
         return user;
-      } catch {
-        if (useAuthStore.getState().token === token) logout();
-        return null;
+      } catch (error) {
+        if (isDefinitiveAuthFailure(error)) {
+          if (useAuthStore.getState().token === token) logout();
+          return null;
+        }
+        throw error;
       } finally {
         if (useAuthStore.getState().token === token) setLoading(false);
       }
     },
     staleTime: Infinity,
-    retry: false,
+    retry: shouldRetryAuthRequest,
+    retryDelay: (attempt) => Math.min(500 * 2 ** attempt, 2_000),
   });
 };
 

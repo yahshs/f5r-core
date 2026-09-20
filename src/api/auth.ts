@@ -1,6 +1,7 @@
 import { config } from '@/config/env';
 import { ApiResponse, User, UserRole } from '@/types';
 import { useAuthStore } from '@/store';
+import { AuthApiError } from '@/api/authErrors';
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const { token } = useAuthStore.getState();
@@ -13,7 +14,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     res = await fetch(`${config.API_BASE_URL}${path}`, { ...init, headers });
   } catch {
-    throw new Error('Unable to reach the server. Please try again.');
+    throw new AuthApiError('Unable to reach the server. Please try again.', { retryable: true });
   }
 
   const text = await res.text();
@@ -22,13 +23,19 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     try {
       json = JSON.parse(text);
     } catch {
-      throw new Error(`Invalid server response (${res.status}).`);
+      throw new AuthApiError(`Invalid server response (${res.status}).`, {
+        status: res.status,
+        retryable: res.status >= 500,
+      });
     }
   }
 
   if (!res.ok) {
     const message = json?.message || `Request failed (${res.status})`;
-    throw new Error(message);
+    throw new AuthApiError(message, {
+      status: res.status,
+      retryable: res.status === 408 || res.status === 425 || res.status === 429 || res.status >= 500,
+    });
   }
 
   return json as T;
