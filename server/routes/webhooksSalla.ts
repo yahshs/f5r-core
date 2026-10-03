@@ -7,6 +7,7 @@ import {
 } from "../db/sallaConnectionsRepo";
 import { insertWebhookEvent } from "../db/webhookEventsRepo";
 import { verifySallaWebhookSignature } from "../lib/sallaSignature";
+import { parseWebhookPayloadRaw } from "../lib/sallaWebhookPayload";
 
 function collectHeaders(req: Request) {
   const keys = [
@@ -37,24 +38,26 @@ function resolveExternalEventId(req: Request) {
   );
 }
 
-function resolveTopic(req: Request, rawBody: string) {
+function resolveTopic(req: Request, payload: any) {
   const fromHeader = (req.header("x-salla-event") || req.header("x-event-name") || "").trim().toLowerCase();
   if (fromHeader) return fromHeader;
 
-  try {
-    const payload = JSON.parse(rawBody || "{}");
-    const fromBody = String(payload?.event ?? payload?.type ?? "").trim().toLowerCase();
-    return fromBody || "unknown";
-  } catch {
-    return "unknown";
-  }
+  const fromBody = String(payload?.event ?? payload?.type ?? "").trim().toLowerCase();
+  return fromBody || "unknown";
 }
 
 export async function handleSallaWebhook(req: Request, res: Response) {
-  const publicId = (req.params.publicId || "").trim();
+  const publicId = typeof req.params.publicId === "string" ? req.params.publicId.trim() : "";
   const rawBody =
     Buffer.isBuffer((req as any).body) ? ((req as any).body as Buffer).toString("utf8") : "";
-  const topic = resolveTopic(req, rawBody);
+  let payload: any;
+  let parseError: string | null = null;
+  try {
+    payload = parseWebhookPayloadRaw(rawBody);
+  } catch (error) {
+    parseError = error instanceof Error ? error.message : "Invalid webhook payload";
+  }
+  const topic = resolveTopic(req, payload);
   const payloadBytes = Buffer.byteLength(rawBody || "", "utf8");
 
   if (!publicId) {
@@ -90,6 +93,10 @@ export async function handleSallaWebhook(req: Request, res: Response) {
   if (!isSallaConnectionOperational(conn)) {
     console.log("[salla-webhook] disabled connection", { sellerId: conn.seller_id, publicId, topic, payloadBytes });
     return res.json({ ok: true, disabled: true });
+  }
+
+  if (parseError) {
+    return res.status(400).json({ ok: false, message: parseError });
   }
 
   // F5R executes orders only when Salla creates the invoice.

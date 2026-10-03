@@ -263,15 +263,13 @@ sellerProductsRouter.post("/:id/rules", async (req, res) => {
     conditions: parsed.data.conditions ?? null,
   });
 
-  const rerouted = product.source === "invoice"
-    ? requeueUnroutedInvoiceEventsForProduct({
-        sellerId,
-        sallaProductId: product.salla_product_id,
-        sku: product.sku,
-        sinceIso: new Date(Date.parse(product.created_at) - 5 * 60 * 1000).toISOString(),
-        nowIso: new Date().toISOString(),
-      })
-    : 0;
+  const rerouted = requeueUnroutedInvoiceEventsForProduct({
+    sellerId,
+    sallaProductId: product.salla_product_id,
+    sku: product.sku,
+    sinceIso: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    nowIso: new Date().toISOString(),
+  });
 
   res.status(201).json({
     success: true,

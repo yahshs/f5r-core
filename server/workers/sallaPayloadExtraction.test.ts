@@ -9,6 +9,17 @@ const linkRule = {
 } as any;
 
 describe("Salla invoice payload extraction", () => {
+  it('keeps username targets as provided even when URL normalization is enabled', () => {
+    expect(resolveTarget({ ...linkRule, target_field: 'username', normalize_url: 1 }, { fields: { username: '@buyer_name' } }, 'twitter')).toBe('@buyer_name');
+  });
+  it.each([
+    'https://cdn.salla.sa/store/product.jpg',
+    'https://cdn.assets.salla.network/avatar.png',
+    'https://www.tiktok.com/@',
+    'https://store-f5r.com/ar/product',
+  ])('does not submit catalog or incomplete URLs to a social service: %s', (link) => {
+    expect(resolveTarget(linkRule, { link, fields: { username: '@buyer_name' } }, 'tiktok')).toBeNull();
+  });
   it.each([
     "ضع رابط المقطع : https://vt.tiktok.com/test123/. عدد المشاهدات : 1000. ",
     "ضع رابط المقطع : [https://vt.tiktok.com/test123/](https://vt.tiktok.com/test123/). عدد المشاهدات : 1000. ",

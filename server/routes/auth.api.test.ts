@@ -75,6 +75,16 @@ describe.sequential("authentication api", () => {
 
     expect(login.body.data.user.email).toBe("new-seller@example.com");
     expect(login.body.data.user.role).toBe("seller");
+
+    resetDbForTests();
+    const restarted = await createApp();
+    const meAfterRestart = await request(restarted)
+      .get("/api/auth/me")
+      .set("authorization", `Bearer ${login.body.data.token}`)
+      .expect(200);
+    expect(meAfterRestart.body.data.user.id).toBe(register.body.data.user.id);
+    await request(restarted).post("/api/auth/login")
+      .send({ email: "new-seller@example.com", password: "Seller1234" }).expect(200);
   });
 
   it("creates the production admin with the default email and completes login", async () => {

@@ -13,8 +13,14 @@ import { ordersApi } from '@/api/orders';
 import { Eye, Trash2 } from 'lucide-react';
 import type { OrderStatus } from '@/types';
 import type { SellerOrder } from '@/api/orders';
+import { useAuthStore } from '@/store';
 
 export default function AdminOrdersPage() {
+  const adminId = useAuthStore((state) => state.user?.id);
+  return <AdminOrdersContent key={adminId ?? 'anonymous'} adminId={adminId} />;
+}
+
+function AdminOrdersContent({ adminId }: { adminId: string | undefined }) {
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const PAGE_SIZE = 20;
@@ -23,9 +29,11 @@ export default function AdminOrdersPage() {
   const [total, setTotal] = useState<number | null>(null);
 
   const ordersQuery = useQuery({
-    queryKey: ['orders', 'admin', page],
+    queryKey: ['orders', 'admin', adminId, page, PAGE_SIZE],
     queryFn: () => ordersApi.getAllOrders({}, page, PAGE_SIZE),
+    enabled: !!adminId,
     staleTime: 15_000,
+    refetchInterval: 15_000,
   });
 
   useEffect(() => {
@@ -71,16 +79,25 @@ export default function AdminOrdersPage() {
             <CardTitle>{t('admin.orders')}</CardTitle>
             <CardDescription>{t('orders.empty')}</CardDescription>
           </div>
-          <Input className="w-full sm:w-72" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('common.search')} />
+          <div className="flex gap-2">
+            <Input className="w-full sm:w-72" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('common.search')} />
+            <Button variant="outline" disabled={ordersQuery.isFetching} onClick={() => void ordersQuery.refetch()}>{t('common.refresh')}</Button>
+          </div>
         </CardHeader>
         <CardContent>
+          {ordersQuery.isError ? (
+            <div role="alert" className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm">
+              <p>{t('seller.orders.loadError')}</p>
+              <p className="mt-1 text-muted-foreground">{ordersQuery.error.message}</p>
+            </div>
+          ) : null}
           {ordersQuery.isLoading && loadedOrders.length === 0 ? (
             <div className="space-y-2">
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
             </div>
-          ) : filtered.length === 0 ? (
+          ) : ordersQuery.isError && loadedOrders.length === 0 ? null : filtered.length === 0 ? (
             <p className="text-sm text-muted-foreground">{t('orders.empty')}</p>
           ) : (
             <div className="space-y-4 overflow-x-auto">

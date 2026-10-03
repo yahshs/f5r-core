@@ -13,6 +13,7 @@ vi.mock("../lib/telegram", () => ({
 }));
 
 import { createApp } from "../app";
+import * as panelV2Adapter from "../smm/panelV2Adapter";
 import { getDb, resetDbForTests } from "../db/db";
 import { signAuthToken } from "../lib/jwt";
 import { processNextFulfillment } from "../workers/fulfillmentWorker";
@@ -38,6 +39,7 @@ function insertSellerUser(sellerId: string) {
 
 describe("telegram notifications", () => {
   beforeEach(() => {
+    vi.spyOn(panelV2Adapter, "listPanelV2Services").mockResolvedValue({ ok: true, services: [] });
     process.env.NODE_ENV = "test";
     process.env.WORKERS_ENABLED = "0";
     process.env.ENCRYPTION_KEY = Buffer.from("0123456789abcdef0123456789abcdef").toString("hex");
@@ -176,7 +178,7 @@ describe("telegram notifications", () => {
       .expect(201);
 
     await request(app)
-      .post(`/api/webhooks/salla/${publicId}`)
+      .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
       .set("x-f5r-webhook-token", token)
       .send({ data: { order: { id: "o-telegram-failure", items: [{ id: "i1", product_id: "p1", quantity: 1, link: "https://x.com" }] } } })
       .expect(200);
@@ -272,7 +274,7 @@ describe("telegram notifications", () => {
       .expect(201);
 
     await request(app)
-      .post(`/api/webhooks/salla/${publicId}`)
+      .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
       .set("x-f5r-webhook-token", token)
       .send({ data: { order: { id: "o-inline", items: [{ id: "i-inline", product_id: "p-inline", quantity: 1, link: "https://x.com/test" }] } } })
       .expect(200);
@@ -354,7 +356,7 @@ describe("telegram notifications", () => {
       .expect(201);
 
     await request(app)
-      .post(`/api/webhooks/salla/${publicId}`)
+      .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
       .set("x-f5r-webhook-token", token)
       .send({ data: { order: { id: "o-retry-same", items: [{ id: "i-retry-same", product_id: "p-retry-same", quantity: 1, link: "https://www.tiktok.com/@retry_same" }] } } })
       .expect(200);
@@ -471,7 +473,7 @@ describe("telegram notifications", () => {
       .expect(201);
 
     await request(app)
-      .post(`/api/webhooks/salla/${publicId}`)
+      .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
       .set("x-f5r-webhook-token", token)
       .send({
         data: {
@@ -580,7 +582,7 @@ describe("telegram notifications", () => {
       .expect(201);
 
     await request(app)
-      .post(`/api/webhooks/salla/${publicId}`)
+      .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
       .set("x-f5r-webhook-token", token)
       .send({ data: { order: { id: "o-retry-new", items: [{ id: "i-retry-new", product_id: "p-retry-new", quantity: 1, username: "old_user" }] } } })
       .expect(200);
@@ -722,7 +724,7 @@ describe("telegram notifications", () => {
       .expect(201);
 
     await request(app)
-      .post(`/api/webhooks/salla/${publicId}`)
+      .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
       .set("x-f5r-webhook-token", token)
       .send({
         data: {

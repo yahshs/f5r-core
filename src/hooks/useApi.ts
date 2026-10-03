@@ -34,17 +34,21 @@ export const useUserOrders = (filters: OrderFilters = {}, page = 1, limit = 10) 
 };
 
 export const useAllOrders = (filters: OrderFilters = {}, page = 1, limit = 10) => {
+  const { user } = useAuthStore();
   return useQuery({
-    queryKey: ['orders', 'all', filters, page, limit],
+    queryKey: ['orders', 'all', user?.role, user?.id, filters, page, limit],
     queryFn: () => ordersApi.getAllOrders(filters, page, limit),
+    enabled: !!user?.id,
+    refetchInterval: 15_000,
   });
 };
 
 export const useOrder = (orderId: string) => {
+  const { user } = useAuthStore();
   return useQuery({
-    queryKey: ['order', orderId],
+    queryKey: ['order', user?.role, user?.id, orderId],
     queryFn: () => ordersApi.getOrderById(orderId),
-    enabled: !!orderId,
+    enabled: !!user?.id && !!orderId,
   });
 };
 
@@ -490,6 +494,7 @@ export const useSellerProducts = () => {
     queryKey: ['seller', 'products', user?.id],
     queryFn: sellerProductsApi.listProducts,
     enabled: !!user?.id && user?.role === 'seller',
+    refetchInterval: 15_000,
   });
 };
 

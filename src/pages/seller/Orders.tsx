@@ -17,8 +17,14 @@ import { ordersApi } from '@/api/orders';
 import { toast } from '@/components/ui/use-toast';
 import type { OrderStatus } from '@/types';
 import type { SellerOrder } from '@/api/orders';
+import { useAuthStore } from '@/store';
 
 export default function SellerOrdersPage() {
+  const sellerId = useAuthStore((state) => state.user?.id);
+  return <SellerOrdersContent key={sellerId ?? 'anonymous'} sellerId={sellerId} />;
+}
+
+function SellerOrdersContent({ sellerId }: { sellerId: string | undefined }) {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery] = useState('');
@@ -34,15 +40,17 @@ export default function SellerOrdersPage() {
   const filters = status === 'all' ? {} : { status };
 
   const ordersQuery = useQuery({
-    queryKey: ['orders', 'seller', filters, page],
+    queryKey: ['orders', 'seller', sellerId, filters, page, PAGE_SIZE],
     queryFn: () => ordersApi.getAllOrders(filters, page, PAGE_SIZE),
+    enabled: !!sellerId,
     staleTime: 15_000,
+    refetchInterval: 15_000,
   });
   const openOrderId = searchParams.get('open');
   const openOrderQuery = useQuery({
-    queryKey: ['orders', 'seller', 'detail', openOrderId],
+    queryKey: ['orders', 'seller', sellerId, 'detail', openOrderId],
     queryFn: () => ordersApi.getOrderById(openOrderId!),
-    enabled: !!openOrderId,
+    enabled: !!sellerId && !!openOrderId,
     staleTime: 15_000,
   });
 
@@ -58,14 +66,18 @@ export default function SellerOrdersPage() {
       for (const o of resp.data ?? []) byId.set(o.internal_id ?? o.id, o);
       return Array.from(byId.values());
     });
-  }, [ordersQuery.data, page]);
+  }, [ordersQuery.data, page, status]);
 
-  useEffect(() => {
+  const changeStatus = (nextStatus: OrderStatus | 'all') => {
+    if (nextStatus === status) return;
+    // Reset only on a user filter change, never after hydrating cached data
+    // on mount. The old mount effect erased fresh cache results on return.
     setPage(1);
     setLoadedOrders([]);
     setTotal(null);
     setSelectedOrderIds([]);
-  }, [status]);
+    setStatus(nextStatus);
+  };
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -235,7 +247,10 @@ export default function SellerOrdersPage() {
                 placeholder={t('seller.orders.searchPlaceholder')}
               />
             </div>
-            <Select value={status} onValueChange={(v) => setStatus(v as OrderStatus | 'all')}>
+            <Button variant="outline" disabled={ordersQuery.isFetching} onClick={() => void ordersQuery.refetch()}>
+              <RotateCcw className="me-2 h-4 w-4" />{t('common.refresh')}
+            </Button>
+            <Select value={status} onValueChange={(v) => changeStatus(v as OrderStatus | 'all')}>
               <SelectTrigger className="w-full sm:w-44">
                 <SelectValue placeholder={t('common.filter')} />
               </SelectTrigger>
@@ -255,6 +270,12 @@ export default function SellerOrdersPage() {
           </div>
         </CardHeader>
         <CardContent>
+          {ordersQuery.isError ? (
+            <div role="alert" className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm">
+              <p>{t('seller.orders.loadError')}</p>
+              <p className="mt-1 text-muted-foreground">{ordersQuery.error.message}</p>
+            </div>
+          ) : null}
           {selectedOrderIds.length > 0 ? (
             <div className="mb-4 flex flex-col gap-3 rounded-lg border border-border/60 bg-muted/20 p-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm text-muted-foreground">
@@ -297,7 +318,7 @@ export default function SellerOrdersPage() {
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
             </div>
-          ) : filtered.length === 0 ? (
+          ) : ordersQuery.isError && loadedOrders.length === 0 ? null : filtered.length === 0 ? (
             <p className="text-sm text-muted-foreground">{t('seller.orders.empty')}</p>
           ) : (
             <div className="space-y-4 overflow-x-auto">

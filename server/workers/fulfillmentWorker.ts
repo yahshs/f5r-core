@@ -3,7 +3,7 @@ import { decryptSecret } from "../lib/encryption";
 import { assertPublicHttpsUrl } from "../lib/ssrf";
 import { getProviderByIdForSeller } from "../db/smmProvidersRepo";
 import { getOrderItemById, getOrderById } from "../db/ordersRepo";
-import { getSellerProductBySallaProductId, getSellerProductBySku } from "../db/productsRepo";
+import { getSellerProductForOrderItem } from "../db/productsRepo";
 import { getRuleById, listRulesForProduct, updateRule, type SmmProductRuleRow } from "../db/smmRulesRepo";
 import { getSallaConnectionBySellerId } from "../db/sallaConnectionsRepo";
 import { getUserById } from "../db/usersRepo";
@@ -549,6 +549,18 @@ function isSocialTargetUrl(value: string) {
   }
 }
 
+function isUsableTargetUrl(value: string, socialOnly: boolean) {
+  try {
+    const url = new URL(value);
+    const host = url.hostname.toLowerCase();
+    if (host === 'salla.sa' || host.endsWith('.salla.sa') || host === 'salla.network' || host.endsWith('.salla.network')) return false;
+    if ((host === 'tiktok.com' || host.endsWith('.tiktok.com')) && /^\/@\/?$/.test(url.pathname)) return false;
+    return !socialOnly || isSocialTargetUrl(value);
+  } catch {
+    return false;
+  }
+}
+
 function findUrlDeep(root: any, socialOnly: boolean) {
   const stack: Array<{ value: any; depth: number }> = [{ value: root, depth: 0 }];
   const seen = new Set<any>();
@@ -560,7 +572,7 @@ function findUrlDeep(root: any, socialOnly: boolean) {
 
     if (typeof current.value === "string") {
       const url = extractUrlFromText(current.value) ?? normalizeUrlish(current.value);
-      if (url && (!socialOnly || isSocialTargetUrl(url))) return url;
+      if (url && isUsableTargetUrl(url, socialOnly)) return url;
       continue;
     }
     if (!current.value || typeof current.value !== "object" || current.depth >= 10) continue;
@@ -584,8 +596,6 @@ function findUrlDeep(root: any, socialOnly: boolean) {
 }
 
 function ruleExpectsUrl(rule: SmmProductRuleRow) {
-  if (rule.normalize_url === 1) return true;
-
   const raw = String(rule.target_field || "").trim();
   if (!raw) return false;
 
@@ -594,6 +604,8 @@ function ruleExpectsUrl(rule: SmmProductRuleRow) {
 
   // Explicit username-like fields should not be treated as URLs.
   if (f.includes("username") || f.includes("user name") || f.includes("handle") || f.includes("account") || f.includes("اسم المستخدم")) return false;
+
+  if (rule.normalize_url === 1) return true;
 
   // Treat link-ish fields as URLs (supports Arabic labels like "ضع رابط المقطع").
   if (f === "link" || f === "url" || f === "post link" || f === "video link") return true;
@@ -632,6 +644,7 @@ function pickRule(rules: SmmProductRuleRow[], providerId: string) {
 
 export function resolveTarget(rule: SmmProductRuleRow, itemObj: any, _platformHint?: "tiktok" | "instagram" | "twitter" | null): string | null {
   const expectsUrl = ruleExpectsUrl(rule);
+  const socialOnly = !!(_platformHint || rule.platform);
 
   // URL-based services must use a URL that came from Salla.
   // Never manufacture a profile URL from a username and never fall back to rule defaults/url_handler.
@@ -639,7 +652,7 @@ export function resolveTarget(rule: SmmProductRuleRow, itemObj: any, _platformHi
     const trusted = itemObj?._f5r?.salla_target_url;
     if (typeof trusted === "string") {
       const exact = extractUrlFromText(trusted) ?? normalizeUrlish(trusted);
-      if (exact) return exact;
+      if (exact && isUsableTargetUrl(exact, socialOnly)) return exact;
     }
 
     const field = typeof rule.target_field === "string" ? rule.target_field.trim() : "";
@@ -657,7 +670,7 @@ export function resolveTarget(rule: SmmProductRuleRow, itemObj: any, _platformHi
       itemObj?.customFields?.link,
     ];
     for (const value of explicitValues) {
-      const exact = findUrlDeep(value, false);
+      const exact = findUrlDeep(value, socialOnly);
       if (exact) return exact;
     }
 
@@ -679,6 +692,10 @@ export function resolveTarget(rule: SmmProductRuleRow, itemObj: any, _platformHi
       getByPath(itemObj, field),
       itemObj?.[field],
       getByCaseInsensitiveKey(itemObj, field),
+      getByCaseInsensitiveKey(itemObj?.fields, field),
+      getByCaseInsensitiveKey(itemObj?.custom_fields, field),
+      getByCaseInsensitiveKey(itemObj?.customFields, field),
+      findValueByLabelDeep(itemObj, normalizeLabelKey(field)),
     ];
     for (const value of values) {
       const resolved = tryRawSallaValue(value);
@@ -883,10 +900,7 @@ export async function processNextFulfillment(opts?: {
           const orderItem = getOrderItemById(fulfillment.order_item_id);
           if (!orderItem) continue;
 
-          const sellerProduct =
-            getSellerProductBySallaProductId(lastSellerId, orderItem.salla_product_id) ??
-            (orderItem.salla_sku ? getSellerProductBySku(lastSellerId, orderItem.salla_sku) : undefined) ??
-            getSellerProductBySku(lastSellerId, orderItem.salla_product_id);
+          const sellerProduct = getSellerProductForOrderItem(lastSellerId, orderItem);
           const rule = fulfillment.rule_id ? getRuleById(lastSellerId, fulfillment.rule_id) ?? null : null;
           const provider = getProviderByIdForSeller(lastSellerId, fulfillment.provider_id);
 
@@ -954,10 +968,7 @@ export async function processNextFulfillment(opts?: {
     if (conn && Number.isFinite(conn.duplicate_link_delay_seconds)) {
       duplicateDelaySeconds = Math.max(0, Math.min(60 * 60 * 24 * 7, Math.trunc(conn.duplicate_link_delay_seconds)));
     }
-    const sellerProduct =
-      getSellerProductBySallaProductId(sellerId, orderItem.salla_product_id) ??
-      (orderItem.salla_sku ? getSellerProductBySku(sellerId, orderItem.salla_sku) : undefined) ??
-      getSellerProductBySku(sellerId, orderItem.salla_product_id);
+    const sellerProduct = getSellerProductForOrderItem(sellerId, orderItem);
     if (!sellerProduct) {
       throw new Error(
         `No seller product mapping for Salla item (product_id=${orderItem.salla_product_id}${orderItem.salla_sku ? `, sku=${orderItem.salla_sku}` : ""})`,

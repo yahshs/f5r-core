@@ -178,13 +178,21 @@ export default function ProductsPage() {
             </div>
           </CardHeader>
           <CardContent>
+            {listQuery.isError ? (
+              <div role="alert" className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm">
+                <p>{listQuery.error.message}</p>
+                <Button className="mt-2" variant="outline" disabled={listQuery.isFetching} onClick={() => void listQuery.refetch()}>
+                  {t("common.retry")}
+                </Button>
+              </div>
+            ) : null}
             {listQuery.isLoading ? (
               <div className="space-y-2">
                 <Skeleton className="h-10 w-full" />
                 <Skeleton className="h-10 w-full" />
                 <Skeleton className="h-10 w-full" />
               </div>
-            ) : filtered.length === 0 ? (
+            ) : listQuery.isError && !products.length ? null : filtered.length === 0 ? (
               <p className="text-sm text-muted-foreground">{t("seller.products.empty")}</p>
             ) : (
               <div className="space-y-2">

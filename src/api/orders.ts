@@ -96,16 +96,34 @@ export type CancelOrdersResult = {
   }>;
 };
 
+export class OrdersApiError extends Error {
+  constructor(message: string, public readonly status: number | null = null) {
+    super(message);
+    this.name = 'OrdersApiError';
+  }
+}
+
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const { token } = useAuthStore.getState();
   const headers = new Headers(init?.headers);
   headers.set('content-type', 'application/json');
   if (token) headers.set('authorization', `Bearer ${token}`);
 
-  const res = await fetch(`${config.API_BASE_URL}${path}`, { ...init, headers });
+  let res: Response;
+  try {
+    res = await fetch(`${config.API_BASE_URL}${path}`, { ...init, headers });
+  } catch {
+    throw new OrdersApiError('Unable to reach the server. Please try again.');
+  }
   const text = await res.text();
-  const json = text ? JSON.parse(text) : null;
-  if (!res.ok) throw new Error(json?.message || `Request failed (${res.status})`);
+  let json: any;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    throw new OrdersApiError(`Invalid server response (HTTP ${res.status}). Please try again.`, res.status);
+  }
+  if (!res.ok) throw new OrdersApiError(json?.message || `Request failed (HTTP ${res.status})`, res.status);
+  if (!json || json.success === false) throw new OrdersApiError(json?.message || 'Invalid server response.', res.status);
   return json as T;
 }
 
@@ -138,8 +156,9 @@ export const ordersApi = {
     try {
       const res = await apiFetch<{ success: boolean; data: SellerOrder }>(`${ordersBasePath()}/${orderId}`, { method: 'GET' });
       return res.data;
-    } catch {
-      return null;
+    } catch (error) {
+      if (error instanceof OrdersApiError && error.status === 404) return null;
+      throw error;
     }
   },
 

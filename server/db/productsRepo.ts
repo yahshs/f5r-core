@@ -66,9 +66,27 @@ export function getSellerProductBySallaProductId(sellerId: string, sallaProductI
 
 export function getSellerProductBySku(sellerId: string, sku: string) {
   const db = getDb();
-  return db
-    .prepare(`SELECT * FROM seller_products WHERE seller_id = ? AND sku = ? ORDER BY created_at DESC LIMIT 1`)
-    .get(sellerId, sku) as SellerProductRow | undefined;
+  const rows = db.prepare(`SELECT * FROM seller_products WHERE seller_id = ? AND sku = ? LIMIT 2`)
+    .all(sellerId, sku) as SellerProductRow[];
+  return rows.length === 1 ? rows[0] : undefined;
+}
+
+function getUnboundProductBySku(sellerId: string, sku: string) {
+  const rows = getDb().prepare(
+    `SELECT * FROM seller_products WHERE seller_id = ? AND sku = ? AND salla_product_id IS NULL LIMIT 2`,
+  ).all(sellerId, sku) as SellerProductRow[];
+  return rows.length === 1 ? rows[0] : undefined;
+}
+
+export function getSellerProductForOrderItem(sellerId: string, item: { salla_product_id: string; salla_sku: string | null }) {
+  const exact = getSellerProductBySallaProductId(sellerId, item.salla_product_id);
+  if (exact) return exact;
+  const sku = item.salla_sku || item.salla_product_id;
+  const unbound = getUnboundProductBySku(sellerId, sku);
+  if (unbound) return unbound;
+  // A SKU-only invoice stores its SKU as the product key. Otherwise a known,
+  // different Salla product id must not be mapped to another bound product.
+  return item.salla_product_id === item.salla_sku ? getSellerProductBySku(sellerId, sku) : undefined;
 }
 
 export function createSellerProduct(input: {
@@ -118,8 +136,9 @@ export function createSellerProduct(input: {
 
 /**
  * Ensures an invoice product exists without requiring Salla API credentials.
- * A Salla product id is authoritative; SKU is only used when the webhook has
- * no product id so two different Salla products cannot be merged by accident.
+ * A Salla product id is authoritative. A unique, unbound SKU mapping can be
+ * attached to its first invoice without losing its existing execution rules.
+ * Never steal a SKU from an already bound, different Salla product.
  */
 export function ensureSellerProductFromInvoice(input: {
   sellerId: string;
@@ -132,11 +151,18 @@ export function ensureSellerProductFromInvoice(input: {
   const sku = input.sku?.trim() || null;
 
   const run = db.transaction(() => {
-    const existing = input.sallaProductId
+    let existing = input.sallaProductId
       ? getSellerProductBySallaProductId(input.sellerId, input.sallaProductId)
       : sku
-        ? getSellerProductBySku(input.sellerId, sku)
+        ? getUnboundProductBySku(input.sellerId, sku) ?? getSellerProductBySku(input.sellerId, sku)
         : undefined;
+
+    if (!existing && input.sallaProductId && sku) {
+      const unbound = getUnboundProductBySku(input.sellerId, sku);
+      if (unbound) {
+        existing = updateSellerProduct(input.sellerId, unbound.id, { sallaProductId: input.sallaProductId })!;
+      }
+    }
 
     if (existing) {
       const nextName = name || existing.name;
@@ -145,6 +171,17 @@ export function ensureSellerProductFromInvoice(input: {
         return updateSellerProduct(input.sellerId, existing.id, { name: nextName, sku: nextSku });
       }
       return existing;
+    }
+
+    if (!input.sallaProductId && sku) {
+      const candidates = db.prepare(`SELECT id FROM seller_products WHERE seller_id = ? AND sku = ? LIMIT 1`)
+        .get(input.sellerId, sku);
+      if (candidates) {
+        // The SKU exists more than once and cannot safely identify a service.
+        // Keep the saved invoice for review instead of creating another copy
+        // on every retry or submitting an arbitrary product's paid rule.
+        throw new Error(`Ambiguous product SKU ${sku}; a Salla product id or unique SKU mapping is required`);
+      }
     }
 
     return createSellerProduct({
@@ -165,7 +202,7 @@ export function ensureSellerProductFromInvoice(input: {
     const raced = input.sallaProductId
       ? getSellerProductBySallaProductId(input.sellerId, input.sallaProductId)
       : sku
-        ? getSellerProductBySku(input.sellerId, sku)
+        ? getUnboundProductBySku(input.sellerId, sku) ?? getSellerProductBySku(input.sellerId, sku)
         : undefined;
     if (raced) return raced;
     throw error;

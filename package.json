@@ -15,7 +15,10 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:regression": "vitest run server/workers/fulfillmentQuantity.test.ts server/workers/sallaPayloadExtraction.test.ts server/workers/sallaInvoiceDescription.test.ts server/lib/sallaOrderRecovery.test.ts server/lib/telegramWebhook.test.ts server/routes/adminTelegram.api.test.ts server/routes/customerCompensationBot.api.test.ts server/routes/sellerProducts.api.test.ts server/routes/auth.api.test.ts server/db/dbPersistence.test.ts server/db/ordersRepo.test.ts server/db/fulfillmentsRepo.test.ts server/db/webhookEventsRepo.test.ts server/db/telegramUpdateReceiptsRepo.test.ts server/lib/ssrf.test.ts src/api/authErrors.test.ts"
+    "test:regression": "vitest run server/workers/fulfillmentQuantity.test.ts server/workers/sallaPayloadExtraction.test.ts server/workers/sallaInvoiceDescription.test.ts server/lib/sallaOrderRecovery.test.ts server/lib/telegramWebhook.test.ts server/routes/adminTelegram.api.test.ts server/routes/customerCompensationBot.api.test.ts server/routes/sellerProducts.api.test.ts server/routes/auth.api.test.ts server/db/dbPersistence.test.ts server/db/ordersRepo.test.ts server/db/fulfillmentsRepo.test.ts server/db/webhookEventsRepo.test.ts server/db/telegramUpdateReceiptsRepo.test.ts server/lib/ssrf.test.ts src/api/authErrors.test.ts server/routes/invoiceIngestion.api.test.ts src/pages/seller/Orders.test.tsx src/hooks/authSession.test.tsx src/api/orders.test.ts",
+    "typecheck:web": "tsc -p tsconfig.app.json --noEmit",
+    "typecheck:server": "tsc --noEmit --target ES2022 --module ESNext --moduleResolution Bundler --esModuleInterop --skipLibCheck --strictNullChecks --types node server/index.ts",
+    "typecheck": "npm run typecheck:web && npm run typecheck:server"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -83,10 +86,12 @@
     "@eslint/js": "^9.32.0",
     "@tailwindcss/typography": "^0.5.16",
     "@types/bcryptjs": "^2.4.6",
+    "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.19.3",
     "@types/react": "^18.3.23",
     "@types/react-dom": "^18.3.7",
+    "@types/react-test-renderer": "^18.3.1",
     "@vitejs/plugin-react-swc": "^3.11.0",
     "autoprefixer": "^10.4.21",
     "concurrently": "^9.2.1",
@@ -96,6 +101,7 @@
     "globals": "^15.15.0",
     "lovable-tagger": "^1.1.13",
     "postcss": "^8.5.6",
+    "react-test-renderer": "^18.3.1",
     "supertest": "^7.0.0",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3",

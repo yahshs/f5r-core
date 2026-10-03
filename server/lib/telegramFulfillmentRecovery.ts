@@ -1,6 +1,6 @@
 ﻿import { createFulfillmentRetryAttempt, getFulfillmentById, listRetryFulfillmentsBySourceFulfillmentId } from "../db/fulfillmentsRepo";
 import { getOrderById, getOrderItemById } from "../db/ordersRepo";
-import { getSellerProductBySku, getSellerProductBySallaProductId, type SellerProductRow } from "../db/productsRepo";
+import { getSellerProductForOrderItem, type SellerProductRow } from "../db/productsRepo";
 import { getProviderByIdForSeller } from "../db/smmProvidersRepo";
 import { getRuleById, type SmmProductRuleRow } from "../db/smmRulesRepo";
 
@@ -51,11 +51,7 @@ function buildFailedFulfillmentContext(fulfillmentId: string): FailedFulfillment
     throw new Error("Order not found");
   }
 
-  const sellerProduct =
-    getSellerProductBySallaProductId(order.seller_id, orderItem.salla_product_id) ??
-    (orderItem.salla_sku ? getSellerProductBySku(order.seller_id, orderItem.salla_sku) : undefined) ??
-    getSellerProductBySku(order.seller_id, orderItem.salla_product_id) ??
-    null;
+  const sellerProduct = getSellerProductForOrderItem(order.seller_id, orderItem) ?? null;
 
   const rule = fulfillment.rule_id ? getRuleById(order.seller_id, fulfillment.rule_id) : undefined;
   const provider = getProviderByIdForSeller(order.seller_id, fulfillment.provider_id);
@@ -570,4 +566,3 @@ export function getTelegramBotText(localeInput?: string | null) {
   const locale = normalizeLocale(localeInput);
   return dictionary(locale);
 }
-

@@ -143,7 +143,7 @@ export function requeueUnroutedInvoiceEventsForProduct(input: {
     `UPDATE webhook_events
      SET status = 'FAILED', next_attempt_at = ?, processed_at = NULL,
          last_error = 'Product mapping added; routing retry queued'
-     WHERE id = ? AND seller_id = ? AND topic = 'invoice.created'`,
+     WHERE id = ? AND seller_id = ? AND topic = 'invoice.created' AND status IN ('DONE', 'FAILED')`,
   );
   const tx = db.transaction(() => {
     let changed = 0;

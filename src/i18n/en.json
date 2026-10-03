@@ -694,7 +694,8 @@
                    "orders":  {
                                   "subtitle":  "View and manage incoming orders.",
                                   "listTitle":  "Orders",
-                                  "listHint":  "Latest marketplace orders (demo data).",
+                                  "listHint":  "Saved Salla orders; refreshed automatically every 15 seconds.",
+                                  "loadError":  "Unable to load orders. This does not mean they were deleted; please retry.",
                                   "searchPlaceholder":  "Search by order ID / service / link",
                                   "empty":  "No orders found",
                                  "repeat":  {

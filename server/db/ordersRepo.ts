@@ -224,21 +224,19 @@ export function listOrderItemsWithProductByOrderId(sellerId: string, orderId: st
          sp.product_type as product_type
         FROM order_items oi
         LEFT JOIN seller_products sp
-          ON sp.id = (
-            SELECT id
-            FROM seller_products
-            WHERE seller_id = ?
-              AND (
-                (salla_product_id IS NOT NULL AND salla_product_id = oi.salla_product_id)
-                OR (sku IS NOT NULL AND (sku = oi.salla_sku OR sku = oi.salla_product_id))
-              )
-            ORDER BY created_at DESC
-            LIMIT 1
+          ON sp.id = COALESCE(
+            (SELECT id FROM seller_products
+             WHERE seller_id = ? AND salla_product_id = oi.salla_product_id LIMIT 1),
+            (SELECT CASE WHEN COUNT(*) = 1 THEN MAX(id) END FROM seller_products
+             WHERE seller_id = ? AND salla_product_id IS NULL
+               AND sku IS NOT NULL AND sku = COALESCE(NULLIF(oi.salla_sku, ''), oi.salla_product_id)),
+            (SELECT CASE WHEN COUNT(*) = 1 THEN MAX(id) END FROM seller_products
+             WHERE seller_id = ? AND oi.salla_product_id = oi.salla_sku AND sku = oi.salla_sku)
           )
         WHERE oi.order_id = ?
         ORDER BY oi.created_at ASC`,
      )
-     .all(sellerId, orderId) as OrderItemWithProductRow[];
+     .all(sellerId, sellerId, sellerId, orderId) as OrderItemWithProductRow[];
 }
 
 export function listOrdersBySellerId(sellerId: string) {

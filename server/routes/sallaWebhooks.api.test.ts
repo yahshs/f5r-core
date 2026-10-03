@@ -14,6 +14,7 @@ import { encryptSecret } from "../lib/encryption";
 import { createProvider } from "../db/smmProvidersRepo";
 import { processNextSallaWebhookEvent } from "../workers/sallaWebhookWorker";
 import { processNextFulfillment } from "../workers/fulfillmentWorker";
+import * as panelV2Adapter from "../smm/panelV2Adapter";
 
 function sellerHeaders(sellerId: string) {
   process.env.JWT_SECRET = process.env.JWT_SECRET || "test-jwt-secret";
@@ -23,6 +24,8 @@ function sellerHeaders(sellerId: string) {
 
 describe("salla webhook pipeline", () => {
   beforeEach(() => {
+    // Pricing is optional metadata, not part of these mocked add-order calls.
+    vi.spyOn(panelV2Adapter, "listPanelV2Services").mockResolvedValue({ ok: true, services: [] });
     process.env.NODE_ENV = "test";
     process.env.WORKERS_ENABLED = "0";
     process.env.ENCRYPTION_KEY = Buffer.from("0123456789abcdef0123456789abcdef").toString("hex");
@@ -58,7 +61,7 @@ describe("salla webhook pipeline", () => {
     const publicId = status.body.data.public_webhook_id as string;
 
     await request(app)
-      .post(`/api/webhooks/salla/${publicId}`)
+      .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
       .set("X-Salla-Event", "invoice.created")
       .send({ data: { order: { id: "url-only-1", items: [] } } })
       .expect(200);
@@ -71,7 +74,7 @@ describe("salla webhook pipeline", () => {
   it("returns 404 for unknown publicId", async () => {
     const app = await createApp();
     await request(app)
-      .post("/api/webhooks/salla/does-not-exist")
+      .post("/api/webhooks/salla/does-not-exist").set("x-salla-event", "invoice.created")
       .set("x-f5r-webhook-token", "x")
       .send({ hello: "world" })
       .expect(404);
@@ -121,7 +124,7 @@ describe("salla webhook pipeline", () => {
     const publicId = status.body.data.public_webhook_id as string;
 
     await request(app)
-      .post(`/api/webhooks/salla/${publicId}`)
+      .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
       .set("x-f5r-webhook-token", token)
       .set("X-Salla-Event", "invoice.created")
       .send({ data: { order: { id: "o1", items: [] } } })
@@ -149,7 +152,7 @@ describe("salla webhook pipeline", () => {
     db.prepare(`UPDATE salla_connections SET status = 'disconnected', connection_mode = 'manual' WHERE seller_id = ?`).run(sellerId);
 
     await request(app)
-      .post(`/api/webhooks/salla/${publicId}`)
+      .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
       .set("x-f5r-webhook-token", token)
       .set("X-Salla-Event", "invoice.created")
       .send({ data: { order: { id: "legacy-1", items: [] } } })
@@ -174,20 +177,20 @@ describe("salla webhook pipeline", () => {
 
     const payload = { data: { order: { id: "o1", items: [{ id: "i1", product_id: "p1", quantity: 2 }] } } };
     const raw = JSON.stringify(payload);
-    const topic = "unknown";
+    const topic = "invoice.created";
     const payloadHash = sha256Hex(raw);
     const db = getDb();
     const conn = db.prepare(`SELECT id FROM salla_connections WHERE seller_id = ? LIMIT 1`).get(sellerId) as any;
     const eventKey = sha256Hex(`${conn.id}|${topic}|${payloadHash}`);
 
     await request(app)
-      .post(`/api/webhooks/salla/${publicId}`)
+      .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
       .set("x-f5r-webhook-token", token)
       .send(payload)
       .expect(200);
 
     await request(app)
-      .post(`/api/webhooks/salla/${publicId}`)
+      .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
       .set("x-f5r-webhook-token", token)
       .send(payload)
       .expect(200);
@@ -354,7 +357,7 @@ describe("salla webhook pipeline", () => {
     const signature = crypto.createHmac("sha256", "test-salla-webhook-secret").update(payload, "utf8").digest("hex");
 
     await request(app)
-      .post("/api/webhooks/salla/public-app-1")
+      .post("/api/webhooks/salla/public-app-1").set("x-salla-event", "invoice.created")
       .set("content-type", "application/json")
       .set("x-salla-event", "invoice.created")
       .set("x-salla-event-id", "evt-native-1")
@@ -437,7 +440,7 @@ describe("salla webhook pipeline", () => {
       },
     };
     await request(app)
-      .post(`/api/webhooks/salla/${publicId}`)
+      .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
       .set("x-f5r-webhook-token", token)
       .send(payload)
       .expect(200);
@@ -493,7 +496,7 @@ describe("salla webhook pipeline", () => {
     const body = `${JSON.stringify(payload)}${JSON.stringify({ junk: true })}`;
 
     await request(app)
-      .post(`/api/webhooks/salla/${publicId}`)
+      .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
       .set("x-f5r-webhook-token", token)
       .set("content-type", "application/json")
       .send(body)
@@ -520,7 +523,7 @@ describe("salla webhook pipeline", () => {
     const body = `data=${encodeURIComponent(JSON.stringify(payload))}`;
 
     await request(app)
-      .post(`/api/webhooks/salla/${publicId}`)
+      .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
       .set("x-f5r-webhook-token", token)
       .set("content-type", "application/json")
       .send(body)
@@ -591,7 +594,7 @@ describe("salla webhook pipeline", () => {
     db.prepare(`UPDATE smm_product_rules SET provider_service_rate = ? WHERE id = ?`).run(10, ruleRow.id);
 
     await request(app)
-      .post(`/api/webhooks/salla/${publicId}`)
+      .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
       .set("x-f5r-webhook-token", token)
       .send({ data: { order: { id: "o1", items: [{ id: "i1", product_id: "p1", quantity: 2, link: "https://x.com" }] } } })
       .expect(200);
@@ -680,7 +683,7 @@ describe("salla webhook pipeline", () => {
       .expect(201);
 
     await request(app)
-      .post(`/api/webhooks/salla/${publicId}`)
+      .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
       .set("x-f5r-webhook-token", token)
       .send({ data: { order: { id: "o-repeat", items: [{ id: "i-repeat", product_id: "p-repeat", quantity: 1, link: "https://www.tiktok.com/@repeat_me" }] } } })
       .expect(200);
@@ -798,7 +801,7 @@ describe("salla webhook pipeline", () => {
     };
 
     await request(app)
-      .post(`/api/webhooks/salla/${publicId}`)
+      .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
       .set("x-f5r-webhook-token", token)
       .send(payload)
       .expect(200);
@@ -894,7 +897,7 @@ describe("salla webhook pipeline", () => {
     };
 
     await request(app)
-      .post(`/api/webhooks/salla/${publicId}`)
+      .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
       .set("x-f5r-webhook-token", token)
       .send(payload)
       .expect(200);
@@ -993,7 +996,7 @@ describe("salla webhook pipeline", () => {
     };
 
     await request(app)
-      .post(`/api/webhooks/salla/${publicId}`)
+      .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
       .set("x-f5r-webhook-token", token)
       .send(payload)
       .expect(200);
@@ -1014,7 +1017,7 @@ describe("salla webhook pipeline", () => {
     expect(createOrderCalls[0].link).toBe("https://www.tiktok.com/@i.lx25?_r=1&_t=ZS-93nxBvZNQfd");
   });
 
-  it("builds a profile URL when Salla provides only a username", async () => {
+  it("does not invent a profile URL for a URL rule given only a username", async () => {
     const app = await createApp();
     const sellerId = "seller-a";
 
@@ -1083,7 +1086,7 @@ describe("salla webhook pipeline", () => {
     };
 
     await request(app)
-      .post(`/api/webhooks/salla/${publicId}`)
+      .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
       .set("x-f5r-webhook-token", token)
       .send(payload)
       .expect(200);
@@ -1099,11 +1102,13 @@ describe("salla webhook pipeline", () => {
         },
       }),
     ).toBe(true);
-    expect(createOrderCalls).toHaveLength(1);
-    expect(createOrderCalls[0].link).toBe("https://www.tiktok.com/@my_user.1");
+    expect(createOrderCalls).toHaveLength(0);
+    const failed = getDb().prepare("SELECT status, last_error FROM fulfillments LIMIT 1").get() as any;
+    expect(failed.status).toBe("FAILED");
+    expect(failed.last_error).toContain("Target value missing");
   });
 
-  it("ignores store/product URLs when username is provided and builds a profile URL", async () => {
+  it("rejects catalog URLs instead of sending them or inventing a profile URL", async () => {
     const app = await createApp();
     const sellerId = "seller-a";
 
@@ -1173,7 +1178,7 @@ describe("salla webhook pipeline", () => {
     };
 
     await request(app)
-      .post(`/api/webhooks/salla/${publicId}`)
+      .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
       .set("x-f5r-webhook-token", token)
       .send(payload)
       .expect(200);
@@ -1189,11 +1194,13 @@ describe("salla webhook pipeline", () => {
         },
       }),
     ).toBe(true);
-    expect(createOrderCalls).toHaveLength(1);
-    expect(createOrderCalls[0].link).toBe("https://www.tiktok.com/@my_user.1");
+    expect(createOrderCalls).toHaveLength(0);
+    const failed = getDb().prepare("SELECT status, last_error FROM fulfillments LIMIT 1").get() as any;
+    expect(failed.status).toBe("FAILED");
+    expect(failed.last_error).toContain("Target value missing");
   });
 
-  it("ignores incomplete tiktok profile URLs and uses the username instead", async () => {
+  it("rejects incomplete TikTok URLs instead of inventing a profile URL", async () => {
     const app = await createApp();
     const sellerId = "seller-a";
 
@@ -1263,7 +1270,7 @@ describe("salla webhook pipeline", () => {
     };
 
     await request(app)
-      .post(`/api/webhooks/salla/${publicId}`)
+      .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
       .set("x-f5r-webhook-token", token)
       .send(payload)
       .expect(200);
@@ -1280,11 +1287,13 @@ describe("salla webhook pipeline", () => {
       }),
     ).toBe(true);
 
-    expect(createOrderCalls).toHaveLength(1);
-    expect(createOrderCalls[0].link).toBe("https://www.tiktok.com/@my_user.1");
+    expect(createOrderCalls).toHaveLength(0);
+    const failed = getDb().prepare("SELECT status, last_error FROM fulfillments LIMIT 1").get() as any;
+    expect(failed.status).toBe("FAILED");
+    expect(failed.last_error).toContain("Target value missing");
   });
 
-  it("ignores salla cdn URLs and uses username as target", async () => {
+  it("rejects Salla CDN images as social target URLs", async () => {
     const app = await createApp();
     const sellerId = "seller-a";
 
@@ -1356,7 +1365,7 @@ describe("salla webhook pipeline", () => {
     };
 
     await request(app)
-      .post(`/api/webhooks/salla/${publicId}`)
+      .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
       .set("x-f5r-webhook-token", token)
       .send(payload)
       .expect(200);
@@ -1372,8 +1381,10 @@ describe("salla webhook pipeline", () => {
         },
       }),
     ).toBe(true);
-    expect(createOrderCalls).toHaveLength(1);
-    expect(createOrderCalls[0].link).toBe("https://www.tiktok.com/@my_user.1");
+    expect(createOrderCalls).toHaveLength(0);
+    const failed = getDb().prepare("SELECT status, last_error FROM fulfillments LIMIT 1").get() as any;
+    expect(failed.status).toBe("FAILED");
+    expect(failed.last_error).toContain("Target value missing");
   });
 
   it("blocks fulfillment when subscription is expired", async () => {
@@ -1453,7 +1464,7 @@ describe("salla webhook pipeline", () => {
     };
 
     await request(app)
-      .post(`/api/webhooks/salla/${publicId}`)
+      .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
       .set("x-f5r-webhook-token", token)
       .send(payload)
       .expect(200);
@@ -1551,7 +1562,7 @@ describe("salla webhook pipeline", () => {
       };
 
       await request(app)
-        .post(`/api/webhooks/salla/${publicId}`)
+        .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
         .set("x-f5r-webhook-token", token)
         .send(payload1)
         .expect(200);
@@ -1582,7 +1593,7 @@ describe("salla webhook pipeline", () => {
       };
 
       await request(app)
-        .post(`/api/webhooks/salla/${publicId}`)
+        .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
         .set("x-f5r-webhook-token", token)
         .send(payload2)
         .expect(200);
@@ -1687,7 +1698,7 @@ describe("salla webhook pipeline", () => {
       };
 
       await request(app)
-        .post(`/api/webhooks/salla/${publicId}`)
+        .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
         .set("x-f5r-webhook-token", token)
         .send(payload1)
         .expect(200);
@@ -1717,7 +1728,7 @@ describe("salla webhook pipeline", () => {
       };
 
       await request(app)
-        .post(`/api/webhooks/salla/${publicId}`)
+        .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
         .set("x-f5r-webhook-token", token)
         .send(payload2)
         .expect(200);
@@ -1807,7 +1818,7 @@ describe("salla webhook pipeline", () => {
     };
 
     await request(app)
-      .post(`/api/webhooks/salla/${publicId}`)
+      .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
       .set("x-f5r-webhook-token", token)
       .send(payload)
       .expect(200);
@@ -1895,7 +1906,7 @@ describe("salla webhook pipeline", () => {
     };
 
     await request(app)
-      .post(`/api/webhooks/salla/${publicId}`)
+      .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
       .set("x-f5r-webhook-token", token)
       .send(payload)
       .expect(200);
@@ -1983,7 +1994,7 @@ describe("salla webhook pipeline", () => {
     };
 
     await request(app)
-      .post(`/api/webhooks/salla/${publicId}`)
+      .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
       .set("x-f5r-webhook-token", token)
       .send(payload)
       .expect(200);
@@ -2087,7 +2098,7 @@ describe("salla webhook pipeline", () => {
       };
 
       await request(app)
-        .post(`/api/webhooks/salla/${publicId}`)
+        .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
         .set("x-f5r-webhook-token", token)
         .send(payload)
         .expect(200);
@@ -2178,7 +2189,7 @@ describe("salla webhook pipeline", () => {
     };
 
     await request(app)
-      .post(`/api/webhooks/salla/${publicId}`)
+      .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
       .set("x-f5r-webhook-token", token)
       .send(payload)
       .expect(200);
@@ -2257,9 +2268,9 @@ describe("salla webhook pipeline", () => {
     };
 
     // enqueue twice with different raw payload but same order id => should still create only 3 fulfillments
-    await request(app).post(`/api/webhooks/salla/${publicId}`).set("x-f5r-webhook-token", token).send(payload).expect(200);
+    await request(app).post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created").set("x-f5r-webhook-token", token).send(payload).expect(200);
     await request(app)
-      .post(`/api/webhooks/salla/${publicId}`)
+      .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
       .set("x-f5r-webhook-token", token)
       .send({ ...payload, meta: { retry: true } })
       .expect(200);
@@ -2294,7 +2305,7 @@ describe("salla webhook pipeline", () => {
     expect(createOrderCalls).toHaveLength(3);
   });
 
-  it("ingests order even with unknown topic when payload has order id", async () => {
+  it("ignores unknown topics even when the payload contains an order id", async () => {
     const app = await createApp();
     const sellerId = "seller-a";
 
@@ -2314,10 +2325,10 @@ describe("salla webhook pipeline", () => {
       .send(payload)
       .expect(200);
 
-    expect(await processNextSallaWebhookEvent()).toBe(true);
+    expect(await processNextSallaWebhookEvent()).toBe(false);
     const db = getDb();
     const order = db.prepare(`SELECT * FROM orders WHERE seller_id = ? AND salla_order_id = ?`).get(sellerId, "o-unknown") as any;
-    expect(order).toBeTruthy();
+    expect(order).toBeUndefined();
   });
 
   it("prefers Salla reference_id over generic data.id when extracting the order number", async () => {
@@ -2345,7 +2356,7 @@ describe("salla webhook pipeline", () => {
     };
 
     await request(app)
-      .post(`/api/webhooks/salla/${publicId}`)
+      .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
       .set("x-f5r-webhook-token", token)
       .set("x-salla-event", "invoice.created")
       .send(payload)
@@ -2376,7 +2387,7 @@ describe("salla webhook pipeline", () => {
 
     const payload = { data: { order: { id: "o-dupe", items: [] } } };
     await request(app)
-      .post(`/api/webhooks/salla/${publicId}`)
+      .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
       .set("x-f5r-webhook-token", token)
       .send(payload)
       .expect(200);
@@ -2384,13 +2395,13 @@ describe("salla webhook pipeline", () => {
     expect(await processNextSallaWebhookEvent()).toBe(true);
 
     await request(app)
-      .post(`/api/webhooks/salla/${publicId}`)
+      .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
       .set("x-f5r-webhook-token", token)
       .set("x-salla-event", "invoice.created")
       .send(payload)
       .expect(200);
 
-    expect(await processNextSallaWebhookEvent()).toBe(true);
+    expect(await processNextSallaWebhookEvent()).toBe(false);
 
     const db = getDb();
     const rows = db.prepare(`SELECT COUNT(1) as c FROM orders WHERE seller_id = ? AND salla_order_id = ?`).get(sellerId, "o-dupe") as any;
@@ -2412,7 +2423,7 @@ describe("salla webhook pipeline", () => {
 
     const payload = { data: { order: { id: "o-unpaid", payment_status: "pending", items: [] } } };
     await request(app)
-      .post(`/api/webhooks/salla/${publicId}`)
+      .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
       .set("x-f5r-webhook-token", token)
       .send(payload)
       .expect(200);
@@ -2423,7 +2434,7 @@ describe("salla webhook pipeline", () => {
     expect(order).toBeFalsy();
   });
 
-  it("marks events done when payload has no order id", async () => {
+  it("keeps a malformed invoice visible as failed when its order id is missing", async () => {
     const app = await createApp();
     const sellerId = "seller-a";
 
@@ -2437,7 +2448,7 @@ describe("salla webhook pipeline", () => {
     const publicId = status.body.data.public_webhook_id as string;
 
     await request(app)
-      .post(`/api/webhooks/salla/${publicId}`)
+      .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
       .set("x-f5r-webhook-token", token)
       .send({ data: { something: "else" } })
       .expect(200);
@@ -2445,6 +2456,6 @@ describe("salla webhook pipeline", () => {
     expect(await processNextSallaWebhookEvent()).toBe(true);
     const db = getDb();
     const row = db.prepare(`SELECT status FROM webhook_events WHERE seller_id = ? ORDER BY received_at DESC LIMIT 1`).get(sellerId) as any;
-    expect(row.status).toBe("DONE");
+    expect(row.status).toBe("FAILED");
   });
 });

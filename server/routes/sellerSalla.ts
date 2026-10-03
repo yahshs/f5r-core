@@ -41,7 +41,7 @@ function getSallaWebhookPublicUrl(req: any, publicId: string) {
   return new URL(`/api/webhooks/salla/${publicId}`, getBaseUrl(req)).toString();
 }
 
-function toStatusPayload(row: ReturnType<typeof getSallaConnectionBySellerId>) {
+function toStatusPayload(row: ReturnType<typeof getSallaConnectionBySellerId> | null) {
   return {
     connected: !!row && row.status === "active",
     is_enabled: row ? !!row.is_enabled : false,
