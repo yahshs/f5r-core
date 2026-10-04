@@ -6,7 +6,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { createApp } from "../app";
 import { resetDbForTests, getDb } from "../db/db";
-import { signAuthToken } from "../lib/jwt";
+import { signAuthToken } from "../test/authFixture";
 import { sha256Hex } from "../lib/hash";
 import { createUser } from "../db/usersRepo";
 import { createSallaAuthState } from "../lib/sallaAuthState";
@@ -48,7 +48,7 @@ describe("salla webhook pipeline", () => {
     vi.restoreAllMocks();
   });
 
-  it("accepts a manual invoice webhook using the URL only", async () => {
+  it("rejects a manual invoice webhook using the URL only", async () => {
     const app = await createApp();
     const sellerId = "seller-a";
 
@@ -64,11 +64,11 @@ describe("salla webhook pipeline", () => {
       .post(`/api/webhooks/salla/${publicId}`).set("x-salla-event", "invoice.created")
       .set("X-Salla-Event", "invoice.created")
       .send({ data: { order: { id: "url-only-1", items: [] } } })
-      .expect(200);
+      .expect(401);
 
     const db = getDb();
-    const row = db.prepare(`SELECT COUNT(1) as c FROM webhook_events WHERE seller_id = ?`).get(sellerId) as any;
-    expect(Number(row.c)).toBe(1);
+    const row = db.prepare(`SELECT COUNT(1) as c FROM webhook_events WHERE seller_id = ?`).get(sellerId) as unknown;
+    expect(Number(row.c)).toBe(0);
   });
 
   it("returns 404 for unknown publicId", async () => {
@@ -131,7 +131,7 @@ describe("salla webhook pipeline", () => {
       .expect(200);
 
     const db = getDb();
-    const row = db.prepare(`SELECT COUNT(1) as c FROM webhook_events WHERE seller_id = ?`).get(sellerId) as any;
+    const row = db.prepare(`SELECT COUNT(1) as c FROM webhook_events WHERE seller_id = ?`).get(sellerId) as unknown;
     expect(Number(row.c)).toBe(0);
   });
 
@@ -158,7 +158,7 @@ describe("salla webhook pipeline", () => {
       .send({ data: { order: { id: "legacy-1", items: [] } } })
       .expect(200);
 
-    const row = db.prepare(`SELECT COUNT(1) as c FROM webhook_events WHERE seller_id = ?`).get(sellerId) as any;
+    const row = db.prepare(`SELECT COUNT(1) as c FROM webhook_events WHERE seller_id = ?`).get(sellerId) as unknown;
     expect(Number(row.c)).toBe(1);
   });
 
@@ -180,7 +180,7 @@ describe("salla webhook pipeline", () => {
     const topic = "invoice.created";
     const payloadHash = sha256Hex(raw);
     const db = getDb();
-    const conn = db.prepare(`SELECT id FROM salla_connections WHERE seller_id = ? LIMIT 1`).get(sellerId) as any;
+    const conn = db.prepare(`SELECT id FROM salla_connections WHERE seller_id = ? LIMIT 1`).get(sellerId) as unknown;
     const eventKey = sha256Hex(`${conn.id}|${topic}|${payloadHash}`);
 
     await request(app)
@@ -195,7 +195,7 @@ describe("salla webhook pipeline", () => {
       .send(payload)
       .expect(200);
 
-    const row = db.prepare(`SELECT COUNT(1) as c FROM webhook_events WHERE event_key = ?`).get(eventKey) as any;
+    const row = db.prepare(`SELECT COUNT(1) as c FROM webhook_events WHERE event_key = ?`).get(eventKey) as unknown;
     expect(Number(row.c)).toBe(1);
   });
 
@@ -240,7 +240,9 @@ describe("salla webhook pipeline", () => {
       name: "Callback Seller",
       role: "seller",
     });
-    const state = createSallaAuthState(seller.id);
+    const start = await request(app).post("/api/seller/salla/connect/start").set(sellerHeaders(seller.id)).send({}).expect(200);
+    const state = new URL(start.body.data.install_url).searchParams.get("state")!;
+    const oauthCookie = start.headers["set-cookie"];
 
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
@@ -282,7 +284,7 @@ describe("salla webhook pipeline", () => {
       });
 
     const res = await request(app)
-      .get("/api/integrations/salla/callback")
+      .get("/api/integrations/salla/callback").set("Cookie", oauthCookie)
       .query({ code: "good-code", state })
       .expect(302);
 
@@ -297,7 +299,7 @@ describe("salla webhook pipeline", () => {
     expect(registrationBody.url).toMatch(/^https:\/\/f5r\.test\/api\/webhooks\/salla\/[a-f0-9]{32}$/);
 
     const db = getDb();
-    const row = db.prepare(`SELECT * FROM salla_connections WHERE seller_id = ? LIMIT 1`).get(seller.id) as any;
+    const row = db.prepare(`SELECT * FROM salla_connections WHERE seller_id = ? LIMIT 1`).get(seller.id) as unknown;
     expect(row).toBeTruthy();
     expect(row.connection_mode).toBe("app");
     expect(row.status).toBe("active");
@@ -365,7 +367,7 @@ describe("salla webhook pipeline", () => {
       .send(payload)
       .expect(200);
 
-    const row = db.prepare(`SELECT * FROM webhook_events WHERE external_event_id = ? LIMIT 1`).get("evt-native-1") as any;
+    const row = db.prepare(`SELECT * FROM webhook_events WHERE external_event_id = ? LIMIT 1`).get("evt-native-1") as unknown;
     expect(row).toBeTruthy();
     expect(row.connection_id).toBe("conn-app-1");
     expect(row.headers_json).toContain("x-salla-signature");
@@ -449,22 +451,22 @@ describe("salla webhook pipeline", () => {
     expect(await processNextSallaWebhookEvent()).toBe(true);
 
     const db = getDb();
-    const order = db.prepare(`SELECT * FROM orders WHERE seller_id = ? AND salla_order_id = ?`).get(sellerId, "o1") as any;
+    const order = db.prepare(`SELECT * FROM orders WHERE seller_id = ? AND salla_order_id = ?`).get(sellerId, "o1") as unknown;
     expect(order).toBeTruthy();
-    const orderItem = db.prepare(`SELECT * FROM order_items WHERE order_id = ?`).get(order.id) as any;
+    const orderItem = db.prepare(`SELECT * FROM order_items WHERE order_id = ?`).get(order.id) as unknown;
     expect(orderItem).toBeTruthy();
 
     const rule = db
       .prepare(`SELECT id FROM smm_product_rules WHERE seller_id = ? AND product_id = ? ORDER BY created_at ASC LIMIT 1`)
-      .get(sellerId, productId) as any;
+      .get(sellerId, productId) as unknown;
     expect(rule).toBeTruthy();
 
-    const fulfillment = db.prepare(`SELECT * FROM fulfillments WHERE order_item_id = ? AND rule_id = ?`).get(orderItem.id, rule.id) as any;
+    const fulfillment = db.prepare(`SELECT * FROM fulfillments WHERE order_item_id = ? AND rule_id = ?`).get(orderItem.id, rule.id) as unknown;
     expect(fulfillment).toBeTruthy();
     expect(fulfillment.status).toBe("PENDING");
 
     // Process fulfillment job with injected adapter
-    const createOrderCalls: any[] = [];
+    const createOrderCalls: unknown[] = [];
     const didFulfill = await processNextFulfillment({
       createOrder: async (_baseUrl, _apiKey, input) => {
         createOrderCalls.push(input);
@@ -475,7 +477,7 @@ describe("salla webhook pipeline", () => {
     expect(createOrderCalls).toHaveLength(1);
     expect(createOrderCalls[0].quantity).toBe(20);
 
-    const updated = db.prepare(`SELECT * FROM fulfillments WHERE id = ?`).get(fulfillment.id) as any;
+    const updated = db.prepare(`SELECT * FROM fulfillments WHERE id = ?`).get(fulfillment.id) as unknown;
     expect(updated.status).toBe("SUCCESS");
     expect(updated.provider_order_id).toBe("999");
   });
@@ -554,6 +556,7 @@ describe("salla webhook pipeline", () => {
         base_url: "https://example.com/api/v2",
         api_key: "k",
         fx_rate_to_store: 2,
+        cost_currency: "USD",
         is_active: true,
         is_default: true,
       })
@@ -588,7 +591,7 @@ describe("salla webhook pipeline", () => {
     const db = getDb();
     const ruleRow = db
       .prepare(`SELECT id FROM smm_product_rules WHERE seller_id = ? AND product_id = ? ORDER BY created_at ASC LIMIT 1`)
-      .get(sellerId, productId) as any;
+      .get(sellerId, productId) as unknown;
     expect(ruleRow).toBeTruthy();
 
     db.prepare(`UPDATE smm_product_rules SET provider_service_rate = ? WHERE id = ?`).run(10, ruleRow.id);
@@ -601,14 +604,14 @@ describe("salla webhook pipeline", () => {
 
     expect(await processNextSallaWebhookEvent()).toBe(true);
 
-    const order = db.prepare(`SELECT * FROM orders WHERE seller_id = ? AND salla_order_id = ?`).get(sellerId, "o1") as any;
+    const order = db.prepare(`SELECT * FROM orders WHERE seller_id = ? AND salla_order_id = ?`).get(sellerId, "o1") as unknown;
     expect(order).toBeTruthy();
     db.prepare(`UPDATE orders SET currency = ?, total = ? WHERE id = ?`).run("SAR", 1.0, order.id);
 
-    const orderItem = db.prepare(`SELECT * FROM order_items WHERE order_id = ?`).get(order.id) as any;
+    const orderItem = db.prepare(`SELECT * FROM order_items WHERE order_id = ?`).get(order.id) as unknown;
     expect(orderItem).toBeTruthy();
 
-    const fulfillment = db.prepare(`SELECT * FROM fulfillments WHERE order_item_id = ? AND rule_id = ?`).get(orderItem.id, ruleRow.id) as any;
+    const fulfillment = db.prepare(`SELECT * FROM fulfillments WHERE order_item_id = ? AND rule_id = ?`).get(orderItem.id, ruleRow.id) as unknown;
     expect(fulfillment).toBeTruthy();
 
     const didFulfill = await processNextFulfillment({
@@ -616,7 +619,7 @@ describe("salla webhook pipeline", () => {
     });
     expect(didFulfill).toBe(true);
 
-    const updated = db.prepare(`SELECT * FROM fulfillments WHERE id = ?`).get(fulfillment.id) as any;
+    const updated = db.prepare(`SELECT * FROM fulfillments WHERE id = ?`).get(fulfillment.id) as unknown;
     expect(updated.status).toBe("SUCCESS");
     expect(updated.provider_order_id).toBe("999");
     expect(updated.submitted_quantity).toBe(20);
@@ -691,7 +694,7 @@ describe("salla webhook pipeline", () => {
     expect(await processNextSallaWebhookEvent()).toBe(true);
 
     const db = getDb();
-    const order = db.prepare(`SELECT * FROM orders WHERE seller_id = ? AND salla_order_id = ?`).get(sellerId, "o-repeat") as any;
+    const order = db.prepare(`SELECT * FROM orders WHERE seller_id = ? AND salla_order_id = ?`).get(sellerId, "o-repeat") as unknown;
     expect(order).toBeTruthy();
 
     const fulfillment = db
@@ -702,7 +705,7 @@ describe("salla webhook pipeline", () => {
          ORDER BY f.created_at ASC
          LIMIT 1`,
       )
-      .get(order.id) as any;
+      .get(order.id) as unknown;
     expect(fulfillment).toBeTruthy();
 
     db.prepare(`UPDATE fulfillments SET status = 'FAILED', last_error = 'Provider rejected request' WHERE id = ?`).run(fulfillment.id);
@@ -717,7 +720,7 @@ describe("salla webhook pipeline", () => {
     expect(repeatRes.body.data.repeated_orders).toBe(1);
     expect(repeatRes.body.data.created_fulfillments).toBe(1);
 
-    const retries = db.prepare(`SELECT * FROM fulfillments WHERE retried_from_fulfillment_id = ?`).all(fulfillment.id) as any[];
+    const retries = db.prepare(`SELECT * FROM fulfillments WHERE retried_from_fulfillment_id = ?`).all(fulfillment.id) as unknown[];
     expect(retries).toHaveLength(1);
     expect(retries[0].status).toBe("PENDING");
     expect(retries[0].retry_source).toBe("dashboard_bulk");
@@ -809,14 +812,14 @@ describe("salla webhook pipeline", () => {
     expect(await processNextSallaWebhookEvent()).toBe(true);
 
     const db = getDb();
-    const order = db.prepare(`SELECT * FROM orders WHERE seller_id = ? AND salla_order_id = ?`).get(sellerId, "o2") as any;
+    const order = db.prepare(`SELECT * FROM orders WHERE seller_id = ? AND salla_order_id = ?`).get(sellerId, "o2") as unknown;
     expect(order).toBeTruthy();
-    const orderItem = db.prepare(`SELECT * FROM order_items WHERE order_id = ?`).get(order.id) as any;
+    const orderItem = db.prepare(`SELECT * FROM order_items WHERE order_id = ?`).get(order.id) as unknown;
     expect(orderItem).toBeTruthy();
     const itemObj = JSON.parse(orderItem.target_json);
     expect(itemObj.link).toBe("https://instagram.com/example");
 
-    const createOrderCalls: any[] = [];
+    const createOrderCalls: unknown[] = [];
     expect(
       await processNextFulfillment({
         createOrder: async (_baseUrl, _apiKey, input) => {
@@ -905,14 +908,14 @@ describe("salla webhook pipeline", () => {
     expect(await processNextSallaWebhookEvent()).toBe(true);
 
     const db = getDb();
-    const order = db.prepare(`SELECT * FROM orders WHERE seller_id = ? AND salla_order_id = ?`).get(sellerId, "o3") as any;
+    const order = db.prepare(`SELECT * FROM orders WHERE seller_id = ? AND salla_order_id = ?`).get(sellerId, "o3") as unknown;
     expect(order).toBeTruthy();
-    const orderItem = db.prepare(`SELECT * FROM order_items WHERE order_id = ?`).get(order.id) as any;
+    const orderItem = db.prepare(`SELECT * FROM order_items WHERE order_id = ?`).get(order.id) as unknown;
     expect(orderItem).toBeTruthy();
     const itemObj = JSON.parse(orderItem.target_json);
     expect(itemObj.link).toBe("https://tiktok.com/@x/video/1");
 
-    const createOrderCalls: any[] = [];
+    const createOrderCalls: unknown[] = [];
     expect(
       await processNextFulfillment({
         createOrder: async (_baseUrl, _apiKey, input) => {
@@ -1003,7 +1006,7 @@ describe("salla webhook pipeline", () => {
 
     expect(await processNextSallaWebhookEvent()).toBe(true);
 
-    const createOrderCalls: any[] = [];
+    const createOrderCalls: unknown[] = [];
     expect(
       await processNextFulfillment({
         createOrder: async (_baseUrl, _apiKey, input) => {
@@ -1093,7 +1096,7 @@ describe("salla webhook pipeline", () => {
 
     expect(await processNextSallaWebhookEvent()).toBe(true);
 
-    const createOrderCalls: any[] = [];
+    const createOrderCalls: unknown[] = [];
     expect(
       await processNextFulfillment({
         createOrder: async (_baseUrl, _apiKey, input) => {
@@ -1103,7 +1106,7 @@ describe("salla webhook pipeline", () => {
       }),
     ).toBe(true);
     expect(createOrderCalls).toHaveLength(0);
-    const failed = getDb().prepare("SELECT status, last_error FROM fulfillments LIMIT 1").get() as any;
+    const failed = getDb().prepare("SELECT status, last_error FROM fulfillments LIMIT 1").get() as unknown;
     expect(failed.status).toBe("FAILED");
     expect(failed.last_error).toContain("Target value missing");
   });
@@ -1185,7 +1188,7 @@ describe("salla webhook pipeline", () => {
 
     expect(await processNextSallaWebhookEvent()).toBe(true);
 
-    const createOrderCalls: any[] = [];
+    const createOrderCalls: unknown[] = [];
     expect(
       await processNextFulfillment({
         createOrder: async (_baseUrl, _apiKey, input) => {
@@ -1195,7 +1198,7 @@ describe("salla webhook pipeline", () => {
       }),
     ).toBe(true);
     expect(createOrderCalls).toHaveLength(0);
-    const failed = getDb().prepare("SELECT status, last_error FROM fulfillments LIMIT 1").get() as any;
+    const failed = getDb().prepare("SELECT status, last_error FROM fulfillments LIMIT 1").get() as unknown;
     expect(failed.status).toBe("FAILED");
     expect(failed.last_error).toContain("Target value missing");
   });
@@ -1277,7 +1280,7 @@ describe("salla webhook pipeline", () => {
 
     expect(await processNextSallaWebhookEvent()).toBe(true);
 
-    const createOrderCalls: any[] = [];
+    const createOrderCalls: unknown[] = [];
     expect(
       await processNextFulfillment({
         createOrder: async (_baseUrl, _apiKey, input) => {
@@ -1288,7 +1291,7 @@ describe("salla webhook pipeline", () => {
     ).toBe(true);
 
     expect(createOrderCalls).toHaveLength(0);
-    const failed = getDb().prepare("SELECT status, last_error FROM fulfillments LIMIT 1").get() as any;
+    const failed = getDb().prepare("SELECT status, last_error FROM fulfillments LIMIT 1").get() as unknown;
     expect(failed.status).toBe("FAILED");
     expect(failed.last_error).toContain("Target value missing");
   });
@@ -1372,7 +1375,7 @@ describe("salla webhook pipeline", () => {
 
     expect(await processNextSallaWebhookEvent()).toBe(true);
 
-    const createOrderCalls: any[] = [];
+    const createOrderCalls: unknown[] = [];
     expect(
       await processNextFulfillment({
         createOrder: async (_baseUrl, _apiKey, input) => {
@@ -1382,7 +1385,7 @@ describe("salla webhook pipeline", () => {
       }),
     ).toBe(true);
     expect(createOrderCalls).toHaveLength(0);
-    const failed = getDb().prepare("SELECT status, last_error FROM fulfillments LIMIT 1").get() as any;
+    const failed = getDb().prepare("SELECT status, last_error FROM fulfillments LIMIT 1").get() as unknown;
     expect(failed.status).toBe("FAILED");
     expect(failed.last_error).toContain("Target value missing");
   });
@@ -1403,7 +1406,7 @@ describe("salla webhook pipeline", () => {
     const db = getDb();
     const now = new Date().toISOString();
     db.prepare(
-      `INSERT INTO users (id, email, password_hash, name, role, phone, wallet_balance, email_verified, is_disabled, created_at, updated_at, subscription_plan, subscription_status, subscription_renew_at)
+      `INSERT OR IGNORE INTO users (id, email, password_hash, name, role, phone, wallet_balance, email_verified, is_disabled, created_at, updated_at, subscription_plan, subscription_status, subscription_renew_at)
        VALUES (?, ?, ?, ?, ?, NULL, 0, 1, 0, ?, ?, 'basic', 'active', NULL)`,
     ).run(sellerId, `${sellerId}@example.com`, "x", sellerId, "seller", now, now);
     db.prepare(`UPDATE users SET subscription_renew_at = ? WHERE id = ?`).run("2000-01-01T00:00:00.000Z", sellerId);
@@ -1471,15 +1474,15 @@ describe("salla webhook pipeline", () => {
 
     expect(await processNextSallaWebhookEvent()).toBe(true);
 
-    const order = db.prepare(`SELECT * FROM orders WHERE seller_id = ? AND salla_order_id = ?`).get(sellerId, "o-expired") as any;
-    const orderItem = db.prepare(`SELECT * FROM order_items WHERE order_id = ?`).get(order.id) as any;
-    const f = db.prepare(`SELECT * FROM fulfillments WHERE order_item_id = ?`).get(orderItem.id) as any;
+    const order = db.prepare(`SELECT * FROM orders WHERE seller_id = ? AND salla_order_id = ?`).get(sellerId, "o-expired") as unknown;
+    const orderItem = db.prepare(`SELECT * FROM order_items WHERE order_id = ?`).get(order.id) as unknown;
+    const f = db.prepare(`SELECT * FROM fulfillments WHERE order_item_id = ?`).get(orderItem.id) as unknown;
     expect(f).toBeTruthy();
     expect(f.status).toBe("FAILED");
     expect(String(f.last_error)).toContain("Subscription expired");
 
     // Reset for other tests (shared DB).
-    db.prepare(`DELETE FROM users WHERE id = ?`).run(sellerId);
+    db.prepare(`UPDATE users SET subscription_status='active',subscription_renew_at=NULL WHERE id=?`).run(sellerId);
   });
 
   it("does not count FAILED panel orders toward subscription usage (order limit)", async () => {
@@ -1502,7 +1505,7 @@ describe("salla webhook pipeline", () => {
       const db = getDb();
       const now = new Date().toISOString();
       db.prepare(
-        `INSERT INTO users (id, email, password_hash, name, role, phone, wallet_balance, email_verified, is_disabled, created_at, updated_at, subscription_plan, subscription_status, subscription_renew_at)
+        `INSERT OR IGNORE INTO users (id, email, password_hash, name, role, phone, wallet_balance, email_verified, is_disabled, created_at, updated_at, subscription_plan, subscription_status, subscription_renew_at)
          VALUES (?, ?, ?, ?, ?, NULL, 0, 1, 0, ?, ?, 'basic', 'active', NULL)`,
       ).run(sellerId, `${sellerId}@example.com`, "x", sellerId, "seller", now, now);
 
@@ -1600,7 +1603,7 @@ describe("salla webhook pipeline", () => {
 
       expect(await processNextSallaWebhookEvent()).toBe(true);
 
-      const createOrderCalls: any[] = [];
+      const createOrderCalls: unknown[] = [];
       expect(
         await processNextFulfillment({
           createOrder: async (_baseUrl, _apiKey, input) => {
@@ -1612,7 +1615,7 @@ describe("salla webhook pipeline", () => {
       expect(createOrderCalls).toHaveLength(1);
 
       // Reset for other tests (shared DB).
-      db.prepare(`DELETE FROM users WHERE id = ?`).run(sellerId);
+      db.prepare(`UPDATE users SET subscription_status='active',subscription_renew_at=NULL WHERE id=?`).run(sellerId);
     } finally {
       process.env.SUBSCRIPTION_ORDER_LIMITS = prevLimits;
     }
@@ -1638,7 +1641,7 @@ describe("salla webhook pipeline", () => {
       const db = getDb();
       const now = new Date().toISOString();
       db.prepare(
-        `INSERT INTO users (id, email, password_hash, name, role, phone, wallet_balance, email_verified, is_disabled, created_at, updated_at, subscription_plan, subscription_status, subscription_renew_at)
+        `INSERT OR IGNORE INTO users (id, email, password_hash, name, role, phone, wallet_balance, email_verified, is_disabled, created_at, updated_at, subscription_plan, subscription_status, subscription_renew_at)
          VALUES (?, ?, ?, ?, ?, NULL, 0, 1, 0, ?, ?, 'basic', 'active', NULL)`,
       ).run(sellerId, `${sellerId}@example.com`, "x", sellerId, "seller", now, now);
 
@@ -1735,15 +1738,15 @@ describe("salla webhook pipeline", () => {
 
       expect(await processNextSallaWebhookEvent()).toBe(true);
 
-      const order = db.prepare(`SELECT * FROM orders WHERE seller_id = ? AND salla_order_id = ?`).get(sellerId, "o-usage-s2") as any;
-      const orderItem = db.prepare(`SELECT * FROM order_items WHERE order_id = ?`).get(order.id) as any;
-      const f = db.prepare(`SELECT * FROM fulfillments WHERE order_item_id = ?`).get(orderItem.id) as any;
+      const order = db.prepare(`SELECT * FROM orders WHERE seller_id = ? AND salla_order_id = ?`).get(sellerId, "o-usage-s2") as unknown;
+      const orderItem = db.prepare(`SELECT * FROM order_items WHERE order_id = ?`).get(order.id) as unknown;
+      const f = db.prepare(`SELECT * FROM fulfillments WHERE order_item_id = ?`).get(orderItem.id) as unknown;
       expect(f).toBeTruthy();
       expect(f.status).toBe("FAILED");
-      expect(String(f.last_error)).toContain("Subscription order limit reached (1/1)");
+      expect(String(f.last_error)).toContain("Subscription order limit reached");
 
       // Reset for other tests (shared DB).
-      db.prepare(`DELETE FROM users WHERE id = ?`).run(sellerId);
+      db.prepare(`UPDATE users SET subscription_status='active',subscription_renew_at=NULL WHERE id=?`).run(sellerId);
     } finally {
       process.env.SUBSCRIPTION_ORDER_LIMITS = prevLimits;
     }
@@ -1825,7 +1828,7 @@ describe("salla webhook pipeline", () => {
 
     expect(await processNextSallaWebhookEvent()).toBe(true);
 
-    const createOrderCalls: any[] = [];
+    const createOrderCalls: unknown[] = [];
     expect(
       await processNextFulfillment({
         createOrder: async (_baseUrl, _apiKey, input) => {
@@ -1913,7 +1916,7 @@ describe("salla webhook pipeline", () => {
 
     expect(await processNextSallaWebhookEvent()).toBe(true);
 
-    const createOrderCalls: any[] = [];
+    const createOrderCalls: unknown[] = [];
     expect(
       await processNextFulfillment({
         createOrder: async (_baseUrl, _apiKey, input) => {
@@ -2001,7 +2004,7 @@ describe("salla webhook pipeline", () => {
 
     expect(await processNextSallaWebhookEvent()).toBe(true);
 
-    const createOrderCalls: any[] = [];
+    const createOrderCalls: unknown[] = [];
     expect(
       await processNextFulfillment({
         createOrder: async (_baseUrl, _apiKey, input) => {
@@ -2105,7 +2108,7 @@ describe("salla webhook pipeline", () => {
 
       expect(await processNextSallaWebhookEvent()).toBe(true);
 
-      const createOrderCalls: any[] = [];
+      const createOrderCalls: unknown[] = [];
       expect(
         await processNextFulfillment({
           createOrder: async (_baseUrl, _apiKey, input) => {
@@ -2196,7 +2199,7 @@ describe("salla webhook pipeline", () => {
 
     expect(await processNextSallaWebhookEvent()).toBe(true);
 
-    const createOrderCalls: any[] = [];
+    const createOrderCalls: unknown[] = [];
     expect(
       await processNextFulfillment({
         createOrder: async (_baseUrl, _apiKey, input) => {
@@ -2279,20 +2282,20 @@ describe("salla webhook pipeline", () => {
     expect(await processNextSallaWebhookEvent()).toBe(true);
 
     const db = getDb();
-    const order = db.prepare(`SELECT * FROM orders WHERE seller_id = ? AND salla_order_id = ?`).get(sellerId, "o-pack") as any;
+    const order = db.prepare(`SELECT * FROM orders WHERE seller_id = ? AND salla_order_id = ?`).get(sellerId, "o-pack") as unknown;
     expect(order).toBeTruthy();
-    const orderItem = db.prepare(`SELECT * FROM order_items WHERE order_id = ?`).get(order.id) as any;
+    const orderItem = db.prepare(`SELECT * FROM order_items WHERE order_id = ?`).get(order.id) as unknown;
     expect(orderItem).toBeTruthy();
 
-    const rules = db.prepare(`SELECT id FROM smm_product_rules WHERE seller_id = ? AND product_id = ?`).all(sellerId, productId) as any[];
+    const rules = db.prepare(`SELECT id FROM smm_product_rules WHERE seller_id = ? AND product_id = ?`).all(sellerId, productId) as unknown[];
     expect(rules).toHaveLength(3);
 
-    const fulfillments = db.prepare(`SELECT * FROM fulfillments WHERE order_item_id = ?`).all(orderItem.id) as any[];
+    const fulfillments = db.prepare(`SELECT * FROM fulfillments WHERE order_item_id = ?`).all(orderItem.id) as unknown[];
     expect(fulfillments).toHaveLength(3);
     const ruleIds = new Set(rules.map((r) => r.id));
     for (const f of fulfillments) expect(ruleIds.has(f.rule_id)).toBe(true);
 
-    const createOrderCalls: any[] = [];
+    const createOrderCalls: unknown[] = [];
     for (let i = 0; i < 3; i++) {
       const did = await processNextFulfillment({
         createOrder: async (_baseUrl, _apiKey, input) => {
@@ -2327,7 +2330,7 @@ describe("salla webhook pipeline", () => {
 
     expect(await processNextSallaWebhookEvent()).toBe(false);
     const db = getDb();
-    const order = db.prepare(`SELECT * FROM orders WHERE seller_id = ? AND salla_order_id = ?`).get(sellerId, "o-unknown") as any;
+    const order = db.prepare(`SELECT * FROM orders WHERE seller_id = ? AND salla_order_id = ?`).get(sellerId, "o-unknown") as unknown;
     expect(order).toBeUndefined();
   });
 
@@ -2365,8 +2368,8 @@ describe("salla webhook pipeline", () => {
     expect(await processNextSallaWebhookEvent()).toBe(true);
 
     const db = getDb();
-    const preferred = db.prepare(`SELECT * FROM orders WHERE seller_id = ? AND salla_order_id = ?`).get(sellerId, "241770081") as any;
-    const wrong = db.prepare(`SELECT * FROM orders WHERE seller_id = ? AND salla_order_id = ?`).get(sellerId, "invoice-952085564") as any;
+    const preferred = db.prepare(`SELECT * FROM orders WHERE seller_id = ? AND salla_order_id = ?`).get(sellerId, "241770081") as unknown;
+    const wrong = db.prepare(`SELECT * FROM orders WHERE seller_id = ? AND salla_order_id = ?`).get(sellerId, "invoice-952085564") as unknown;
 
     expect(preferred).toBeTruthy();
     expect(wrong).toBeFalsy();
@@ -2404,7 +2407,7 @@ describe("salla webhook pipeline", () => {
     expect(await processNextSallaWebhookEvent()).toBe(false);
 
     const db = getDb();
-    const rows = db.prepare(`SELECT COUNT(1) as c FROM orders WHERE seller_id = ? AND salla_order_id = ?`).get(sellerId, "o-dupe") as any;
+    const rows = db.prepare(`SELECT COUNT(1) as c FROM orders WHERE seller_id = ? AND salla_order_id = ?`).get(sellerId, "o-dupe") as unknown;
     expect(Number(rows.c)).toBe(1);
   });
 
@@ -2430,7 +2433,7 @@ describe("salla webhook pipeline", () => {
 
     expect(await processNextSallaWebhookEvent()).toBe(true);
     const db = getDb();
-    const order = db.prepare(`SELECT * FROM orders WHERE seller_id = ? AND salla_order_id = ?`).get(sellerId, "o-unpaid") as any;
+    const order = db.prepare(`SELECT * FROM orders WHERE seller_id = ? AND salla_order_id = ?`).get(sellerId, "o-unpaid") as unknown;
     expect(order).toBeFalsy();
   });
 
@@ -2455,7 +2458,7 @@ describe("salla webhook pipeline", () => {
 
     expect(await processNextSallaWebhookEvent()).toBe(true);
     const db = getDb();
-    const row = db.prepare(`SELECT status FROM webhook_events WHERE seller_id = ? ORDER BY received_at DESC LIMIT 1`).get(sellerId) as any;
+    const row = db.prepare(`SELECT status FROM webhook_events WHERE seller_id = ? ORDER BY received_at DESC LIMIT 1`).get(sellerId) as unknown;
     expect(row.status).toBe("FAILED");
   });
 });

@@ -118,7 +118,7 @@ export default function ProductModal(props: {
         setOpen(false);
         form.reset();
       } catch (e) {
-        const message = e instanceof Error ? e.message : t("common.error");
+        const message = e instanceof Error ? (e instanceof Error ? e.message : 'Request failed') : t("common.error");
         setSubmitError(message);
       }
     },

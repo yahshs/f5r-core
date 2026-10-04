@@ -1,0 +1,15 @@
+-- Validate new writes; retain legacy rows for explicit inventory and review.
+CREATE TRIGGER user_role_insert BEFORE INSERT ON users WHEN NEW.role NOT IN ('admin','seller','user') BEGIN SELECT RAISE(ABORT,'Invalid account role'); END;
+CREATE TRIGGER user_role_update BEFORE UPDATE OF role ON users WHEN NEW.role NOT IN ('admin','seller','user') BEGIN SELECT RAISE(ABORT,'Invalid account role'); END;
+CREATE TRIGGER item_input_insert BEFORE INSERT ON order_items WHEN NEW.quantity<=0 OR NEW.quantity<>CAST(NEW.quantity AS INTEGER) OR (NEW.target_json IS NOT NULL AND NOT json_valid(NEW.target_json)) BEGIN SELECT RAISE(ABORT,'Invalid order item'); END;
+CREATE TRIGGER item_input_update BEFORE UPDATE OF quantity,target_json ON order_items WHEN NEW.quantity<=0 OR NEW.quantity<>CAST(NEW.quantity AS INTEGER) OR (NEW.target_json IS NOT NULL AND NOT json_valid(NEW.target_json)) BEGIN SELECT RAISE(ABORT,'Invalid order item'); END;
+CREATE TRIGGER rule_input_insert BEFORE INSERT ON smm_product_rules
+WHEN NEW.provider_service_id<=0 OR NEW.provider_service_id<>CAST(NEW.provider_service_id AS INTEGER) OR NEW.execution_order<1 OR NEW.delay_seconds<0 OR NEW.normalize_url NOT IN(0,1) OR NEW.target_field NOT IN('link','username','post_link','video_link','custom') OR NEW.quantity_type NOT IN('fixed','from_field') OR (NEW.quantity_value IS NOT NULL AND NEW.quantity_value<=0) OR (NEW.conditions_json IS NOT NULL AND NOT json_valid(NEW.conditions_json))
+BEGIN SELECT RAISE(ABORT,'Invalid service rule'); END;
+CREATE TRIGGER rule_input_update BEFORE UPDATE ON smm_product_rules
+WHEN NEW.provider_service_id<=0 OR NEW.provider_service_id<>CAST(NEW.provider_service_id AS INTEGER) OR NEW.execution_order<1 OR NEW.delay_seconds<0 OR NEW.normalize_url NOT IN(0,1) OR NEW.target_field NOT IN('link','username','post_link','video_link','custom') OR NEW.quantity_type NOT IN('fixed','from_field') OR (NEW.quantity_value IS NOT NULL AND NEW.quantity_value<=0) OR (NEW.conditions_json IS NOT NULL AND NOT json_valid(NEW.conditions_json))
+BEGIN SELECT RAISE(ABORT,'Invalid service rule'); END;
+CREATE TRIGGER preserve_financial_tenant BEFORE DELETE ON users WHEN EXISTS(SELECT 1 FROM financial_events WHERE seller_id=OLD.id) OR EXISTS(SELECT 1 FROM orders o JOIN order_items oi ON oi.order_id=o.id JOIN fulfillments f ON f.order_item_id=oi.id WHERE o.seller_id=OLD.id)
+BEGIN SELECT RAISE(ABORT,'Tenant with execution history requires soft deletion'); END;
+CREATE TRIGGER fulfillment_state_insert BEFORE INSERT ON fulfillments WHEN NEW.status NOT IN('PENDING','SUBMITTED','SUCCESS','FAILED','CANCELLED') OR NEW.submission_state NOT IN('NONE','SENDING','UNKNOWN','ACCEPTED') BEGIN SELECT RAISE(ABORT,'Invalid fulfillment state'); END;
+CREATE TRIGGER fulfillment_state_update BEFORE UPDATE OF status,submission_state ON fulfillments WHEN NEW.status NOT IN('PENDING','SUBMITTED','SUCCESS','FAILED','CANCELLED') OR NEW.submission_state NOT IN('NONE','SENDING','UNKNOWN','ACCEPTED') BEGIN SELECT RAISE(ABORT,'Invalid fulfillment state'); END;

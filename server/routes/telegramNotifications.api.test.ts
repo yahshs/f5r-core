@@ -7,7 +7,7 @@ import path from "node:path";
 vi.mock("../lib/telegram", () => ({
   getTelegramBotUsername: () => "f5r_test_bot",
   buildTelegramStartLink: (code: string) => `https://t.me/f5r_test_bot?start=${encodeURIComponent(code)}`,
-  getTelegramWebhookSecret: () => null,
+  getTelegramWebhookSecret: () => "test-telegram-secret",
   sendTelegramMessage: vi.fn(async () => ({ ok: true })),
   answerTelegramCallbackQuery: vi.fn(async () => ({ ok: true })),
 }));
@@ -15,7 +15,7 @@ vi.mock("../lib/telegram", () => ({
 import { createApp } from "../app";
 import * as panelV2Adapter from "../smm/panelV2Adapter";
 import { getDb, resetDbForTests } from "../db/db";
-import { signAuthToken } from "../lib/jwt";
+import { signAuthToken } from "../test/authFixture";
 import { processNextFulfillment } from "../workers/fulfillmentWorker";
 import { processNextNotificationJob } from "../workers/notificationWorker";
 import { processNextSallaWebhookEvent } from "../workers/sallaWebhookWorker";
@@ -66,14 +66,14 @@ describe("telegram notifications", () => {
     expect(settingsRes.body.data.telegram.deepLink).toContain(linkCode);
 
     await request(app)
-      .post("/api/webhooks/telegram")
+      .post("/api/webhooks/telegram").set("X-Telegram-Bot-Api-Secret-Token", "test-telegram-secret")
       .send({
         update_id: 1,
         message: {
           message_id: 100,
           text: `/start ${linkCode}`,
           chat: { id: 987654321, type: "private" },
-          from: { id: 55, is_bot: false, username: "seller_chat" },
+          from: { id: 987654321, is_bot: false, username: "seller_chat" },
         },
       })
       .expect(200);
@@ -99,14 +99,14 @@ describe("telegram notifications", () => {
     const linkCode = settingsRes.body.data.telegram.linkCode as string;
 
     await request(app)
-      .post("/api/webhooks/telegram")
+      .post("/api/webhooks/telegram").set("X-Telegram-Bot-Api-Secret-Token", "test-telegram-secret")
       .send({
         update_id: 2,
         message: {
           message_id: 101,
           text: `/start ${linkCode}`,
           chat: { id: 123456789, type: "private" },
-          from: { id: 56, is_bot: false, username: "seller_alerts" },
+          from: { id: 123456789, is_bot: false, username: "seller_alerts" },
         },
       })
       .expect(200);
@@ -223,14 +223,14 @@ describe("telegram notifications", () => {
     const linkCode = settingsRes.body.data.telegram.linkCode as string;
 
     await request(app)
-      .post("/api/webhooks/telegram")
+      .post("/api/webhooks/telegram").set("X-Telegram-Bot-Api-Secret-Token", "test-telegram-secret")
       .send({
         update_id: 10,
         message: {
           message_id: 200,
           text: `/start ${linkCode}`,
           chat: { id: 555001, type: "private" },
-          from: { id: 77, is_bot: false, username: "inline_seller" },
+          from: { id: 555001, is_bot: false, username: "inline_seller" },
         },
       })
       .expect(200);
@@ -305,14 +305,14 @@ describe("telegram notifications", () => {
     const settingsRes = await request(app).get("/api/seller/notifications").set(sellerHeaders(sellerId)).expect(200);
     const linkCode = settingsRes.body.data.telegram.linkCode as string;
     await request(app)
-      .post("/api/webhooks/telegram")
+      .post("/api/webhooks/telegram").set("X-Telegram-Bot-Api-Secret-Token", "test-telegram-secret")
       .send({
         update_id: 20,
         message: {
           message_id: 201,
           text: `/start ${linkCode}`,
           chat: { id: 555002, type: "private" },
-          from: { id: 78, is_bot: false, username: "retry_same" },
+          from: { id: 555002, is_bot: false, username: "retry_same" },
         },
       })
       .expect(200);
@@ -365,23 +365,23 @@ describe("telegram notifications", () => {
     expect(await processNextFulfillment({ createOrder: async () => ({ ok: false, message: "Provider rejected request" }) })).toBe(true);
 
     const db = getDb();
-    const failed = db.prepare(`SELECT * FROM fulfillments WHERE status = 'FAILED' ORDER BY created_at DESC LIMIT 1`).get() as any;
+    const failed = db.prepare(`SELECT * FROM fulfillments WHERE status = 'FAILED' ORDER BY created_at DESC LIMIT 1`).get() as unknown;
     expect(failed).toBeTruthy();
 
     await request(app)
-      .post("/api/webhooks/telegram")
+      .post("/api/webhooks/telegram").set("X-Telegram-Bot-Api-Secret-Token", "test-telegram-secret")
       .send({
         update_id: 21,
         callback_query: {
           id: "cb-retry-same",
           data: `rs:${failed.id}`,
-          from: { id: 78, is_bot: false, username: "retry_same" },
+          from: { id: 555002, is_bot: false, username: "retry_same" },
           message: { message_id: 202, chat: { id: 555002, type: "private" } },
         },
       })
       .expect(200);
 
-    const retries = db.prepare(`SELECT * FROM fulfillments WHERE retried_from_fulfillment_id = ?`).all(failed.id) as any[];
+    const retries = db.prepare(`SELECT * FROM fulfillments WHERE retried_from_fulfillment_id = ?`).all(failed.id) as unknown[];
     expect(retries).toHaveLength(1);
     expect(retries[0].status).toBe("PENDING");
     expect(retries[0].retry_source).toBe("telegram");
@@ -396,14 +396,14 @@ describe("telegram notifications", () => {
     const settingsRes = await request(app).get("/api/seller/notifications").set(sellerHeaders(sellerId)).expect(200);
     const linkCode = settingsRes.body.data.telegram.linkCode as string;
     await request(app)
-      .post("/api/webhooks/telegram")
+      .post("/api/webhooks/telegram").set("X-Telegram-Bot-Api-Secret-Token", "test-telegram-secret")
       .send({
         update_id: 25,
         message: {
           message_id: 225,
           text: `/start ${linkCode}`,
           chat: { id: 555003, type: "private" },
-          from: { id: 80, is_bot: false, username: "success_seller" },
+          from: { id: 555003, is_bot: false, username: "success_seller" },
         },
       })
       .expect(200);
@@ -531,14 +531,14 @@ describe("telegram notifications", () => {
     const settingsRes = await request(app).get("/api/seller/notifications").set(sellerHeaders(sellerId)).expect(200);
     const linkCode = settingsRes.body.data.telegram.linkCode as string;
     await request(app)
-      .post("/api/webhooks/telegram")
+      .post("/api/webhooks/telegram").set("X-Telegram-Bot-Api-Secret-Token", "test-telegram-secret")
       .send({
         update_id: 30,
         message: {
           message_id: 301,
           text: `/start ${linkCode}`,
           chat: { id: 555003, type: "private" },
-          from: { id: 79, is_bot: false, username: "retry_new" },
+          from: { id: 555003, is_bot: false, username: "retry_new" },
         },
       })
       .expect(200);
@@ -591,55 +591,55 @@ describe("telegram notifications", () => {
     expect(await processNextFulfillment({ createOrder: async () => ({ ok: false, message: "Provider rejected request" }) })).toBe(true);
 
     const db = getDb();
-    const failed = db.prepare(`SELECT * FROM fulfillments WHERE status = 'FAILED' ORDER BY created_at DESC LIMIT 1`).get() as any;
+    const failed = db.prepare(`SELECT * FROM fulfillments WHERE status = 'FAILED' ORDER BY created_at DESC LIMIT 1`).get() as unknown;
 
     await request(app)
-      .post("/api/webhooks/telegram")
+      .post("/api/webhooks/telegram").set("X-Telegram-Bot-Api-Secret-Token", "test-telegram-secret")
       .send({
         update_id: 31,
         callback_query: {
           id: "cb-retry-new",
           data: `rn:${failed.id}`,
-          from: { id: 79, is_bot: false, username: "retry_new" },
+          from: { id: 555003, is_bot: false, username: "retry_new" },
           message: { message_id: 302, chat: { id: 555003, type: "private" } },
         },
       })
       .expect(200);
 
-    const session = db.prepare(`SELECT * FROM telegram_action_sessions WHERE chat_id = ? LIMIT 1`).get("555003") as any;
+    const session = db.prepare(`SELECT * FROM telegram_action_sessions WHERE chat_id = ? LIMIT 1`).get("555003") as unknown;
     expect(session).toBeTruthy();
 
     await request(app)
-      .post("/api/webhooks/telegram")
+      .post("/api/webhooks/telegram").set("X-Telegram-Bot-Api-Secret-Token", "test-telegram-secret")
       .send({
         update_id: 32,
         message: {
           message_id: 303,
           text: "new_retry_user",
           chat: { id: 555003, type: "private" },
-          from: { id: 79, is_bot: false, username: "retry_new" },
+          from: { id: 555003, is_bot: false, username: "retry_new" },
         },
       })
       .expect(200);
 
-    const updatedSession = db.prepare(`SELECT * FROM telegram_action_sessions WHERE id = ? LIMIT 1`).get(session.id) as any;
+    const updatedSession = db.prepare(`SELECT * FROM telegram_action_sessions WHERE id = ? LIMIT 1`).get(session.id) as unknown;
     const payload = JSON.parse(updatedSession.payload_json);
     expect(payload.linkCandidate).toBe("https://www.tiktok.com/@new_retry_user");
 
     await request(app)
-      .post("/api/webhooks/telegram")
+      .post("/api/webhooks/telegram").set("X-Telegram-Bot-Api-Secret-Token", "test-telegram-secret")
       .send({
         update_id: 33,
         callback_query: {
           id: "cb-retry-confirm",
           data: `rc:${session.id}`,
-          from: { id: 79, is_bot: false, username: "retry_new" },
+          from: { id: 555003, is_bot: false, username: "retry_new" },
           message: { message_id: 304, chat: { id: 555003, type: "private" } },
         },
       })
       .expect(200);
 
-    const retries = db.prepare(`SELECT * FROM fulfillments WHERE retried_from_fulfillment_id = ?`).all(failed.id) as any[];
+    const retries = db.prepare(`SELECT * FROM fulfillments WHERE retried_from_fulfillment_id = ?`).all(failed.id) as unknown[];
     expect(retries).toHaveLength(1);
     expect(retries[0].override_target).toBe("https://www.tiktok.com/@new_retry_user");
     expect(db.prepare(`SELECT * FROM telegram_action_sessions WHERE id = ?`).get(session.id)).toBeUndefined();
@@ -656,27 +656,27 @@ describe("telegram notifications", () => {
     const secondSettings = await request(app).get("/api/seller/notifications").set(sellerHeaders(secondSellerId)).expect(200);
 
     await request(app)
-      .post("/api/webhooks/telegram")
+      .post("/api/webhooks/telegram").set("X-Telegram-Bot-Api-Secret-Token", "test-telegram-secret")
       .send({
         update_id: 40,
         message: {
           message_id: 401,
           text: `/start ${firstSettings.body.data.telegram.linkCode}`,
           chat: { id: 555004, type: "private" },
-          from: { id: 81, is_bot: false, username: "shared_chat" },
+          from: { id: 555004, is_bot: false, username: "shared_chat" },
         },
       })
       .expect(200);
 
     await request(app)
-      .post("/api/webhooks/telegram")
+      .post("/api/webhooks/telegram").set("X-Telegram-Bot-Api-Secret-Token", "test-telegram-secret")
       .send({
         update_id: 41,
         message: {
           message_id: 402,
           text: `/start ${secondSettings.body.data.telegram.linkCode}`,
           chat: { id: 555004, type: "private" },
-          from: { id: 81, is_bot: false, username: "shared_chat" },
+          from: { id: 555004, is_bot: false, username: "shared_chat" },
         },
       })
       .expect(200);
@@ -740,17 +740,17 @@ describe("telegram notifications", () => {
     expect(await processNextFulfillment({ createOrder: async () => ({ ok: false, message: "Provider rejected request" }) })).toBe(true);
 
     const db = getDb();
-    const failed = db.prepare(`SELECT * FROM fulfillments WHERE status = 'FAILED' ORDER BY created_at DESC LIMIT 1`).get() as any;
+    const failed = db.prepare(`SELECT * FROM fulfillments WHERE status = 'FAILED' ORDER BY created_at DESC LIMIT 1`).get() as unknown;
     expect(failed).toBeTruthy();
 
     await request(app)
-      .post("/api/webhooks/telegram")
+      .post("/api/webhooks/telegram").set("X-Telegram-Bot-Api-Secret-Token", "test-telegram-secret")
       .send({
         update_id: 42,
         callback_query: {
           id: "cb-shared-chat",
           data: `fv:${failed.id}`,
-          from: { id: 81, is_bot: false, username: "shared_chat" },
+          from: { id: 555004, is_bot: false, username: "shared_chat" },
           message: { message_id: 403, chat: { id: 555004, type: "private" } },
         },
       })

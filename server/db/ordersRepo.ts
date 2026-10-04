@@ -207,7 +207,7 @@ export function countSubscriptionUsedOrdersForSellerSince(sellerId: string, sinc
 export function listOrderItemsByOrderId(orderId: string) {
   const db = getDb();
   return db
-    .prepare(`SELECT * FROM order_items WHERE order_id = ? ORDER BY created_at ASC`)
+    .prepare(`SELECT * FROM order_items WHERE order_id = ? ORDER BY created_at ASC,id ASC`)
     .all(orderId) as OrderItemRow[];
 }
 
@@ -234,7 +234,7 @@ export function listOrderItemsWithProductByOrderId(sellerId: string, orderId: st
              WHERE seller_id = ? AND oi.salla_product_id = oi.salla_sku AND sku = oi.salla_sku)
           )
         WHERE oi.order_id = ?
-        ORDER BY oi.created_at ASC`,
+        ORDER BY oi.created_at ASC,oi.id ASC`,
      )
      .all(sellerId, sellerId, sellerId, orderId) as OrderItemWithProductRow[];
 }

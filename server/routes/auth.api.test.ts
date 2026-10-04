@@ -13,7 +13,7 @@ const managedEnvKeys = [
   "DEMO_PASSWORD",
   "JWT_SECRET",
   "NODE_ENV",
-  "WORKERS_ENABLED",
+  "WORKERS_ENABLED", "ENCRYPTION_KEY", "BASE_PUBLIC_URL",
 ] as const;
 
 const originalEnv = Object.fromEntries(managedEnvKeys.map((key) => [key, process.env[key]]));
@@ -23,7 +23,9 @@ describe.sequential("authentication api", () => {
   beforeEach(() => {
     process.env.NODE_ENV = "production";
     process.env.WORKERS_ENABLED = "0";
-    process.env.JWT_SECRET = "test-jwt-secret";
+    process.env.JWT_SECRET = "test-jwt-secret-test-jwt-secret-test";
+    process.env.ENCRYPTION_KEY=Buffer.from("0123456789abcdef0123456789abcdef").toString("hex");
+    process.env.BASE_PUBLIC_URL="https://f5r.test";
     delete process.env.ADMIN_EMAIL;
     delete process.env.ADMIN_PASSWORD;
     delete process.env.DEMO_PASSWORD;
@@ -87,13 +89,14 @@ describe.sequential("authentication api", () => {
       .send({ email: "new-seller@example.com", password: "Seller1234" }).expect(200);
   });
 
-  it("creates the production admin with the default email and completes login", async () => {
-    process.env.ADMIN_PASSWORD = "Aa112233";
+  it("creates an explicitly configured test admin and completes login", async () => {
+    process.env.NODE_ENV="test";
+    process.env.ADMIN_PASSWORD = "Aa11223344";
     const app = await createApp();
 
     const login = await request(app)
       .post("/api/auth/login")
-      .send({ email: "admin@f5s.sa", password: "Aa112233" })
+      .send({ email: "admin@f5s.sa", password: "Aa11223344" })
       .expect(200);
 
     expect(login.body.data.user.role).toBe("admin");
@@ -107,34 +110,24 @@ describe.sequential("authentication api", () => {
     expect(me.body.data.user.email).toBe("admin@f5s.sa");
   });
 
-  it("creates explicitly enabled production demo accounts", async () => {
-    process.env.DEMO_PASSWORD = "Demo1234";
-    const app = await createApp();
+  it("rejects production demo configuration", async () => { process.env.DEMO_PASSWORD = "Demo12345678"; await expect(createApp()).rejects.toThrow("prohibited"); });
 
-    const login = await request(app)
-      .post("/api/auth/login")
-      .send({ email: "seller@f5s.sa", password: "Demo1234" })
-      .expect(200);
-
-    expect(login.body.data.user.role).toBe("seller");
-  });
-
-  it("keeps existing demo account passwords in sync with configuration", async () => {
+  it("does not reset existing demo passwords on restart", async () => {
     process.env.NODE_ENV = "development";
-    process.env.DEMO_PASSWORD = "First1234";
+    process.env.DEMO_PASSWORD = "First12345678";
     await createApp();
 
-    process.env.DEMO_PASSWORD = "Second1234";
+    process.env.DEMO_PASSWORD = "Second12345678";
     const app = await createApp();
 
     await request(app)
       .post("/api/auth/login")
-      .send({ email: "seller@f5s.sa", password: "First1234" })
-      .expect(401);
+      .send({ email: "seller@f5s.sa", password: "First12345678" })
+      .expect(200);
 
     await request(app)
       .post("/api/auth/login")
-      .send({ email: "seller@f5s.sa", password: "Second1234" })
-      .expect(200);
+      .send({ email: "seller@f5s.sa", password: "Second12345678" })
+      .expect(401);
   });
 });

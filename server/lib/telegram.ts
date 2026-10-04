@@ -1,3 +1,4 @@
+import { asRecord } from './unknownValue';
 import https from "node:https";
 import { randomBytes } from "node:crypto";
 import { getSetting, setSetting } from "../db/settingsRepo";
@@ -56,7 +57,7 @@ function requestTelegram(method: string, body: Record<string, unknown>, token = 
   if (!token) throw new Error("Telegram bot token is not configured");
 
   const raw = JSON.stringify(body);
-  return new Promise<{ ok: boolean; result?: any; description?: string; error_code?: number }>((resolve, reject) => {
+  return new Promise<{ ok: boolean; result?: unknown; description?: string; error_code?: number }>((resolve, reject) => {
     const req = https.request(
       {
         hostname: "api.telegram.org",
@@ -72,7 +73,15 @@ function requestTelegram(method: string, body: Record<string, unknown>, token = 
       },
       (res) => {
         const chunks: Buffer[] = [];
-        res.on("data", (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
+        let bytes=0;
+        res.on("error",reject);
+        res.on("aborted",()=>reject(new Error("Telegram response aborted")));
+        res.on("data", (chunk) => {
+          const data=Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+          bytes+=data.length;
+          if(bytes>2*1024*1024){ req.destroy(new Error("Telegram response too large")); return; }
+          chunks.push(data);
+        });
         res.on("end", () => {
           const text = Buffer.concat(chunks).toString("utf8");
           try {
@@ -83,6 +92,8 @@ function requestTelegram(method: string, body: Record<string, unknown>, token = 
         });
       },
     );
+    const deadline=setTimeout(()=>req.destroy(new Error("Telegram deadline exceeded")),10000);
+    req.on("close",()=>clearTimeout(deadline));
     req.on("timeout", () => req.destroy(new Error("Telegram request timeout")));
     req.on("error", reject);
     req.write(raw);
@@ -137,7 +148,7 @@ export async function configureTelegramWebhook(options?: {
   const request = options?.request ?? ((method, body) => requestTelegram(method, body, token));
   try {
     const me = await request("getMe", {});
-    if (!me.ok || !me.result?.is_bot || !me.result?.username) return setupFailure("token_rejected");
+    if (!me.ok || !asRecord(me.result)?.is_bot || !asRecord(me.result)?.username) return setupFailure("token_rejected");
     // Persist the exact secret used for registration; never rotate it on restart.
     if (!getTelegramWebhookSecret()) setSetting("telegram_webhook_secret", secret);
     const response = await request("setWebhook", {
@@ -147,8 +158,8 @@ export async function configureTelegramWebhook(options?: {
       drop_pending_updates: false,
     });
     if (!response.ok) return setupFailure("webhook_rejected");
-    if (getBotToken() === token) setSetting("telegram_bot_username", me.result.username);
-    return { configured: true as const, url: webhookUrl, botUsername: String(me.result.username) };
+    if (getBotToken() === token) setSetting("telegram_bot_username", String(asRecord(me.result).username));
+    return { configured: true as const, url: webhookUrl, botUsername: String(asRecord(me.result).username) };
   } catch {
     return setupFailure("telegram_unreachable");
   }
@@ -164,15 +175,15 @@ export async function getTelegramDiagnostics(options?: { request?: TelegramReque
   const request = options?.request ?? ((method, body) => requestTelegram(method, body, token));
   try {
     const me = await request("getMe", {});
-    if (!me.ok || !me.result?.is_bot) return { ...empty, message: telegramSetupMessage("token_rejected") };
+    if (!me.ok || !asRecord(me.result)?.is_bot) return { ...empty, message: telegramSetupMessage("token_rejected") };
     const webhook = await request("getWebhookInfo", {});
     if (!webhook.ok) return { ...empty, message: telegramSetupMessage("telegram_unreachable") };
-    const currentUrl = typeof webhook.result?.url === "string" ? webhook.result.url : "";
-    const lastError = typeof webhook.result?.last_error_message === "string" ? webhook.result.last_error_message.replaceAll(token, "[redacted]").slice(0, 500) : null;
+    const currentUrl = typeof asRecord(webhook.result)?.url === "string" ? asRecord(webhook.result).url : "";
+    const lastError = typeof asRecord(webhook.result).last_error_message === "string" ? String(asRecord(webhook.result).last_error_message).replaceAll(token, "[redacted]").slice(0, 500) : null;
     const matching = Boolean(expectedUrl && currentUrl === expectedUrl);
     return {
-      connected: matching && !lastError, expectedUrl, currentUrl: currentUrl.replaceAll(token, "[redacted]"), botUsername: String(me.result.username || ""),
-      pendingUpdates: Number(webhook.result?.pending_update_count) || 0, lastError,
+      connected: matching && !lastError, expectedUrl, currentUrl: String(currentUrl).replaceAll(token, "[redacted]"), botUsername: String(asRecord(me.result).username || ""),
+      pendingUpdates: Number(asRecord(webhook.result)?.pending_update_count) || 0, lastError,
       message: !base ? telegramSetupMessage("base_url_invalid") : !matching ? "رابط تيليجرام غير مطابق للخادم؛ اضغط إصلاح الربط." : lastError ? "الربط مسجل لكن تيليجرام أبلغ عن خطأ تسليم. جرّب رسالة جديدة ثم أعد الفحص." : "التوكن صحيح ورابط الاستقبال مطابق. أرسل رقم طلب للبوت للتأكد من الرد.",
     };
   } catch { return { ...empty, message: telegramSetupMessage("telegram_unreachable") }; }

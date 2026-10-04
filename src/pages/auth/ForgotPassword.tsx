@@ -18,14 +18,7 @@ export default function ForgotPasswordPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    setIsLoading(false);
-    setIsSubmitted(true);
-    toast({ title: 'Email sent!', description: 'Check your inbox for reset instructions' });
+    toast({ title: 'Password recovery is unavailable', description: 'Contact your administrator to reset your password.', variant: 'destructive' });
   };
 
   return (

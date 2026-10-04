@@ -22,6 +22,11 @@ export type SellerOrderItem = {
   fulfillments?: Array<{
     id: string;
     status: string;
+    submission_state?: "NONE" | "SENDING" | "UNKNOWN" | "ACCEPTED";
+    delivery_state?: string;
+    provider_status?: string | null;
+    observed_charge_minor?: number | null;
+    observed_charge_currency?: string | null;
     provider_id: string;
     provider_order_id: string | null;
     last_error: string | null;
@@ -116,14 +121,16 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     throw new OrdersApiError('Unable to reach the server. Please try again.');
   }
   const text = await res.text();
-  let json: any;
+  let json: unknown;
   try {
     json = text ? JSON.parse(text) : null;
   } catch {
     throw new OrdersApiError(`Invalid server response (HTTP ${res.status}). Please try again.`, res.status);
   }
-  if (!res.ok) throw new OrdersApiError(json?.message || `Request failed (HTTP ${res.status})`, res.status);
-  if (!json || json.success === false) throw new OrdersApiError(json?.message || 'Invalid server response.', res.status);
+  const payload = json && typeof json === 'object' ? json as Record<string,unknown> : {};
+  const message = typeof payload.message === 'string' ? payload.message : undefined;
+  if (!res.ok) throw new OrdersApiError(message || `Request failed (HTTP ${res.status})`, res.status);
+  if (!json || payload.success === false) throw new OrdersApiError(message || 'Invalid server response.', res.status);
   return json as T;
 }
 

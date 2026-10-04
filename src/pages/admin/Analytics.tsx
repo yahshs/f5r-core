@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAdminAnalyticsRange } from '@/hooks/useApi';
 import { cn } from '@/lib/utils';
+import FinancialSummary from '@/components/orders/FinancialSummary';
 
 type Range = 'day' | 'week' | 'month' | 'all';
 
@@ -30,6 +31,7 @@ export default function AdminAnalyticsPage() {
 
   return (
     <div className="space-y-6">
+      <FinancialSummary financials={analytics?.financials}/>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">{t('admin.analyticsPage.title')}</h1>

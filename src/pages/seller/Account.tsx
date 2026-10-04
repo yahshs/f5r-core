@@ -88,8 +88,8 @@ export default function SellerAccountPage() {
         description: t("seller.account.toasts.upgradeRequested"),
       });
       setUpgradeOpen(false);
-    } catch (e: any) {
-      toast({ title: t("common.error"), description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: t("common.error"), description: (e instanceof Error ? e.message : 'Request failed'), variant: "destructive" });
     }
   };
 
@@ -111,8 +111,8 @@ export default function SellerAccountPage() {
         title: t("common.success"),
         description: t("seller.account.notifications.saved"),
       });
-    } catch (e: any) {
-      toast({ title: t("common.error"), description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: t("common.error"), description: (e instanceof Error ? e.message : 'Request failed'), variant: "destructive" });
     }
   };
 
@@ -123,8 +123,8 @@ export default function SellerAccountPage() {
         title: t("common.success"),
         description: t("seller.account.notifications.linkRefreshed"),
       });
-    } catch (e: any) {
-      toast({ title: t("common.error"), description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: t("common.error"), description: (e instanceof Error ? e.message : 'Request failed'), variant: "destructive" });
     }
   };
 
@@ -135,8 +135,8 @@ export default function SellerAccountPage() {
         title: t("common.success"),
         description: t("seller.account.notifications.unlinked"),
       });
-    } catch (e: any) {
-      toast({ title: t("common.error"), description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: t("common.error"), description: (e instanceof Error ? e.message : 'Request failed'), variant: "destructive" });
     }
   };
 

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAdmin } from "../auth";
 import { getUserByEmail, getUserById, listUsers, toPublicUser, updateUser, updateUserPassword, deleteUser } from "../db/usersRepo";
 import { hashPassword } from "../lib/password";
+import { passwordSchema } from "../lib/password";
 import { insertAuditLog } from "../db/auditLogsRepo";
 
 export const adminUsersRouter = Router();
@@ -26,7 +27,7 @@ const updateSchema = z.object({
 });
 
 const resetSchema = z.object({
-  password: z.string().min(6).max(200),
+  password: passwordSchema,
 });
 
 adminUsersRouter.get("/", (req, res) => {

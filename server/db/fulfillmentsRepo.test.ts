@@ -1,3 +1,4 @@
+import { ensureTestUser } from "../test/authFixture";
 import { beforeEach, describe, expect, it } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
@@ -19,6 +20,9 @@ describe("hasRecentLinkConflict", () => {
   it("scopes duplicate-link checks by provider service id", () => {
     const db = getDb();
     const now = new Date().toISOString();
+    ensureTestUser("seller1");
+    db.prepare("INSERT INTO smm_provider_connections(id,seller_id,name,base_url,api_key_encrypted,api_key_last4,created_at,updated_at) VALUES('provider1','seller1','fixture','https://example.com','fixture','ture',?,?)").run(now,now);
+    for(const id of ["prod1","prod2"]) db.prepare("INSERT INTO seller_products(id,seller_id,name,created_at,updated_at) VALUES(?,'seller1','fixture',?,?)").run(id,now,now);
 
     db.prepare(
       `INSERT INTO orders (id, seller_id, salla_order_id, status, payment_status, currency, total, created_at, updated_at)
@@ -43,14 +47,14 @@ describe("hasRecentLinkConflict", () => {
         (id, seller_id, product_id, provider_connection_id, provider_service_id, service_name, target_field, target_value, quantity_type, quantity_value, quantity_field, delay_seconds, execution_order, normalize_url, url_handler, conditions_json, platform, created_at, updated_at)
        VALUES
         (?,  ?,        ?,          ?,                     ?,                 ?,           ?,           NULL,        ?,            NULL,          NULL,          0,            1,              1,            NULL,       NULL,           NULL,     ?,          ?)`,
-    ).run("r1", "seller1", "prod1", "provConn1", 111, "svc-a", "link", "fixed", now, now);
+    ).run("r1", "seller1", "prod1", "provider1", 111, "svc-a", "link", "fixed", now, now);
 
     db.prepare(
       `INSERT INTO smm_product_rules
         (id, seller_id, product_id, provider_connection_id, provider_service_id, service_name, target_field, target_value, quantity_type, quantity_value, quantity_field, delay_seconds, execution_order, normalize_url, url_handler, conditions_json, platform, created_at, updated_at)
        VALUES
         (?,  ?,        ?,          ?,                     ?,                 ?,           ?,           NULL,        ?,            NULL,          NULL,          0,            1,              1,            NULL,       NULL,           NULL,     ?,          ?)`,
-    ).run("r2", "seller1", "prod2", "provConn1", 222, "svc-b", "link", "fixed", now, now);
+    ).run("r2", "seller1", "prod2", "provider1", 222, "svc-b", "link", "fixed", now, now);
 
     db.prepare(
       `INSERT INTO fulfillments

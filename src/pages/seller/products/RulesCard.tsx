@@ -53,7 +53,7 @@ export default function RulesCard(props: { productId: string; products: SellerPr
   const bulkUpdateService = useBulkUpdateSellerRuleService();
   const bulkUpdateServiceByName = useBulkUpdateSellerRuleServiceByName();
 
-  const providers = providersQuery.data ?? [];
+  const providers = useMemo(() => providersQuery.data ?? [], [providersQuery.data]);
   const rules = rulesQuery.data ?? [];
 
   const providerNameById = useMemo(() => {
@@ -84,8 +84,8 @@ export default function RulesCard(props: { productId: string; products: SellerPr
         },
       });
       toast({ title: t("common.success"), description: t("seller.products.rules.toasts.created") });
-    } catch (e: any) {
-      toast({ title: t("common.error"), description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: t("common.error"), description: (e instanceof Error ? e.message : 'Request failed'), variant: "destructive" });
     }
   };
 
@@ -111,8 +111,8 @@ export default function RulesCard(props: { productId: string; products: SellerPr
         },
       });
       toast({ title: t("common.success"), description: t("seller.products.rules.toasts.updated") });
-    } catch (e: any) {
-      toast({ title: t("common.error"), description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: t("common.error"), description: (e instanceof Error ? e.message : 'Request failed'), variant: "destructive" });
     }
   };
 
@@ -127,8 +127,8 @@ export default function RulesCard(props: { productId: string; products: SellerPr
     try {
       const res = await bulkUpdateService.mutateAsync(input);
       toast({ title: t("common.success"), description: `${t("common.updated")}: ${res.updated}` });
-    } catch (e: any) {
-      toast({ title: t("common.error"), description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: t("common.error"), description: (e instanceof Error ? e.message : 'Request failed'), variant: "destructive" });
       throw e;
     }
   };
@@ -143,8 +143,8 @@ export default function RulesCard(props: { productId: string; products: SellerPr
     try {
       const res = await bulkUpdateServiceByName.mutateAsync(input);
       toast({ title: t("common.success"), description: `${t("common.updated")}: ${res.updated}` });
-    } catch (e: any) {
-      toast({ title: t("common.error"), description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: t("common.error"), description: (e instanceof Error ? e.message : 'Request failed'), variant: "destructive" });
       throw e;
     }
   };
@@ -153,8 +153,8 @@ export default function RulesCard(props: { productId: string; products: SellerPr
     try {
       await deleteMutation.mutateAsync(ruleId);
       toast({ title: t("common.success"), description: t("seller.products.rules.toasts.deleted") });
-    } catch (e: any) {
-      toast({ title: t("common.error"), description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: t("common.error"), description: (e instanceof Error ? e.message : 'Request failed'), variant: "destructive" });
     }
   };
 

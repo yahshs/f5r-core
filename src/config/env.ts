@@ -14,18 +14,18 @@ export const config = {
 
   // Feature flags
   FEATURES: {
-    WALLET: true,
-    TICKETS: true,
-    REFUND: true,
-    MULTI_PAYMENT: true,
+    WALLET: false,
+    TICKETS: false,
+    REFUND: false,
+    MULTI_PAYMENT: false,
   },
 
   // Payment methods (placeholders)
   PAYMENT_METHODS: {
-    APPLE_PAY: true,
-    MADA: true,
-    VISA: true,
-    MASTERCARD: true,
+    APPLE_PAY: false,
+    MADA: false,
+    VISA: false,
+    MASTERCARD: false,
   },
 } as const;
 

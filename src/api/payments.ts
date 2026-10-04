@@ -1,6 +1,9 @@
 import { Payment } from '@/types';
 
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const delay = (ms: number) => {
+  if (import.meta.env.PROD) throw new Error('Payments are unavailable until a payment provider is configured.');
+  return new Promise(resolve => setTimeout(resolve, ms));
+};
 
 // Mock payments
 const mockPayments: Payment[] = [];

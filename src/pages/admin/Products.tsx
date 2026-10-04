@@ -25,7 +25,7 @@ export default function AdminProductsPage() {
   const updateRule = useUpdateAdminRule();
   const deleteRule = useDeleteAdminRule();
 
-  const products = productsQuery.data?.data ?? [];
+  const products = useMemo(() => productsQuery.data?.data ?? [], [productsQuery.data?.data]);
   const selected = products.find((p) => p.id === selectedId) ?? null;
   const rulesQuery = useAdminProductRules(selectedId);
   const rules = rulesQuery.data?.data ?? [];
@@ -241,7 +241,7 @@ export default function AdminProductsPage() {
               </div>
               <div>
                 <Label>{t('common.status')}</Label>
-                <Select value={editForm.status} onValueChange={(v) => setEditForm({ ...editForm, status: v as any })}>
+                <Select value={editForm.status} onValueChange={(v) => setEditForm({ ...editForm, status: v as "active" | "inactive" })}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -300,7 +300,7 @@ export default function AdminProductsPage() {
               </div>
               <div>
                 <Label>{t('seller.products.rules.fields.targetField')}</Label>
-                <Select value={ruleForm.target_field} onValueChange={(v) => setRuleForm({ ...ruleForm, target_field: v as any })}>
+                <Select value={ruleForm.target_field} onValueChange={(v) => setRuleForm({ ...ruleForm, target_field: v as "link" | "username" | "post_link" | "video_link" | "custom" })}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -327,7 +327,7 @@ export default function AdminProductsPage() {
               </div>
               <div>
                 <Label>{t('seller.products.rules.fields.quantityType')}</Label>
-                <Select value={ruleForm.quantity_type} onValueChange={(v) => setRuleForm({ ...ruleForm, quantity_type: v as any })}>
+                <Select value={ruleForm.quantity_type} onValueChange={(v) => setRuleForm({ ...ruleForm, quantity_type: v as "fixed" | "from_field" })}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>

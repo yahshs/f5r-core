@@ -1,4 +1,8 @@
+import { asRecord } from '../lib/unknownValue';
+import {allowTelegramAction} from '../lib/telegramActionBudget';
+import { bindCustomerOrderAccess, findCustomerOrderAccess, hasCustomerOrderAccess } from "../db/customerOrderAccessRepo";
 import type { Request, Response } from "express";
+import { timingSafeEqualUtf8 } from "../lib/timingSafe";
 import {
   getNotificationSettingsByChatAndSellerId,
   getNotificationSettingsByChatId,
@@ -60,14 +64,16 @@ function parseCallbackAction(data: string) {
   return { action, id };
 }
 
-async function handleStartMessage(message: any) {
+async function handleStartMessage(input: unknown) {
+  const message=asRecord(input);
   const text = typeof message?.text === "string" ? message.text : "";
-  const chatId = normalizeChatId(message?.chat?.id);
+  const chatId = normalizeChatId(asRecord(message?.chat)?.id);
   if (!text || !chatId) return false;
 
   const code = extractStartCode(text);
   if (!code) return false;
-  if (code.startsWith("cb_")) return false;
+  if (code.startsWith("cb_") || code.startsWith("co_")) return false;
+  if (String(asRecord(message?.chat)?.id) !== String(asRecord(message?.from)?.id)) return true;
 
   const settings = getNotificationSettingsByLinkCode(code);
   if (!settings) {
@@ -78,7 +84,7 @@ async function handleStartMessage(message: any) {
   linkTelegramChat({
     sellerId: settings.seller_id,
     chatId,
-    username: typeof message?.from?.username === "string" ? message.from.username : null,
+    username: typeof asRecord(message?.from)?.username === "string" ? String(asRecord(message.from).username) : null,
   });
 
   const locale = settings.locale === "en" ? "en" : "ar";
@@ -91,17 +97,28 @@ async function handleStartMessage(message: any) {
   return true;
 }
 
-async function handleCustomerStartMessage(message: any) {
+async function handleCustomerStartMessage(input: unknown) {
+  const message=asRecord(input);
   const text = typeof message?.text === "string" ? message.text : "";
-  const chatId = normalizeChatId(message?.chat?.id);
+  const chatId = normalizeChatId(asRecord(message?.chat)?.id);
   if (!text || !chatId) return false;
   const code = extractStartCode(text);
   if (!code) {
-    if (/^\/start(?:@\w+)?$/i.test(text.trim())) {
+    if (/^\/start(?:@\w+)?$/i.test(String(text ?? '').trim())) {
       await sendTelegramMessage(chatId, "أهلًا بك 👋\nأرسل رقم طلبك فقط، وسأعرض لك حالة التنفيذ وإمكانية التعويض.");
       return true;
     }
     return false;
+  }
+  if (code.startsWith("co_")) {
+    const userId = normalizeChatId(asRecord(message?.from)?.id);
+    if (!userId || userId !== chatId) return true;
+    const access = bindCustomerOrderAccess(code.slice(3), chatId, userId);
+    if (!access) { await sendTelegramMessage(chatId, "Order access link expired or already used."); return true; }
+    linkCustomerBotChat({ chatId, sellerId: access.seller_id, telegramUserId: userId });
+    const order = getOrderById(access.order_id);
+    if (order) await sendCustomerOrderStatus(chatId, access.seller_id, order.salla_order_id);
+    return true;
   }
   if (!code.startsWith("cb_")) return false;
 
@@ -118,8 +135,8 @@ async function handleCustomerStartMessage(message: any) {
   linkCustomerBotChat({
     chatId,
     sellerId: settings.seller_id,
-    telegramUserId: normalizeChatId(message?.from?.id),
-    telegramUsername: typeof message?.from?.username === "string" ? message.from.username : null,
+    telegramUserId: normalizeChatId(asRecord(message?.from)?.id),
+    telegramUsername: typeof asRecord(message?.from)?.username === "string" ? String(asRecord(message.from).username) : null,
   });
   await sendTelegramMessage(
     chatId,
@@ -148,9 +165,10 @@ async function sendCustomerOrderStatus(chatId: string, sellerId: string, orderNu
   });
 }
 
-async function handleCustomerMessage(message: any) {
-  const chatId = normalizeChatId(message?.chat?.id);
-  const text = typeof message?.text === "string" ? message.text.trim() : "";
+async function handleCustomerMessage(input: unknown) {
+  const message=asRecord(input);
+  const chatId = normalizeChatId(asRecord(message?.chat)?.id);
+  const text = typeof message?.text === "string" ? String(message.text ?? '').trim() : "";
   if (!chatId || !text) return false;
   if (/^\/start(?:@\w+)?$/i.test(text)) {
     await sendTelegramMessage(chatId, "أرسل رقم طلبك فقط لمتابعة حالته.");
@@ -162,43 +180,17 @@ async function handleCustomerMessage(message: any) {
     return true;
   }
 
-  let customerChat = getCustomerBotChatByChatId(chatId);
-  let sellerId = customerChat?.seller_id ?? null;
-  if (sellerId) {
-    const linkedSnapshot = await getCustomerOrderSnapshot({ sellerId, orderNumber });
-    if (linkedSnapshot) {
-      await sendTelegramMessage(chatId, buildCustomerOrderMessage(linkedSnapshot), {
-        replyMarkup: buildCustomerOrderReplyMarkup(linkedSnapshot),
-      });
-      return true;
-    }
-  }
-
-  const candidates = listOrdersBySallaIdAny(orderNumber, 10);
-  const sellerIds = [...new Set(candidates.map((order) => order.seller_id))];
-  if (sellerIds.length === 0) {
-    await sendTelegramMessage(chatId, "رقم الطلب غير صحيح أو لم يصل للمنصة بعد. تأكد من الرقم وأرسله مرة أخرى.");
-    return true;
-  }
-  if (sellerIds.length > 1) {
-    await sendTelegramMessage(chatId, "هذا الرقم موجود لدى أكثر من متجر. افتح رابط البوت من المتجر الذي اشتريت منه ثم أرسل الرقم.");
-    return true;
-  }
-
-  sellerId = sellerIds[0];
-  customerChat = linkCustomerBotChat({
-    chatId,
-    sellerId,
-    telegramUserId: normalizeChatId(message?.from?.id),
-    telegramUsername: typeof message?.from?.username === "string" ? message.from.username : null,
-  });
-  await sendCustomerOrderStatus(chatId, customerChat.seller_id, orderNumber);
+  const userId = normalizeChatId(asRecord(message?.from)?.id);
+  const order = userId && chatId === userId ? findCustomerOrderAccess(chatId, userId, orderNumber) : null;
+  if (!order) { await sendTelegramMessage(chatId, "Open the private order access link supplied by your store."); return true; }
+  await sendCustomerOrderStatus(chatId, order.seller_id, order.salla_order_id);
   return true;
 }
 
-async function handleSessionReply(message: any) {
-  const chatId = normalizeChatId(message?.chat?.id);
-  const text = typeof message?.text === "string" ? message.text.trim() : "";
+async function handleSessionReply(input: unknown) {
+  const message=asRecord(input);
+  const chatId = normalizeChatId(asRecord(message?.chat)?.id);
+  const text = typeof message?.text === "string" ? String(message.text ?? '').trim() : "";
   if (!chatId || !text) return false;
 
   deleteExpiredTelegramActionSessions(new Date().toISOString());
@@ -317,9 +309,10 @@ async function handleCustomerCallback(input: {
   );
 }
 
-async function handleCallbackQuery(callbackQuery: any) {
+async function handleCallbackQuery(input: unknown) {
+  const callbackQuery=asRecord(input);
   const callbackId = typeof callbackQuery?.id === "string" ? callbackQuery.id : null;
-  const chatId = normalizeChatId(callbackQuery?.message?.chat?.id);
+  const chatId = normalizeChatId(asRecord(asRecord(callbackQuery?.message)?.chat)?.id);
   const data = typeof callbackQuery?.data === "string" ? callbackQuery.data : "";
   if (!callbackId || !chatId || !data) return;
 
@@ -408,7 +401,7 @@ async function handleCallbackQuery(callbackQuery: any) {
       const session = getTelegramActionSessionById(parsed.id);
       const settings = session ? getNotificationSettingsByChatAndSellerId(chatId, session.seller_id) : undefined;
       const t = getTelegramBotText(settings?.locale);
-      if (!session || session.chat_id !== chatId || !settings) {
+      if (!session || Date.parse(session.expires_at) <= Date.now() || session.chat_id !== chatId || !settings || settings.telegram_user_id !== String(asRecord(callbackQuery?.from)?.id)) {
         await answerTelegramCallbackQuery(callbackId, t.prompts.expired);
         return;
       }
@@ -437,7 +430,7 @@ async function handleCallbackQuery(callbackQuery: any) {
       const session = getTelegramActionSessionById(parsed.id);
       const settings = session ? getNotificationSettingsByChatAndSellerId(chatId, session.seller_id) : linkedSettings[0];
       const t = getTelegramBotText(settings?.locale);
-      if (session && session.chat_id === chatId) {
+      if (session && session.chat_id === chatId && Date.parse(session.expires_at)>Date.now() && settings?.telegram_user_id === String(asRecord(callbackQuery?.from)?.id)) {
         deleteTelegramActionSession(session.id);
       }
       await answerTelegramCallbackQuery(callbackId, t.prompts.cancelled);
@@ -457,9 +450,10 @@ async function handleCallbackQuery(callbackQuery: any) {
 
 export async function handleTelegramWebhook(req: Request, res: Response) {
   const expectedSecret = getTelegramWebhookSecret();
+  if (!expectedSecret) return res.status(503).json({ ok: false });
   if (expectedSecret) {
     const got = (req.header("x-telegram-bot-api-secret-token") || "").trim();
-    if (got !== expectedSecret) {
+    if (!timingSafeEqualUtf8(got, expectedSecret)) {
       return res.status(401).json({ ok: false });
     }
   }
@@ -467,11 +461,14 @@ export async function handleTelegramWebhook(req: Request, res: Response) {
   let receipt: ReturnType<typeof claimTelegramUpdate> = null;
   try {
     const update = req.body && typeof req.body === "object" ? req.body : {};
+    if (!Number.isSafeInteger(update.update_id) || update.update_id < 0) return res.status(400).json({ ok: false });
+    const actor=asRecord(asRecord(update.message??update.edited_message).from).id??asRecord(asRecord(update.callback_query).from).id;
+    if(!allowTelegramAction(String(actor??'other'),update.update_id))return res.status(429).set('Retry-After','60').json({ok:false});
     receipt = claimTelegramUpdate(update.update_id);
     if (receipt?.status === "done") return res.json({ ok: true });
     if (receipt?.status === "processing") return res.status(503).set("Retry-After", "5").json({ ok: false });
-    const callbackQuery = (update as any).callback_query;
-    const message = (update as any).message ?? (update as any).edited_message;
+    const callbackQuery = (asRecord(update)).callback_query;
+    const message = (asRecord(update)).message ?? (asRecord(update)).edited_message;
 
     if (callbackQuery) {
       await handleCallbackQuery(callbackQuery);

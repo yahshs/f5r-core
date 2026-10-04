@@ -1,3 +1,4 @@
+import { ensureTestUser } from "../test/authFixture";
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -42,6 +43,7 @@ describe('automatic invoice polling', () => {
   it('creates the saved order and product on the background timer, without a manual processing call', async () => {
     await ensureDbReady();
     const sellerId = 'polling-seller';
+    ensureTestUser(sellerId);
     const conn = upsertSallaConnection({ sellerId, isEnabled: true });
     const raw = JSON.stringify([{ body: { event: 'invoice.created', data: {
       order_id: 'automatic-order',

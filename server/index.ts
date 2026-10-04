@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { createApp } from "./app";
 import { configureTelegramWebhook } from "./lib/telegram";
+import { stopWorkers } from "./workers/startWorkers";
 
 const port = Number(process.env.PORT || 8787);
 
@@ -23,7 +24,7 @@ async function ensureTelegramWebhook() {
 }
 
 const server = app.listen(port, () => {
-  // eslint-disable-next-line no-console
+
   console.log(`[server] listening on http://localhost:${port}`);
   void ensureTelegramWebhook();
 });
@@ -34,18 +35,23 @@ const telegramWebhookTimer = setInterval(() => void ensureTelegramWebhook(), 5 *
 telegramWebhookTimer.unref();
 
 let shuttingDown = false;
-function shutdown(signal: string) {
+async function shutdown(signal: string) {
   if (shuttingDown) return;
   shuttingDown = true;
+  const deadline=setTimeout(()=>process.exit(1),20000);
+  deadline.unref();
   clearInterval(telegramWebhookTimer);
-  // eslint-disable-next-line no-console
+
   console.log(`[server] ${signal} received, shutting down...`);
-  server.close(() => {
-    // eslint-disable-next-line no-console
+  const closed=new Promise<void>(resolve=>server.close(()=>resolve()));
+  const drained=await stopWorkers(15000);
+  console.log("[server] workers drained",{drained});
+  await closed;
+  {
+
     console.log("[server] closed");
-    process.exit(0);
-  });
-  setTimeout(() => process.exit(0), 10_000).unref();
+    process.exit(drained ? 0 : 1);
+  }
 }
 
 process.on("SIGTERM", () => shutdown("SIGTERM"));

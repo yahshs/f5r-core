@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ensureDbReady, resetDbForTests, resolveDbPath } from "./db";
+import { getDb, ensureDbReady, resetDbForTests, resolveDbPath } from "./db";
 import { upsertOrder, upsertOrderItem, getOrderBySellerAndSallaId, listOrderItemsByOrderId } from "./ordersRepo";
 import { ensureSellerProductFromInvoice, listSellerProducts } from "./productsRepo";
 import { createUser, getUserByEmail } from "./usersRepo";
@@ -28,12 +28,13 @@ describe.sequential("database persistence", () => {
 
   it("keeps users, orders, order items, products and SKU after reopening the database", async () => {
     await ensureDbReady();
-    createUser({
+    const user = createUser({
       email: "persistent@example.com",
       passwordHash: "test-hash",
       name: "Persistent Seller",
       role: "seller",
     });
+    getDb().prepare("UPDATE users SET id=? WHERE id=?").run("seller-persistent", user.id);
     const product = ensureSellerProductFromInvoice({
       sellerId: "seller-persistent",
       sallaProductId: "salla-501",

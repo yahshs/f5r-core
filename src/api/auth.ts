@@ -12,7 +12,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
   let res: Response;
   try {
-    res = await fetch(`${config.API_BASE_URL}${path}`, { ...init, headers });
+    res = await fetch(`${config.API_BASE_URL}${path}`, { ...init, headers, credentials: 'same-origin' });
   } catch {
     throw new AuthApiError('Unable to reach the server. Please try again.', { retryable: true });
   }
@@ -49,11 +49,11 @@ export const authApi = {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
-    return res.data;
+    return { ...res.data, token: 'cookie' };
   },
 
   demoLogin: async (role: UserRole): Promise<{ user: User; token: string }> => {
-    const demoPassword = import.meta.env.VITE_DEMO_PASSWORD || 'demo1234';
+    const demoPassword = import.meta.env.VITE_DEMO_PASSWORD || 'demo12345678';
     if (role === 'admin') return authApi.login('admin@f5s.sa', demoPassword);
     return authApi.login('seller@f5s.sa', demoPassword);
   },
@@ -63,14 +63,14 @@ export const authApi = {
       method: 'POST',
       body: JSON.stringify({ ...data }),
     });
-    return res.data;
+    return { ...res.data, token: 'cookie' };
   },
 
   logout: async (): Promise<void> => {
     try {
       await apiFetch<ApiResponse<unknown>>('/auth/logout', { method: 'POST' });
     } catch {
-      // ignore; JWT is stateless
+      // Clear the browser's local account hint even when the server is unreachable.
     }
   },
 
@@ -79,5 +79,10 @@ export const authApi = {
     if (!token) return null;
     const res = await apiFetch<ApiResponse<{ user: User }>>('/auth/me', { method: 'GET' });
     return res.data.user;
+  },
+  changePassword: async (currentPassword:string,password:string):Promise<User> => {
+    const result=await apiFetch<ApiResponse<{user:User}>>('/auth/change-password',{method:'POST',body:JSON.stringify({currentPassword,password})});
+    useAuthStore.getState().setSession(result.data.user,'cookie');
+    return result.data.user;
   },
 };

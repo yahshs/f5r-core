@@ -1,7 +1,11 @@
 import { config } from '@/config/env';
 import { useAuthStore } from '@/store';
+import type {FinancialOverview} from '@/types/financials';
 
 export type SellerAnalytics = {
+  financials?:FinancialOverview;
+  integrationOperational?:boolean;
+  activeProviders?:number;
   kpi: {
     totalOrders: number;
     ordersLast7d: number;

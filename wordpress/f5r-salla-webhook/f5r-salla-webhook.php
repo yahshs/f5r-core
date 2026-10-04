@@ -28,6 +28,9 @@ function f5r_relay_salla_invoice_webhook(WP_REST_Request $request) {
     }
 
     $raw_body = $request->get_body();
+    if (strlen($raw_body) > 262144) {
+        return new WP_REST_Response(['ok' => false, 'message' => 'Request too large'], 413);
+    }
     $event = strtolower(trim((string) $request->get_header('x-salla-event')));
 
     // Salla may place the event name in the JSON payload instead of the header.
@@ -44,6 +47,9 @@ function f5r_relay_salla_invoice_webhook(WP_REST_Request $request) {
     }
 
     $backend = rtrim((string) F5R_BACKEND_URL, '/');
+    if (strtolower((string) wp_parse_url($backend, PHP_URL_SCHEME)) !== 'https') {
+        return new WP_REST_Response(['ok' => false, 'message' => 'Backend must use HTTPS'], 500);
+    }
     $target = $backend . '/api/webhooks/salla/' . rawurlencode($public_id);
 
     $forward_names = [
@@ -87,7 +93,7 @@ function f5r_relay_salla_invoice_webhook(WP_REST_Request $request) {
     if (is_wp_error($response)) {
         return new WP_REST_Response([
             'ok' => false,
-            'message' => $response->get_error_message(),
+            'message' => 'Backend unavailable',
         ], 502);
     }
 

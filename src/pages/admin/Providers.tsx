@@ -30,7 +30,7 @@ export default function AdminProvidersPage() {
   const providersQuery = useAdminProviders();
   const updateProvider = useUpdateAdminProvider();
   const deleteProvider = useDeleteAdminProvider();
-  const providers = providersQuery.data?.data ?? [];
+  const providers = useMemo(() => providersQuery.data?.data ?? [], [providersQuery.data?.data]);
   const providerToDelete = deleteId ? providers.find((p) => p.id === deleteId) ?? null : null;
 
   const filtered = useMemo(() => {
@@ -45,7 +45,7 @@ export default function AdminProvidersPage() {
       await deleteProvider.mutateAsync(deleteId);
       toast({ title: t('common.success'), description: t('admin.providersDeleted') });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : t('common.error');
+      const msg = e instanceof Error ? (e instanceof Error ? e.message : 'Request failed') : t('common.error');
       toast({ title: t('common.error'), description: msg });
     } finally {
       setDeleteId(null);

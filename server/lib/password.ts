@@ -1,7 +1,10 @@
 import bcrypt from "bcryptjs";
+import { z } from "zod";
+
+export const passwordSchema = z.string().min(10).max(72).refine(value => Buffer.byteLength(value, "utf8") <= 72, "Password must be at most 72 UTF-8 bytes");
 
 export async function hashPassword(password: string) {
-  if (password.length < 6) throw new Error("Password too short");
+  passwordSchema.parse(password);
   return bcrypt.hash(password, 12);
 }
 

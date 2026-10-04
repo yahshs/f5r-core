@@ -7,6 +7,7 @@ export type AuthTokenClaims = {
   role: UserRole;
   email: string;
   name: string;
+  sid: string;
 };
 
 function getJwtSecret() {
@@ -19,10 +20,12 @@ function getJwtSecret() {
   return crypto.createHmac("sha256", encryptionKey).update("f5r-auth-jwt-v1").digest("hex");
 }
 
-export function signAuthToken(claims: AuthTokenClaims) {
-  return jwt.sign(claims, getJwtSecret(), { expiresIn: "7d" });
+export function signAuthToken(claims: Omit<AuthTokenClaims, "sid"> & { sid?: string }) {
+  return jwt.sign({ ...claims, sid: claims.sid ?? crypto.randomUUID() }, getJwtSecret(), { expiresIn: "1h", algorithm: "HS256", issuer: "f5r", audience: "f5r-api" });
 }
 
 export function verifyAuthToken(token: string) {
-  return jwt.verify(token, getJwtSecret()) as AuthTokenClaims;
+  const claims = jwt.verify(token, getJwtSecret(), { algorithms: ["HS256"], issuer: "f5r", audience: "f5r-api" });
+  if (typeof claims === "string" || typeof claims.sub !== "string" || typeof claims.sid !== "string" || typeof claims.email !== "string" || typeof claims.name !== "string" || !["seller", "admin", "user"].includes(claims.role)) throw new Error("Invalid token claims");
+  return claims as AuthTokenClaims;
 }

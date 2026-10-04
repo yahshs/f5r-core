@@ -1,4 +1,8 @@
-import { useMemo } from "react";
+import type { TFunction } from 'i18next';
+import { useEffect, useMemo, useState } from "react";
+import { useAuthStore } from "@/store";
+import { config } from "@/config/env";
+import { toast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,7 +19,7 @@ type OrderDetailsDialogProps = {
   onOpenChange?: (open: boolean) => void;
 };
 
-function statusLabel(t: (key: string, options?: any) => string, status: OrderStatus) {
+function statusLabel(t: TFunction, status: OrderStatus) {
   return t(`orders.status.${status}`, { defaultValue: status });
 }
 
@@ -36,13 +40,17 @@ function fulfillmentColor(status: string | null) {
   return "bg-amber-500/10 text-amber-700 dark:text-amber-400";
 }
 
-function routingReasonLabel(t: (key: string, options?: any) => string, reason?: string | null) {
+function routingReasonLabel(t: TFunction, reason?: string | null) {
   if (!reason) return null;
   return t(`orders.details.routing.reasons.${reason}`, { defaultValue: reason });
 }
 
 export default function OrderDetailsDialog({ order, trigger, open, onOpenChange }: OrderDetailsDialogProps) {
   const { t } = useTranslation();
+  const [accessLink, setAccessLink] = useState<string | null>(null);
+  const [creatingLink, setCreatingLink] = useState(false);
+  const isSeller = useAuthStore(state => state.user?.role === 'seller');
+  useEffect(() => { setAccessLink(null); }, [order.id]);
   const isMobile = useIsMobile();
   const createdAt = useMemo(() => new Date(order.created_at).toLocaleString(), [order.created_at]);
   const updatedAt = useMemo(() => new Date(order.updated_at).toLocaleString(), [order.updated_at]);
@@ -70,6 +78,19 @@ export default function OrderDetailsDialog({ order, trigger, open, onOpenChange 
           <DialogTitle>{t("orders.details.title")}</DialogTitle>
           <DialogDescription>{t("orders.details.subtitle")}</DialogDescription>
         </DialogHeader>
+        {isSeller && <div className="space-y-2">
+          <Button variant="outline" disabled={creatingLink} onClick={async () => {
+            setCreatingLink(true);
+            try {
+              const response = await fetch(`${config.API_BASE_URL}/seller/compensation-bot/orders/${encodeURIComponent(order.internal_id ?? order.id)}/access-link`, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+              if (!response.ok) throw new Error('Could not create customer access link');
+              const result = await response.json();
+              setAccessLink(result.data.deepLink);
+            } catch (error) { toast({ title: error instanceof Error ? (error instanceof Error ? error.message : 'Request failed') : 'Could not create access link', variant: 'destructive' }); }
+            finally { setCreatingLink(false); }
+          }}>{t('orders.details.customerLink', { defaultValue: 'Create private customer access link' })}</Button>
+          {accessLink && <><p className="break-all text-sm">{accessLink}</p><Button variant="outline" onClick={async () => { try { await navigator.clipboard.writeText(accessLink); toast({ title: 'Link copied' }); } catch { toast({ title: 'Could not copy link', variant: 'destructive' }); } }}>Copy link</Button><p className="text-xs text-muted-foreground">Send privately to the verified purchaser. Expires after 7 days and binds to the first Telegram user.</p></>}
+        </div>}
 
         <div className="space-y-5">
           <div>
@@ -260,8 +281,9 @@ export default function OrderDetailsDialog({ order, trigger, open, onOpenChange 
                               {item.fulfillments.map((f) => (
                                 <div key={f.id} className="flex items-center justify-between gap-2 rounded-md border px-2 py-1 text-xs">
                                   <Badge variant="secondary" className={fulfillmentColor(f.status)}>
-                                    {f.status}
+                                    {f.submission_state === "UNKNOWN" ? "Reconciliation required" : f.status === "SUCCESS" ? "Provider accepted" : f.status}
                                   </Badge>
+                                  {f.delivery_state&&<span>Delivery: {f.delivery_state.toLowerCase()}</span>}
                                   <span className="min-w-0 flex-1 truncate text-muted-foreground">{f.provider_order_id ?? "-"}</span>
                                 </div>
                               ))}
@@ -321,8 +343,9 @@ export default function OrderDetailsDialog({ order, trigger, open, onOpenChange 
                                   {item.fulfillments.slice(0, 4).map((f) => (
                                     <div key={f.id} className="flex items-center gap-2 text-xs text-muted-foreground">
                                       <Badge variant="secondary" className={fulfillmentColor(f.status)}>
-                                        {f.status}
+                                        {f.submission_state==='UNKNOWN'?'Reconciliation required':f.status==='SUCCESS'?'Provider accepted':f.status}
                                       </Badge>
+                                      {f.delivery_state&&<span>Delivery: {f.delivery_state.toLowerCase()}</span>}
                                       <span className="truncate">{f.provider_order_id ?? "-"}</span>
                                     </div>
                                   ))}

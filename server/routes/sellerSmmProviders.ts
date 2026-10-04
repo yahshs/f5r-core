@@ -24,7 +24,7 @@ const createSchema = z.object({
   name: z.string().trim().min(1).max(120),
   base_url: z.string().trim().min(1).max(2048),
   api_key: z.string().min(1).max(1024),
-  cost_currency: z.string().trim().min(1).max(24).optional().nullable(),
+  cost_currency: z.string().trim().regex(/^[A-Za-z]{3}$/).transform(value=>value.toUpperCase()).optional().nullable(),
   fx_rate_to_store: z.coerce.number().gt(0).max(1000).optional().nullable(),
   low_balance_threshold: z.coerce.number().gte(0).max(1_000_000).optional().nullable(),
   is_active: z.boolean().optional().default(true),
@@ -35,7 +35,7 @@ const patchSchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
   base_url: z.string().trim().min(1).max(2048).optional(),
   api_key: z.string().min(1).max(1024).optional(),
-  cost_currency: z.string().trim().min(1).max(24).optional().nullable(),
+  cost_currency: z.string().trim().regex(/^[A-Za-z]{3}$/).transform(value=>value.toUpperCase()).optional().nullable(),
   fx_rate_to_store: z.coerce.number().gt(0).max(1000).optional().nullable(),
   low_balance_threshold: z.coerce.number().gte(0).max(1_000_000).optional().nullable(),
   is_active: z.boolean().optional(),
@@ -127,7 +127,7 @@ sellerSmmProvidersRouter.patch("/:id", async (req, res) => {
 
   const id = req.params.id;
 
-  const next: any = {};
+  const next: Parameters<typeof updateProvider>[2] = {};
   if (parsed.data.name !== undefined) next.name = parsed.data.name;
   if (parsed.data.base_url !== undefined) {
     const url = assertPublicHttpsUrl(parsed.data.base_url);

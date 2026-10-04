@@ -1,3 +1,4 @@
+import { asRecord } from '../lib/unknownValue';
 import crypto from "node:crypto";
 import { getDb } from "./db";
 
@@ -197,8 +198,8 @@ export function ensureSellerProductFromInvoice(input: {
 
   try {
     return run();
-  } catch (error: any) {
-    if (!String(error?.message || "").includes("UNIQUE")) throw error;
+  } catch (error: unknown) {
+    if (!String(asRecord(error)?.message || "").includes("UNIQUE")) throw error;
     const raced = input.sallaProductId
       ? getSellerProductBySallaProductId(input.sellerId, input.sallaProductId)
       : sku

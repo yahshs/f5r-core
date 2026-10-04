@@ -16,6 +16,10 @@ export default function AdminLayout() {
     { path: '/admin/providers', icon: Server, label: t('admin.nav.providers') },
     { path: '/admin/salla-connections', icon: Link2, label: t('admin.nav.salla') },
     { path: '/admin/subscription-requests', icon: CreditCard, label: t('admin.nav.subscriptionRequests') },
+    { path: '/admin/operations', icon: Settings, label: isRTL ? 'التشغيل والمراجعة' : 'Operations' },
+    { path: '/admin/products', icon: Package, label: isRTL ? 'المنتجات' : 'Products' },
+    { path: '/admin/categories', icon: Package, label: isRTL ? 'التصنيفات' : 'Categories' },
+    { path: '/admin/audit-logs', icon: Settings, label: isRTL ? 'سجل التدقيق' : 'Audit logs' },
     { path: '/admin/settings', icon: Settings, label: t('admin.nav.settings') },
   ];
 

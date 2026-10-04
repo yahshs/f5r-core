@@ -1,4 +1,5 @@
-import { Router } from "express";
+import { asRecord } from '../lib/unknownValue';
+import { Router, type Request } from "express";
 import { z } from "zod";
 import { requireSeller } from "../auth";
 import { getDb } from "../db/db";
@@ -15,6 +16,7 @@ import { sha256Hex } from "../lib/hash";
 import { createSallaAuthState } from "../lib/sallaAuthState";
 import { getSallaAuthorizeUrl } from "../lib/sallaClient";
 import { getUserById } from "../db/usersRepo";
+import crypto from "node:crypto";
 
 export const sellerSallaRouter = Router();
 sellerSallaRouter.use(requireSeller);
@@ -25,15 +27,14 @@ const configSchema = z.object({
   duplicate_link_delay_seconds: z.number().int().min(0).max(60 * 60 * 24 * 7).optional(),
 });
 
-function getBaseUrl(req: any) {
+function getBaseUrl(req: Request) {
   const env = process.env.BASE_PUBLIC_URL;
   if (env) return env.replace(/\/+$/, "");
-  const proto = (req.header("x-forwarded-proto") || req.protocol || "https").split(",")[0].trim();
-  const host = (req.header("x-forwarded-host") || req.get("host") || "").split(",")[0].trim();
-  return `${proto}://${host}`;
+  throw new Error("BASE_PUBLIC_URL is required");
+
 }
 
-function getSallaWebhookPublicUrl(req: any, publicId: string) {
+function getSallaWebhookPublicUrl(req: Request, publicId: string) {
   const wordpressBase = process.env.WORDPRESS_PUBLIC_URL?.trim().replace(/\/+$/, "");
   if (wordpressBase) {
     return new URL(`/wp-json/f5r/v1/salla/${publicId}`, wordpressBase).toString();
@@ -81,7 +82,9 @@ sellerSallaRouter.post("/connect/start", (req, res) => {
   }
 
   try {
-    const state = createSallaAuthState(sellerId);
+    const browserToken = crypto.randomBytes(32).toString("base64url");
+    const state = createSallaAuthState(sellerId, req.authSessionId!, browserToken);
+    res.cookie("salla_oauth", browserToken, { httpOnly: true, secure: process.env.NODE_ENV !== "test", sameSite: "lax", path: "/api/integrations/salla", maxAge: 10*60000 });
     const installUrl = getSallaAuthorizeUrl({ state });
     return res.json({ success: true, data: { install_url: installUrl } });
   } catch (error) {
@@ -181,22 +184,22 @@ sellerSallaRouter.get("/metrics", (req, res) => {
   const db = getDb();
   const todayPrefix = new Date().toISOString().slice(0, 10);
 
-  const receivedToday = db
+  const receivedToday = asRecord(db
     .prepare(`SELECT COUNT(1) as c FROM webhook_events WHERE seller_id = ? AND received_at LIKE ?`)
-    .get(sellerId, `${todayPrefix}%`) as any;
-  const failedToday = db
+    .get(sellerId, `${todayPrefix}%`));
+  const failedToday = asRecord(db
     .prepare(`SELECT COUNT(1) as c FROM webhook_events WHERE seller_id = ? AND status = 'FAILED' AND received_at LIKE ?`)
-    .get(sellerId, `${todayPrefix}%`) as any;
-  const doneToday = db
+    .get(sellerId, `${todayPrefix}%`));
+  const doneToday = asRecord(db
     .prepare(`SELECT COUNT(1) as c FROM webhook_events WHERE seller_id = ? AND status = 'DONE' AND received_at LIKE ?`)
-    .get(sellerId, `${todayPrefix}%`) as any;
+    .get(sellerId, `${todayPrefix}%`));
 
-  const processedTotal = db
+  const processedTotal = asRecord(db
     .prepare(`SELECT COUNT(1) as c FROM webhook_events WHERE seller_id = ? AND status = 'DONE'`)
-    .get(sellerId) as any;
-  const failedTotal = db
+    .get(sellerId));
+  const failedTotal = asRecord(db
     .prepare(`SELECT COUNT(1) as c FROM webhook_events WHERE seller_id = ? AND status = 'FAILED'`)
-    .get(sellerId) as any;
+    .get(sellerId));
 
   res.json({
     success: true,
@@ -222,10 +225,10 @@ sellerSallaRouter.get("/recent-activity", (req, res) => {
        ORDER BY updated_at DESC
        LIMIT 50`,
     )
-    .all(sellerId) as any[];
+    .all(sellerId) as unknown[];
 
   const enriched = orders.map((o) => {
-    const agg = db
+    const agg = asRecord(db
       .prepare(
         `SELECT
            SUM(CASE WHEN f.status = 'SUCCESS' THEN 1 ELSE 0 END) as success,
@@ -235,9 +238,9 @@ sellerSallaRouter.get("/recent-activity", (req, res) => {
          LEFT JOIN fulfillments f ON f.order_item_id = oi.id
          WHERE oi.order_id = ?`,
       )
-      .get(o.id) as any;
+      .get(asRecord(o).id));
 
-    const lastFailed = db
+    const lastFailed = asRecord(db
       .prepare(
         `SELECT f.last_error as last_error
          FROM order_items oi
@@ -246,15 +249,15 @@ sellerSallaRouter.get("/recent-activity", (req, res) => {
          ORDER BY f.updated_at DESC
          LIMIT 1`,
       )
-      .get(o.id) as any;
+      .get(asRecord(o).id));
 
     return {
-      salla_order_id: o.salla_order_id,
-      status: o.status,
-      payment_status: o.payment_status,
-      currency: o.currency,
-      total: o.total,
-      updated_at: o.updated_at,
+      salla_order_id: asRecord(o).salla_order_id,
+      status: asRecord(o).status,
+      payment_status: asRecord(o).payment_status,
+      currency: asRecord(o).currency,
+      total: asRecord(o).total,
+      updated_at: asRecord(o).updated_at,
       fulfillments: {
         success: Number(agg?.success ?? 0),
         failed: Number(agg?.failed ?? 0),
@@ -268,19 +271,20 @@ sellerSallaRouter.get("/recent-activity", (req, res) => {
 });
 
 sellerSallaRouter.post("/simulate-create-order", (req, res) => {
+  if (process.env.NODE_ENV === "production") return res.status(403).json({ success: false, message: "Simulation is unavailable in production" });
   const sellerId = req.sellerAuth!.sellerId;
   const db = getDb();
   const conn = getSallaConnectionBySellerId(sellerId);
   if (!conn) return res.status(400).json({ success: false, message: "Configure Salla first" });
   if (!conn.public_webhook_id) return res.status(500).json({ success: false, message: "Missing webhook id" });
 
-  const product = db
+  const product = asRecord(db
     .prepare(
       `SELECT salla_product_id FROM seller_products
        WHERE seller_id = ? AND status = 'active' AND salla_product_id IS NOT NULL
        ORDER BY created_at DESC LIMIT 1`,
     )
-    .get(sellerId) as any;
+    .get(sellerId));
 
   if (!product?.salla_product_id) {
     return res.status(400).json({ success: false, message: "Create a product with Salla product id first" });

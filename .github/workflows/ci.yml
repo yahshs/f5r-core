@@ -1,0 +1,42 @@
+name: Quality and security
+on: [push, pull_request]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm audit --audit-level=moderate
+      - run: npm run lint
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: f5r:verify
+      - name: Verify container startup, volume permissions and shutdown
+        run: |
+          docker run -d --name f5r-ci -p 127.0.0.1:8787:8787 --mount type=volume,src=f5r-ci-data,dst=/data -e RAILWAY_PROJECT_ID=ci-fixture -e RAILWAY_VOLUME_MOUNT_PATH=/data -e JWT_SECRET=ci-fixture-signing-secret-at-least-32-bytes -e ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef -e BASE_PUBLIC_URL=https://fixture.invalid f5r:verify
+          trap 'docker logs f5r-ci; docker rm -f f5r-ci; docker volume rm f5r-ci-data' EXIT
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:8787/api/ready > /dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:8787/api/ready
+          docker exec f5r-ci gosu node test -w /data/app.sqlite
+          docker exec f5r-ci node -e "if(!require('fs').readFileSync('/proc/1/status','utf8').includes('Uid:'+String.fromCharCode(9)+'1000'+String.fromCharCode(9)))process.exit(1)"
+          docker exec f5r-ci sh -c 'test "$(stat -c %u /data/app.sqlite)" = "1000"'
+          docker stop --time 25 f5r-ci
+          test "$(docker inspect -f '{{.State.ExitCode}}' f5r-ci)" = "0"

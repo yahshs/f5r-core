@@ -1,3 +1,4 @@
+import { asRecord } from '../lib/unknownValue';
 import { Router } from "express";
 import { z } from "zod";
 import { requireAdmin } from "../auth";
@@ -9,7 +10,7 @@ adminSubscriptionRequestsRouter.use(requireAdmin);
 
 adminSubscriptionRequestsRouter.get("/", (req, res) => {
   const statusRaw = (req.query.status as string | undefined)?.toUpperCase();
-  const status = statusRaw && ["PENDING", "APPROVED", "REJECTED"].includes(statusRaw) ? (statusRaw as any) : undefined;
+  const status = statusRaw === 'PENDING' || statusRaw === 'APPROVED' || statusRaw === 'REJECTED' ? statusRaw : undefined;
   const limit = Math.min(500, Math.max(1, Number(req.query.limit || 200)));
 
   const rows = listUpgradeRequests({ status, limit });

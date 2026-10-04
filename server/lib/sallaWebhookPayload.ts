@@ -1,3 +1,4 @@
+import { asRecord } from './unknownValue';
 function extractBalancedJsonAt(raw: string, start: number): string | null {
   const first = raw[start];
   if (first !== "{" && first !== "[") return null;
@@ -56,7 +57,7 @@ function extractFirstJsonValue(raw: string): string | null {
   return null;
 }
 
-function tryParseWrappedJson(raw: string): any | undefined {
+function tryParseWrappedJson(raw: string): unknown | undefined {
   const trimmed = raw.trim();
   if (!trimmed) return {};
 
@@ -81,7 +82,7 @@ function tryParseWrappedJson(raw: string): any | undefined {
   return undefined;
 }
 
-function parseRawJson(raw: string): any {
+function parseRawJson(raw: string): unknown {
   const trimmed = raw.trim();
   if (!trimmed) return {};
 
@@ -115,7 +116,7 @@ function parseRawJson(raw: string): any {
 
 // Decode forwarding envelopes before both topic detection and item extraction.
 // A list with more than one delivery is ambiguous: never silently drop events.
-export function parseWebhookPayloadRaw(raw: string): any {
+export function parseWebhookPayloadRaw(raw: string): unknown {
   let value = parseRawJson(raw);
   for (let depth = 0; depth < 8; depth++) {
     if (typeof value === "string") {
@@ -128,8 +129,8 @@ export function parseWebhookPayloadRaw(raw: string): any {
       continue;
     }
     if (!value || typeof value !== "object") throw new Error("Webhook payload must be a JSON object");
-    if (typeof value.event === "string" && value.event.trim()) return value;
-    const wrapped = value.body ?? value.payload ?? (value.data?.event ? value.data : undefined);
+    if (typeof asRecord(value).event === "string" && String(asRecord(value).event ?? '').trim()) return value;
+    const wrapped = asRecord(value).body ?? asRecord(value).payload ?? (asRecord(asRecord(value).data)?.event ? asRecord(value).data : undefined);
     if (wrapped !== undefined) {
       value = typeof wrapped === "string" ? parseRawJson(wrapped) : wrapped;
       continue;

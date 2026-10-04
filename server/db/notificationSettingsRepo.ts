@@ -7,6 +7,8 @@ export type SellerNotificationSettingsRow = {
   telegram_username: string | null;
   telegram_link_code: string;
   telegram_linked_at: string | null;
+  telegram_user_id: string | null;
+  link_expires_at: string | null;
   locale: "ar" | "en";
   timezone: string;
   notify_execution_failed: 0 | 1;
@@ -64,8 +66,8 @@ export function getNotificationSettingsBySellerId(sellerId: string) {
 export function getNotificationSettingsByLinkCode(linkCode: string) {
   const db = getDb();
   return db
-    .prepare(`SELECT * FROM seller_notification_settings WHERE telegram_link_code = ? LIMIT 1`)
-    .get(linkCode) as SellerNotificationSettingsRow | undefined;
+    .prepare(`SELECT * FROM seller_notification_settings WHERE telegram_link_code = ? AND link_expires_at > ? LIMIT 1`)
+    .get(linkCode, new Date().toISOString()) as SellerNotificationSettingsRow | undefined;
 }
 
 export function getNotificationSettingsByChatId(chatId: string) {
@@ -101,6 +103,7 @@ export function ensureNotificationSettings(sellerId: string) {
      (seller_id, telegram_chat_id, telegram_username, telegram_link_code, telegram_linked_at, locale, timezone, notify_execution_failed, notify_subscription_ending, notify_low_balance, notification_mode, low_balance_threshold, subscription_reminder_count, monthly_report_enabled, monthly_report_time_local, created_at, updated_at)
      VALUES (?, NULL, NULL, ?, NULL, 'ar', 'Asia/Riyadh', 1, 1, 1, 'all', NULL, 3, 0, '18:00', ?, ?)`,
   ).run(sellerId, generateLinkCode(), now, now);
+  db.prepare("UPDATE seller_notification_settings SET link_expires_at=? WHERE seller_id=?").run(new Date(Date.now()+10*60000).toISOString(), sellerId);
 
   return getNotificationSettingsBySellerId(sellerId);
 }
@@ -170,6 +173,7 @@ export function updateNotificationSettings(
 }
 
 export function regenerateNotificationLinkCode(sellerId: string) {
+  getDb().prepare("UPDATE seller_notification_settings SET link_expires_at=?,telegram_user_id=NULL WHERE seller_id=?").run(new Date(Date.now()+10*60000).toISOString(), sellerId);
   return updateNotificationSettings(sellerId, {
     telegramLinkCode: generateLinkCode(),
     telegramChatId: null,
@@ -178,11 +182,13 @@ export function regenerateNotificationLinkCode(sellerId: string) {
   });
 }
 
-export function linkTelegramChat(input: { sellerId: string; chatId: string; username?: string | null }) {
+export function linkTelegramChat(input: { sellerId: string; chatId: string; username?: string | null; userId?: string }) {
+  getDb().prepare("UPDATE seller_notification_settings SET telegram_user_id=?,link_expires_at=NULL WHERE seller_id=?").run(input.userId ?? input.chatId, input.sellerId);
   return updateNotificationSettings(input.sellerId, {
     telegramChatId: input.chatId,
     telegramUsername: input.username ?? null,
     telegramLinkedAt: new Date().toISOString(),
+    telegramLinkCode: generateLinkCode(),
   });
 }
 
@@ -229,7 +235,7 @@ export function listSellerNotificationCandidates() {
          s.monthly_report_time_local
        FROM users u
        LEFT JOIN seller_notification_settings s ON s.seller_id = u.id
-       WHERE u.role = 'seller'`,
+       WHERE u.role = 'seller' AND u.is_disabled=0 AND u.deleted_at IS NULL`,
     )
     .all() as SellerNotificationCandidateRow[];
 }

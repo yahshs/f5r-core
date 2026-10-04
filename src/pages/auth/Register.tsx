@@ -47,8 +47,8 @@ export default function RegisterPage() {
       });
       toast({ title: "Welcome!", description: "Account created successfully" });
       navigate(user.role === "seller" ? "/seller/dashboard" : "/account");
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Error", description: (error instanceof Error ? error.message : 'Request failed'), variant: "destructive" });
     }
   };
 

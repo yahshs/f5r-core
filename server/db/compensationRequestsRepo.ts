@@ -19,6 +19,8 @@ export type CompensationRequestRow = {
   processed_at: string | null;
   created_at: string;
   updated_at: string;
+  lease_id: string | null;
+  lease_expires_at: string | null;
 };
 
 export type CompensationEligibilityReason =
@@ -79,7 +81,7 @@ export function evaluateCompensationEligibility(input: {
 
   const db = getDb();
   const pending = db
-    .prepare(`SELECT 1 FROM compensation_requests WHERE order_id = ? AND status IN ('PENDING','PROCESSING') LIMIT 1`)
+    .prepare(`SELECT 1 FROM compensation_requests WHERE order_id = ? AND (status IN ('PENDING','PROCESSING') OR (reconciled_at IS NULL AND (last_error LIKE '%outcome unknown%' OR provider_results_json LIKE '%outcome unknown%'))) LIMIT 1`)
     .get(input.order.id);
   const used = countUsedCompensationsForOrder(input.order.id);
   const remaining = Math.max(0, input.settings.max_compensations_per_order - used);
@@ -156,6 +158,8 @@ export function reserveCompensationRequest(input: {
 
 export function claimNextCompensationRequest(nowIso: string) {
   const db = getDb();
+  // Refills have no provider idempotency key: retain the allowance and require review after a crash.
+  db.prepare(`UPDATE compensation_requests SET status='PARTIAL',last_error='Refill outcome unknown; reconciliation required',processed_at=? WHERE status='PROCESSING' AND (lease_expires_at IS NULL OR lease_expires_at<=?)`).run(nowIso,nowIso);
   const transaction = db.transaction(() => {
     const row = db
       .prepare(
@@ -167,9 +171,9 @@ export function claimNextCompensationRequest(nowIso: string) {
     if (!row) return null;
     db.prepare(
       `UPDATE compensation_requests
-       SET status = 'PROCESSING', attempts = attempts + 1, updated_at = ?
+       SET status = 'PROCESSING', attempts = attempts + 1, updated_at = ?, lease_id=?, lease_expires_at=?
        WHERE id = ? AND status = 'PENDING'`,
-    ).run(nowIso, row.id);
+    ).run(nowIso, crypto.randomUUID(), new Date(Date.parse(nowIso)+10*60000).toISOString(), row.id);
     return getCompensationRequestById(row.id) ?? null;
   });
   return transaction();
@@ -181,14 +185,15 @@ export function completeCompensationRequest(input: {
   providerResultsJson: string;
   error?: string | null;
   nowIso: string;
+  leaseId?: string;
 }) {
   const db = getDb();
-  db.prepare(
+  const changed=db.prepare(
     `UPDATE compensation_requests
      SET status = ?, provider_results_json = ?, last_error = ?, processed_at = ?, updated_at = ?
-     WHERE id = ?`,
-  ).run(input.status, input.providerResultsJson, input.error ?? null, input.nowIso, input.nowIso, input.id);
-  return getCompensationRequestById(input.id)!;
+     WHERE id = ? AND (? IS NULL OR lease_id=?) AND status='PROCESSING'`,
+  ).run(input.status, input.providerResultsJson, input.error ?? null, input.nowIso, input.nowIso, input.id, input.leaseId ?? null, input.leaseId ?? null);
+  return changed.changes?getCompensationRequestById(input.id)!:null;
 }
 
 export function listRecentCompensationRequestsForSeller(sellerId: string, limit = 20) {

@@ -1,29 +1,27 @@
-import { Router } from "express";
+import { Router, type Request } from "express";
 import { verifySallaAuthState } from "../lib/sallaAuthState";
 import { connectSallaAppInstallation, getSallaConnectionBySellerId, updateSallaConnectionStatus } from "../db/sallaConnectionsRepo";
 import { exchangeSallaCodeForTokens, fetchSallaStoreIdentity, registerSallaInvoiceCreatedWebhook } from "../lib/sallaClient";
 
 export const sallaAppRouter = Router();
 
-function getPublicBaseUrl(req: any) {
+function getPublicBaseUrl() {
   const env = process.env.BASE_PUBLIC_URL?.trim();
   if (env) return env.replace(/\/+$/, "");
-  const proto = (req.header("x-forwarded-proto") || req.protocol || "https").split(",")[0].trim();
-  const host = (req.header("x-forwarded-host") || req.get("host") || "").split(",")[0].trim();
-  return `${proto}://${host}`;
+  throw new Error("BASE_PUBLIC_URL is required");
 }
 
 
-function getSallaWebhookPublicUrl(req: any, publicId: string) {
+function getSallaWebhookPublicUrl(req: Request, publicId: string) {
   const wordpressBase = process.env.WORDPRESS_PUBLIC_URL?.trim().replace(/\/+$/, "");
   if (wordpressBase) {
     return new URL(`/wp-json/f5r/v1/salla/${publicId}`, wordpressBase).toString();
   }
-  return new URL(`/api/webhooks/salla/${publicId}`, getPublicBaseUrl(req)).toString();
+  return new URL(`/api/webhooks/salla/${publicId}`, getPublicBaseUrl()).toString();
 }
 
-function redirectToSellerSalla(req: any, result: "success" | "error", message?: string) {
-  const url = new URL("/seller/salla", getPublicBaseUrl(req));
+function redirectToSellerSalla(req: Request, result: "success" | "error", message?: string) {
+  const url = new URL("/seller/salla", getPublicBaseUrl());
   url.searchParams.set("salla_connect", result);
   if (message) url.searchParams.set("message", message);
   return url.toString();
@@ -32,6 +30,9 @@ function redirectToSellerSalla(req: any, result: "success" | "error", message?: 
 sallaAppRouter.get("/callback", async (req, res) => {
   const code = String(req.query.code || "").trim();
   const state = String(req.query.state || "").trim();
+  const browserToken = String(req.headers.cookie || "").split(";").map(s=>s.trim()).find(s=>s.startsWith("salla_oauth="))?.slice(12) || "";
+  let authorizedSellerId: string | null = null;
+  res.clearCookie("salla_oauth", { path: "/api/integrations/salla" });
   const explicitError = String(req.query.error || "").trim();
 
   if (explicitError) {
@@ -40,7 +41,8 @@ sallaAppRouter.get("/callback", async (req, res) => {
 
   try {
     if (!code) throw new Error("Missing authorization code");
-    const { sellerId } = verifySallaAuthState(state);
+    const { sellerId } = verifySallaAuthState(state, browserToken);
+    authorizedSellerId = sellerId;
 
     const existing = getSallaConnectionBySellerId(sellerId);
     if (existing) updateSallaConnectionStatus(existing.id, "pending");
@@ -68,16 +70,9 @@ sallaAppRouter.get("/callback", async (req, res) => {
     updateSallaConnectionStatus(row.id, "active");
     return res.redirect(redirectToSellerSalla(req, "success"));
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Salla connection failed";
-    const statePayload = (() => {
-      try {
-        return verifySallaAuthState(state);
-      } catch {
-        return null;
-      }
-    })();
-    if (statePayload?.sellerId) {
-      const row = getSallaConnectionBySellerId(statePayload.sellerId);
+    const message = "Salla connection failed. Please reconnect.";
+    if (authorizedSellerId) {
+      const row = getSallaConnectionBySellerId(authorizedSellerId);
       if (row) updateSallaConnectionStatus(row.id, "error");
     }
     return res.redirect(redirectToSellerSalla(req, "error", message));

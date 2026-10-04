@@ -7,7 +7,7 @@ vi.mock("../lib/telegram", async () => ({
 }));
 import { createApp } from "../app";
 import { getDb, resetDbForTests } from "../db/db";
-import { signAuthToken } from "../lib/jwt";
+import { signAuthToken } from "../test/authFixture";
 import { configureTelegramWebhook } from "../lib/telegram";
 import { getSetting } from "../db/settingsRepo";
 function auth(role: "admin" | "seller") {
@@ -17,6 +17,7 @@ function auth(role: "admin" | "seller") {
 describe("admin Telegram diagnostics", () => {
   beforeEach(() => {
     resetDbForTests();
+    vi.stubEnv("ENCRYPTION_KEY", Buffer.from("0123456789abcdef0123456789abcdef").toString("hex"));
     vi.stubEnv("DB_PATH", ":memory:");
     vi.stubEnv("JWT_SECRET", "fake-test-jwt-key");
     vi.stubEnv("WORKERS_ENABLED", "0");

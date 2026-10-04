@@ -6,13 +6,13 @@ import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../app';
 import { ensureDbReady, getDb, resetDbForTests } from '../db/db';
-import { upsertSallaConnection } from '../db/sallaConnectionsRepo';
+import { getSallaWebhookToken, upsertSallaConnection } from '../db/sallaConnectionsRepo';
 import { createSellerProduct, getSellerProductById, getSellerProductForOrderItem, listSellerProducts } from '../db/productsRepo';
 import { getOrderBySellerAndSallaId, listOrderItemsWithProductByOrderId, upsertOrder, upsertOrderItem } from '../db/ordersRepo';
 import { createProvider } from '../db/smmProvidersRepo';
 import { createRule } from '../db/smmRulesRepo';
 import { encryptSecret } from '../lib/encryption';
-import { signAuthToken } from '../lib/jwt';
+import { signAuthToken } from "../test/authFixture";
 import { processNextSallaWebhookEvent } from '../workers/sallaWebhookWorker';
 import { processNextFulfillment } from '../workers/fulfillmentWorker';
 
@@ -26,7 +26,7 @@ const headers = () => ({ authorization: `Bearer ${signAuthToken({ sub: sellerId,
 let tempDir: string;
 
 describe('invoice order/product ingestion regressions', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     resetDbForTests();
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'f5r-ingestion-'));
     vi.stubEnv('DB_PATH', path.join(tempDir, 'app.sqlite'));
@@ -34,6 +34,8 @@ describe('invoice order/product ingestion regressions', () => {
     vi.stubEnv('WORKERS_ENABLED', '0');
     vi.stubEnv('JWT_SECRET', 'test-jwt-secret');
     vi.stubEnv('ENCRYPTION_KEY', Buffer.from('0123456789abcdef0123456789abcdef').toString('hex'));
+    await ensureDbReady();
+    headers();
   });
   afterEach(() => {
     resetDbForTests();
@@ -42,15 +44,15 @@ describe('invoice order/product ingestion regressions', () => {
   });
 
   it.each([
-    ['plain Salla body', (body: any) => body],
-    ['n8n body envelope', (body: any) => ({ body })],
-    ['n8n array envelope', (body: any) => [{ headers: {}, body }]],
-    ['JSON-stringified forwarding', (body: any) => JSON.stringify(body)],
+    ['plain Salla body', (body: unknown) => body],
+    ['n8n body envelope', (body: unknown) => ({ body })],
+    ['n8n array envelope', (body: unknown) => [{ headers: {}, body }]],
+    ['JSON-stringified forwarding', (body: unknown) => JSON.stringify(body)],
   ])('creates the order and product from %s without a Salla API token', async (_name, wrap) => {
     const app = await createApp();
     const conn = upsertSallaConnection({ sellerId, isEnabled: true });
     const raw = JSON.stringify(wrap(payload()));
-    const res = await request(app).post(`/api/webhooks/salla/${conn.public_webhook_id}`).set('Content-Type', 'application/json').send(raw).expect(200);
+    const res = await request(app).post(`/api/webhooks/salla/${conn.public_webhook_id}`).set('x-f5r-webhook-token', getSallaWebhookToken(conn)).set('Content-Type', 'application/json').send(raw).expect(200);
     expect(res.body.ignored).not.toBe(true);
     expect(await processNextSallaWebhookEvent()).toBe(true);
     const orders = await request(app).get('/api/seller/orders').set(headers()).expect(200);
@@ -64,7 +66,7 @@ describe('invoice order/product ingestion regressions', () => {
     const restarted = await createApp();
     expect((await request(restarted).get('/api/seller/orders').set(headers()).expect(200)).body.data).toHaveLength(1);
     expect((await request(restarted).get('/api/seller/products').set(headers()).expect(200)).body.data).toHaveLength(1);
-    await request(restarted).post(`/api/webhooks/salla/${conn.public_webhook_id}`).set('Content-Type', 'application/json').send(raw).expect(200);
+    await request(restarted).post(`/api/webhooks/salla/${conn.public_webhook_id}`).set('x-f5r-webhook-token', getSallaWebhookToken(conn)).set('Content-Type', 'application/json').send(raw).expect(200);
     expect(await processNextSallaWebhookEvent()).toBe(false);
     expect(listSellerProducts(sellerId)).toHaveLength(1);
     expect(fetch).not.toHaveBeenCalled();
@@ -79,7 +81,7 @@ describe('invoice order/product ingestion regressions', () => {
     createRule({ sellerId, productId: product.id, providerConnectionId: 'mock-provider', providerServiceId: 10,
       serviceName: 'Twitter views', providerServiceRate: 1, targetField: 'link', quantityType: 'fixed', quantityValue: 1000,
       delaySeconds: 0, executionOrder: 1, normalizeUrl: true });
-    await request(app).post(`/api/webhooks/salla/${conn.public_webhook_id}`).send(payload()).expect(200);
+    await request(app).post(`/api/webhooks/salla/${conn.public_webhook_id}`).set('x-f5r-webhook-token', getSallaWebhookToken(conn)).send(payload()).expect(200);
     await processNextSallaWebhookEvent();
     expect(listSellerProducts(sellerId)).toHaveLength(1);
     expect(getSellerProductById(sellerId, product.id)).toMatchObject({ salla_product_id: '30', sku: 'TW-SKU', source: 'manual' });
@@ -87,7 +89,7 @@ describe('invoice order/product ingestion regressions', () => {
     expect(await processNextFulfillment({ createOrder })).toBe(true);
     expect(createOrder).toHaveBeenCalledTimes(1);
     expect(createOrder).toHaveBeenCalledWith(expect.any(URL), 'test-key', { service: 10, link: 'https://x.com/example/status/123', quantity: 1000 });
-    await request(app).post(`/api/webhooks/salla/${conn.public_webhook_id}`).set('x-event-id', 'different-replay-id').send(payload()).expect(200);
+    await request(app).post(`/api/webhooks/salla/${conn.public_webhook_id}`).set('x-f5r-webhook-token', getSallaWebhookToken(conn)).set('x-event-id', 'different-replay-id').send(payload()).expect(200);
     await processNextSallaWebhookEvent();
     expect(await processNextFulfillment({ createOrder })).toBe(false);
     expect(createOrder).toHaveBeenCalledTimes(1);
@@ -109,15 +111,15 @@ describe('invoice order/product ingestion regressions', () => {
     const app = await createApp();
     const conn = upsertSallaConnection({ sellerId, isEnabled: true });
     const body = payload();
-    delete (body.data.items[0] as any).product_id;
+    delete (body.data.items[0] as unknown).product_id;
     const url = `/api/webhooks/salla/${conn.public_webhook_id}`;
-    await request(app).post(url).send(body).expect(200);
+    await request(app).post(url).set("x-f5r-webhook-token", getSallaWebhookToken(conn)).send(body).expect(200);
     await processNextSallaWebhookEvent();
     const first = listSellerProducts(sellerId)[0];
     expect(first).toMatchObject({ salla_product_id: null, sku: 'TW-SKU', name: 'مشاهدات تويتر' });
     const saved = getOrderBySellerAndSallaId(sellerId, '200')!;
     expect(listOrderItemsWithProductByOrderId(sellerId, saved.id)[0].seller_product_id).toBe(first.id);
-    await request(app).post(url).set('x-event-id', 'sku-replay').send(body).expect(200);
+    await request(app).post(url).set("x-f5r-webhook-token", getSallaWebhookToken(conn)).set('x-event-id', 'sku-replay').send(body).expect(200);
     await processNextSallaWebhookEvent();
     expect(listSellerProducts(sellerId).map((product) => product.id)).toEqual([first.id]);
   });
@@ -134,7 +136,7 @@ describe('invoice order/product ingestion regressions', () => {
     const products = await request(app).get('/api/seller/products').set(headers()).expect(200);
     expect(products.body.data).toEqual([expect.objectContaining({ name: 'مشاهدات تويتر', sku: 'TW-SKU', salla_product_id: '30', source: 'invoice' })]);
     expect(getOrderBySellerAndSallaId(sellerId, 'old-invoice')?.id).toBe(order.id);
-    expect((getDb().prepare('SELECT COUNT(*) AS count FROM fulfillments').get() as any).count).toBe(0);
+    expect((getDb().prepare('SELECT COUNT(*) AS count FROM fulfillments').get() as unknown).count).toBe(0);
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -144,18 +146,18 @@ describe('invoice order/product ingestion regressions', () => {
     createSellerProduct({ sellerId, name: 'first SKU mapping', sku: 'TW-SKU', status: 'active' });
     createSellerProduct({ sellerId, name: 'second SKU mapping', sku: 'TW-SKU', status: 'active' });
     const body = payload();
-    delete (body.data.items[0] as any).product_id;
+    delete (body.data.items[0] as unknown).product_id;
     const url = `/api/webhooks/salla/${conn.public_webhook_id}`;
-    await request(app).post(url).send(body).expect(200);
+    await request(app).post(url).set("x-f5r-webhook-token", getSallaWebhookToken(conn)).send(body).expect(200);
     await processNextSallaWebhookEvent();
     expect(listSellerProducts(sellerId)).toHaveLength(2);
     expect(getOrderBySellerAndSallaId(sellerId, '200')).toBeDefined();
-    expect((getDb().prepare('SELECT last_error FROM webhook_events LIMIT 1').get() as any).last_error)
+    expect((getDb().prepare('SELECT last_error FROM webhook_events LIMIT 1').get() as unknown).last_error)
       .toMatch(/ambiguous.*SKU/i);
-    await request(app).post(url).set('x-event-id', 'ambiguous-replay').send(body).expect(200);
+    await request(app).post(url).set("x-f5r-webhook-token", getSallaWebhookToken(conn)).set('x-event-id', 'ambiguous-replay').send(body).expect(200);
     await processNextSallaWebhookEvent();
     expect(listSellerProducts(sellerId)).toHaveLength(2);
-    expect((getDb().prepare('SELECT COUNT(*) AS count FROM fulfillments').get() as any).count).toBe(0);
+    expect((getDb().prepare('SELECT COUNT(*) AS count FROM fulfillments').get() as unknown).count).toBe(0);
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -170,8 +172,8 @@ describe('invoice order/product ingestion regressions', () => {
       quantityType: 'fixed', quantityValue: 1000, delaySeconds: 0, executionOrder: 1, normalizeUrl: true });
     const body = payload();
     body.data.items[0].description = '';
-    (body.data.items[0] as any).custom_fields = { username: '@example' };
-    await request(app).post(`/api/webhooks/salla/${conn.public_webhook_id}`).send(body).expect(200);
+    (body.data.items[0] as unknown).custom_fields = { username: '@example' };
+    await request(app).post(`/api/webhooks/salla/${conn.public_webhook_id}`).set('x-f5r-webhook-token', getSallaWebhookToken(conn)).send(body).expect(200);
     await processNextSallaWebhookEvent();
     const createOrder = vi.fn(async () => ({ ok: true as const, providerOrderId: 'mock-username-order' }));
     expect(await processNextFulfillment({ createOrder })).toBe(true);
@@ -183,7 +185,7 @@ describe('invoice order/product ingestion regressions', () => {
     const app = await createApp();
     const conn = upsertSallaConnection({ sellerId, isEnabled: true });
     const otherEvent = { ...payload(), event: 'order.created' };
-    const res = await request(app).post(`/api/webhooks/salla/${conn.public_webhook_id}`).send([{ body: otherEvent }]).expect(200);
+    const res = await request(app).post(`/api/webhooks/salla/${conn.public_webhook_id}`).set('x-f5r-webhook-token', getSallaWebhookToken(conn)).send([{ body: otherEvent }]).expect(200);
     expect(res.body.ignored).toBe(true);
     expect(await processNextSallaWebhookEvent()).toBe(false);
     expect(listSellerProducts(sellerId)).toHaveLength(0);
@@ -192,7 +194,7 @@ describe('invoice order/product ingestion regressions', () => {
   it('rejects a batch of multiple events instead of acknowledging and dropping deliveries', async () => {
     const app = await createApp();
     const conn = upsertSallaConnection({ sellerId, isEnabled: true });
-    const res = await request(app).post(`/api/webhooks/salla/${conn.public_webhook_id}`).send([{ body: payload() }, { body: payload() }]).expect(400);
+    const res = await request(app).post(`/api/webhooks/salla/${conn.public_webhook_id}`).set('x-f5r-webhook-token', getSallaWebhookToken(conn)).send([{ body: payload() }, { body: payload() }]).expect(400);
     expect(res.body.ok).toBe(false);
     expect(await processNextSallaWebhookEvent()).toBe(false);
   });
@@ -218,11 +220,11 @@ describe('invoice order/product ingestion regressions', () => {
     const disabled = createSellerProduct({ sellerId, sallaProductId: '30', name: 'disabled', sku: 'TW-SKU', status: 'inactive' });
     const invoice = payload();
     invoice.data.items.push({ ...invoice.data.items[0], id: 51, item_id: 71, product_id: 31 });
-    await request(app).post(`/api/webhooks/salla/${conn.public_webhook_id}`).send(invoice).expect(200);
+    await request(app).post(`/api/webhooks/salla/${conn.public_webhook_id}`).set('x-f5r-webhook-token', getSallaWebhookToken(conn)).send(invoice).expect(200);
     await processNextSallaWebhookEvent();
     expect(listSellerProducts(sellerId)).toHaveLength(2);
     expect(getSellerProductById(sellerId, disabled.id)?.status).toBe('inactive');
-    expect((getDb().prepare('SELECT COUNT(*) AS count FROM fulfillments').get() as any).count).toBe(0);
+    expect((getDb().prepare('SELECT COUNT(*) AS count FROM fulfillments').get() as unknown).count).toBe(0);
   });
 
   it('routes a previously saved unmapped invoice when a rule is added to its manual SKU product', async () => {
@@ -231,7 +233,7 @@ describe('invoice order/product ingestion regressions', () => {
     const product = createSellerProduct({ sellerId, name: 'manual SKU mapping', sku: 'TW-SKU', status: 'active' });
     createProvider({ id: 'routing-provider', sellerId, name: 'mock', baseUrl: 'https://panel.example.com/api/v2',
       apiKeyEncrypted: encryptSecret('test-key'), apiKeyLast4: '-key', isActive: true, isDefault: true });
-    await request(app).post(`/api/webhooks/salla/${conn.public_webhook_id}`).send(payload()).expect(200);
+    await request(app).post(`/api/webhooks/salla/${conn.public_webhook_id}`).set('x-f5r-webhook-token', getSallaWebhookToken(conn)).send(payload()).expect(200);
     await processNextSallaWebhookEvent();
     const saved = getOrderBySellerAndSallaId(sellerId, '200')!;
     // The order predates the product/rule editor session; keep the invoice's

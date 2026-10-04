@@ -7,7 +7,8 @@ import { getOrderBySellerAndSallaId, listOrderItemsByOrderId, upsertOrder, upser
 import { createFulfillmentIfMissing, getFulfillmentById } from "../db/fulfillmentsRepo";
 import { createProvider } from "../db/smmProvidersRepo";
 import { createRule } from "../db/smmRulesRepo";
-import { upsertSallaConnection } from "../db/sallaConnectionsRepo";
+import { getSallaConnectionBySellerId, getSallaWebhookToken, upsertSallaConnection } from "../db/sallaConnectionsRepo";
+import { signAuthToken } from "../test/authFixture";
 import { encryptSecret } from "../lib/encryption";
 import { processNextSallaWebhookEvent } from "./sallaWebhookWorker";
 import { processNextFulfillment } from "./fulfillmentWorker";
@@ -34,6 +35,7 @@ function invoice(fixed = false) {
 
 function setupProduct(fixed = false) {
   const db = getDb();
+  signAuthToken({sub:"description-seller",role:"seller",email:"fixture@example.com",name:"fixture"});
   const now = new Date().toISOString();
   createProvider({ id: "description-provider", sellerId: "description-seller", name: "mock", baseUrl: "https://panel.example.com/api/v2",
     apiKeyEncrypted: encryptSecret("fake-key"), apiKeyLast4: "-key", isActive: true, isDefault: true });
@@ -63,20 +65,20 @@ describe("real-shaped Salla invoice descriptions through fulfillment", () => {
     const app = await createApp();
     const { url } = setupProduct();
     const payload = invoice();
-    await request(app).post(url).send(payload).expect(200);
+    await request(app).post(url).set("x-f5r-webhook-token", getSallaWebhookToken(getSallaConnectionBySellerId("description-seller")!)).send(payload).expect(200);
     expect(await processNextSallaWebhookEvent()).toBe(true);
     const createOrder = mockOrder();
     for (let i = 0; i < 6; i++) expect(await processNextFulfillment({ createOrder })).toBe(true);
     expect(await processNextFulfillment({ createOrder })).toBe(false);
-    const submitted = createOrder.mock.calls.map((args: any) => args[2]);
+    const submitted = createOrder.mock.calls.map((args: unknown) => args[2]);
     expect(submitted).toHaveLength(6);
-    expect(submitted.map((entry: any) => entry.link).sort()).toEqual(Array.from({ length: 6 }, (_, i) => `https://vt.tiktok.com/test${i + 1}/`));
-    expect(submitted.every((entry: any) => entry.quantity === 1000 && entry.service === 10)).toBe(true);
+    expect(submitted.map((entry: unknown) => entry.link).sort()).toEqual(Array.from({ length: 6 }, (_, i) => `https://vt.tiktok.com/test${i + 1}/`));
+    expect(submitted.every((entry: unknown) => entry.quantity === 1000 && entry.service === 10)).toBe(true);
     expect(fetch).not.toHaveBeenCalled();
     const order = getOrderBySellerAndSallaId("description-seller", "200001")!;
     expect(listOrderItemsByOrderId(order.id)).toHaveLength(6);
     // Re-delivery with a different event id must still reuse each fulfillment.
-    await request(app).post(url).set("x-salla-event-id", "replay").send(payload).expect(200);
+    await request(app).post(url).set("x-f5r-webhook-token", getSallaWebhookToken(getSallaConnectionBySellerId("description-seller")!)).set("x-salla-event-id", "replay").send(payload).expect(200);
     expect(await processNextSallaWebhookEvent()).toBe(true);
     expect(await processNextFulfillment({ createOrder })).toBe(false);
     expect(createOrder).toHaveBeenCalledTimes(6);
@@ -85,7 +87,7 @@ describe("real-shaped Salla invoice descriptions through fulfillment", () => {
   it("uses the configured fixed package count with the description link", async () => {
     const app = await createApp();
     const { url } = setupProduct(true);
-    await request(app).post(url).send(invoice(true)).expect(200);
+    await request(app).post(url).set("x-f5r-webhook-token", getSallaWebhookToken(getSallaConnectionBySellerId("description-seller")!)).send(invoice(true)).expect(200);
     expect(await processNextSallaWebhookEvent()).toBe(true);
     const createOrder = mockOrder();
     await processNextFulfillment({ createOrder });
@@ -99,7 +101,7 @@ describe("real-shaped Salla invoice descriptions through fulfillment", () => {
     payload.data.items = payload.data.items.slice(0, 1);
     payload.data.items[0].name = "مشاهدات تويتر";
     payload.data.items[0].description = "ضع رابط التغريدة : https://x.com/example/status/123456789?ref=f5r. عدد المشاهدات : 1000.";
-    await request(app).post(url).send(payload).expect(200);
+    await request(app).post(url).set("x-f5r-webhook-token", getSallaWebhookToken(getSallaConnectionBySellerId("description-seller")!)).send(payload).expect(200);
     expect(await processNextSallaWebhookEvent()).toBe(true);
     const createOrder = mockOrder();
     expect(await processNextFulfillment({ createOrder })).toBe(true);
@@ -112,6 +114,7 @@ describe("real-shaped Salla invoice descriptions through fulfillment", () => {
 
   it("auto-adds an unknown Salla product, then routes its held invoice once after mapping", async () => {
     const app = await createApp();
+    signAuthToken({sub:"description-seller",role:"seller",email:"fixture@example.com",name:"fixture"});
     const conn = upsertSallaConnection({ sellerId: "description-seller", isEnabled: true, duplicateLinkDelaySeconds: 0 });
     const url = `/api/webhooks/salla/${conn.public_webhook_id}`;
     const payload = invoice();
@@ -120,14 +123,14 @@ describe("real-shaped Salla invoice descriptions through fulfillment", () => {
     payload.data.items[0].sku = "AUTO-X-001";
     payload.data.items[0].description = "رابط التغريدة: https://twitter.com/example/status/987654321. عدد الريتويت: 500.";
 
-    await request(app).post(url).send(payload).expect(200);
+    await request(app).post(url).set("x-f5r-webhook-token", getSallaWebhookToken(getSallaConnectionBySellerId("description-seller")!)).send(payload).expect(200);
     expect(await processNextSallaWebhookEvent()).toBe(true);
 
     const product = getSellerProductBySallaProductId("description-seller", "3001")!;
     expect(product).toMatchObject({ name: "ريتويت تلقائي", sku: "AUTO-X-001", source: "invoice", status: "active" });
     expect(product.description).toBeNull();
     expect(listSellerProducts("description-seller")[0].rules_count).toBe(0);
-    expect((getDb().prepare("SELECT COUNT(1) AS count FROM fulfillments").get() as any).count).toBe(0);
+    expect((getDb().prepare("SELECT COUNT(1) AS count FROM fulfillments").get() as unknown).count).toBe(0);
 
     createProvider({ id: "description-provider", sellerId: "description-seller", name: "mock", baseUrl: "https://panel.example.com/api/v2",
       apiKeyEncrypted: encryptSecret("fake-key"), apiKeyLast4: "-key", isActive: true, isDefault: true });
@@ -167,14 +170,14 @@ describe("real-shaped Salla invoice descriptions through fulfillment", () => {
       id: 800001, reference_id: 200001,
       items: payload.data.items.map((item) => ({ id: item.item_id, product_id: 3001, quantity: 1, description: null })).reverse(),
     } }), { status: 200 }));
-    await request(app).post(url).send(payload).expect(200);
+    await request(app).post(url).set("x-f5r-webhook-token", getSallaWebhookToken(getSallaConnectionBySellerId("description-seller")!)).send(payload).expect(200);
     expect(await processNextSallaWebhookEvent()).toBe(true);
     expect(listOrderItemsByOrderId(order.id).map((row) => row.id).sort()).toEqual(legacyItems.map((row) => row.id).sort());
     const createOrder = mockOrder();
     for (let i = 0; i < 6; i++) expect(await processNextFulfillment({ createOrder })).toBe(true);
     expect(await processNextFulfillment({ createOrder })).toBe(false);
     expect(createOrder).toHaveBeenCalledTimes(6);
-    expect(createOrder.mock.calls.map((args: any) => ({ link: args[2].link, quantity: args[2].quantity }))
+    expect(createOrder.mock.calls.map((args: unknown) => ({ link: args[2].link, quantity: args[2].quantity }))
       .sort((a, b) => a.quantity - b.quantity)).toEqual(Array.from({ length: 6 }, (_, i) => ({
         link: `https://vt.tiktok.com/test${i + 1}/`, quantity: (i + 1) * 1000,
       })));
@@ -186,7 +189,7 @@ describe("real-shaped Salla invoice descriptions through fulfillment", () => {
     const { url } = setupProduct();
     const payload = invoice();
     payload.data.items = payload.data.items.slice(0, 1);
-    await request(app).post(url).send(payload).expect(200);
+    await request(app).post(url).set("x-f5r-webhook-token", getSallaWebhookToken(getSallaConnectionBySellerId("description-seller")!)).send(payload).expect(200);
     await processNextSallaWebhookEvent();
     const db = getDb();
     const job = db.prepare("SELECT id FROM fulfillments").get() as { id: string };

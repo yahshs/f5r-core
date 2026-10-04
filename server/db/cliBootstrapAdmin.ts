@@ -1,0 +1,13 @@
+import "dotenv/config";
+import { getDb } from "./db";
+import { runMigrations } from "./migrations";
+import { getUserByEmail, ensureAdminUser } from "./usersRepo";
+import { hashPassword, passwordSchema } from "../lib/password";
+const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+const password = process.env.ADMIN_PASSWORD;
+if (!email || !password) throw new Error("ADMIN_EMAIL and ADMIN_PASSWORD are required for explicit bootstrap");
+passwordSchema.parse(password);
+runMigrations(getDb());
+if (getUserByEmail(email)) throw new Error("Account already exists; bootstrap cannot change an existing account");
+ensureAdminUser({ email, passwordHash: await hashPassword(password) });
+console.log("Admin account created. Remove ADMIN_PASSWORD from the runtime environment.");

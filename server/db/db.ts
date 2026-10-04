@@ -3,8 +3,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { runMigrations } from "./migrations";
-import { ensureAdminUser, ensureDemoUsers } from "./usersRepo";
+import { ensureAdminUser, ensureDemoUsers, getUserByEmail } from "./usersRepo";
 import { hashPassword } from "../lib/password";
+import { getSetting, isSecretSetting } from "./settingsRepo";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -49,6 +50,7 @@ export function getDb() {
     const dbPath = resolveDbPath();
     fs.mkdirSync(path.dirname(dbPath), { recursive: true });
     db = new Database(dbPath);
+    db.pragma("foreign_keys = ON");
     db.pragma("journal_mode = WAL");
     db.pragma("busy_timeout = 5000");
   }
@@ -58,18 +60,22 @@ export function getDb() {
 export async function ensureDbReady() {
   const database = getDb();
   runMigrations(database);
+  for (const row of database.prepare("SELECT key FROM app_settings").all() as Array<{key:string}>) if(isSecretSetting(row.key)) getSetting(row.key);
 
-  const demoPassword = process.env.DEMO_PASSWORD || (process.env.NODE_ENV !== "production" ? "demo1234" : undefined);
-  if (demoPassword) {
+  if (process.env.NODE_ENV === "production" && process.env.DEMO_PASSWORD) throw new Error("Demo accounts are prohibited in production");
+  const demoPassword = process.env.NODE_ENV === "development" ? (process.env.DEMO_PASSWORD || "demo12345678") : undefined;
+  if (demoPassword && ['admin@f5s.sa','seller@f5s.sa'].some(email=>!getUserByEmail(email))) {
     const passwordHash = await hashPassword(demoPassword);
     ensureDemoUsers({ passwordHash });
   }
 
-  const adminPassword = process.env.ADMIN_PASSWORD;
+  const adminPassword = process.env.NODE_ENV === "test" ? process.env.ADMIN_PASSWORD : undefined;
   if (adminPassword) {
     const adminEmail = process.env.ADMIN_EMAIL?.trim() || "admin@f5s.sa";
-    const passwordHash = await hashPassword(adminPassword);
-    ensureAdminUser({ email: adminEmail, passwordHash });
+    if(!getUserByEmail(adminEmail)) {
+      const passwordHash = await hashPassword(adminPassword);
+      ensureAdminUser({ email: adminEmail, passwordHash });
+    }
   }
 }
 

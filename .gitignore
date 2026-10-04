@@ -13,7 +13,9 @@ dist-ssr
 *.local
 .env
 .env.*
+!.env.example
 .data
+release-artifacts/
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm

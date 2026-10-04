@@ -54,7 +54,7 @@
             },
     "home":  {
                  "hero":  {
-                              "title":  "Save time ? let orders fulfill themselves.",
+                              "title":  "Save time. Let orders fulfill themselves.",
                               "subtitle":  "A smart dashboard that connects your Salla store to providers and auto-fulfills orders from the moment of purchase with zero manual work.",
                               "cta":  "Browse Services"
                           },
@@ -71,34 +71,34 @@
                                     "title":  "Start in 3 simple steps",
                                     "subtitle":  "Get started in 3 simple steps",
                                     "step1":  {
-                                                  "title":  "01 â€” Connect your store",
+                                                  "title":  "01 — Connect your store",
                                                   "description":  "Connect your Salla store to the platform via webhook in minutes."
                                               },
                                     "step2":  {
-                                                  "title":  "02 â€” Add providers and services",
+                                                  "title":  "02 — Add providers and services",
                                                   "description":  "Add providers, map each product to its service ID, and set quantities and packages."
                                               },
                                     "step3":  {
-                                                  "title":  "03 â€” Auto execution",
+                                                  "title":  "03 — Auto execution",
                                                   "description":  "Orders run automatically on every purchase with status tracking until completion."
                                               }
                                 },
                  "trust":  {
                                "title":  "Why choose F5R?",
                                "secure":  {
-                                              "title":  "ðŸ”— Direct Salla integration",
-                                              "description":  "Webhook integration to autoâ€‘fulfill orders with no manual steps."
+                                              "title":  " Direct Salla integration",
+                                              "description":  "Webhook integration to auto-fulfill orders with no manual steps."
                                           },
                                "support":  {
-                                               "title":  "âš™ï¸ Full service control",
+                                               "title":  " Full service control",
                                                "description":  "Map products to service IDs and set quantities and packages from one dashboard."
                                            },
                                "fast":  {
-                                            "title":  "ðŸš€ Fast, automatic execution",
+                                            "title":  " Fast, automatic execution",
                                             "description":  "Orders start instantly after purchase with status updates until completion."
                                         },
                                "refill":  {
-                                              "title":  "ðŸ§© Multi-provider support",
+                                              "title":  " Multi-provider support",
                                               "description":  "Add multiple providers and choose the best fit for each service."
                                           }
                            },
@@ -259,7 +259,7 @@
                                   "approved":  "Approved",
                                   "submitted":  "Submitted",
                                   "in_progress":  "In progress",
-                                  "completed":  "Completed",
+                                  "completed":  "Provider accepted",
                                   "partial":  "Partial",
                                   "failed":  "Failed",
                                   "refunded":  "Refunded",
@@ -354,7 +354,7 @@
                                   "rejectReason":  "Rejection Reason"
                               },
                   "stats":  {
-                                "totalRevenue":  "Total Revenue",
+                                "totalRevenue":  "Total invoice totals",
                                 "totalOrders":  "Total Orders",
                                 "pendingOrders":  "Pending Orders",
                                 "activeUsers":  "Active Users",
@@ -369,7 +369,7 @@
                                     "empty":  "No data yet.",
                                     "kpi":  {
                                                 "ordersLast7d":  "Orders (7 days)",
-                                                "revenueLast30d":  "Revenue (30 days)",
+                                                "revenueLast30d":  "Invoice totals (30 days)",
                                                 "pendingFulfillments":  "Pending fulfillments",
                                                 "failedFulfillmentsLast7d":  "Failed fulfillments (7 days)",
                                                 "webhookBacklog":  "Webhook backlog",
@@ -382,7 +382,7 @@
                                     "columns":  {
                                                     "day":  "Day",
                                                     "orders":  "Orders",
-                                                    "revenue":  "Revenue",
+                                                    "revenue":  "Invoice totals",
                                                     "seller":  "Seller",
                                                     "provider":  "Provider",
                                                     "total":  "Total",
@@ -391,7 +391,7 @@
                                     "fulfillmentStatus":  {
                                                              "pending":  "Pending",
                                                              "submitted":  "Submitted",
-                                                             "success":  "Success",
+                                                             "success":  "Provider accepted",
                                                              "failed":  "Failed"
                                                          }
                                 },
@@ -532,7 +532,7 @@
                                                  },
                                        "kpi":  {
                                                    "orders":  "Orders",
-                                                   "revenue":  "Revenue",
+                                                   "revenue":  "Invoice totals",
                                                    "pendingFulfillments":  "Pending fulfillments",
                                                    "failedFulfillments":  "Failed fulfillments"
                                                }
@@ -589,8 +589,8 @@
                                                    },
                                          "kpi":  {
                                                      "orders":  "Orders",
-                                                     "revenue":  "Revenue",
-                                                     "successRate":  "Fulfillment success (30 days)",
+                                                     "revenue":  "Invoice totals",
+                                                     "successRate":  "Provider acceptance (30 days)",
                                                      "webhookBacklog":  "Webhook backlog",
                                                      "totalOrdersAllTime":  "Total: {{count}}",
                                                      "revenue30d":  "30 days: {{amount}}"
@@ -610,9 +610,9 @@
                                                    "totalOrdersHint":  "Recent activity summary",
                                                    "activeOrders":  "Active orders",
                                                    "activeOrdersHint":  "Orders in progress / queued",
-                                                   "completedOrders":  "Completed",
-                                                   "completedOrdersHint":  "Successfully completed orders",
-                                                   "revenue":  "Revenue",
+                                                   "completedOrders":  "Provider accepted",
+                                                   "completedOrdersHint":  "Submissions accepted by the provider; delivery is tracked separately",
+                                                   "revenue":  "Invoice totals",
                                                    "revenueHint":  "Total value of recent orders",
                                                    "products":  "Products",
                                                    "productsHint":  "Linked products",
@@ -650,10 +650,10 @@
                                                        "cards":  {
                                                                      "ordersLast7d":  "Orders (7 days)",
                                                                      "ordersLast7dHint":  "New orders created in the last 7 days.",
-                                                                     "revenueLast30d":  "Revenue (30 days)",
+                                                                     "revenueLast30d":  "Invoice totals (30 days)",
                                                                      "revenueLast30dHint":  "Sum of order totals over the last 30 days.",
-                                                                     "fulfillmentSuccess":  "Fulfillment success (30 days)",
-                                                                     "fulfillmentSuccessHint":  "Success rate for completed fulfillments (success / (success + failed)).",
+                                                                     "fulfillmentSuccess":  "Provider acceptance (30 days)",
+                                                                     "fulfillmentSuccessHint":  "Accepted submissions / (accepted + failed); not delivery completion.",
                                                                      "webhookBacklog":  "Webhook backlog",
                                                                      "webhookBacklogHint":  "Events waiting to be processed.",
                                                                      "routingIssues":  "Routing issues (30 days)",
@@ -672,7 +672,7 @@
                                                        "columns":  {
                                                                        "day":  "Day",
                                                                        "orders":  "Orders",
-                                                                       "revenue":  "Revenue",
+                                                                       "revenue":  "Invoice totals",
                                                                        "product":  "Product",
                                                                        "items":  "Items",
                                                                        "provider":  "Provider",
@@ -683,7 +683,7 @@
                                                        "fulfillmentStatus":  {
                                                                                 "pending":  "Pending",
                                                                                 "submitted":  "Submitted",
-                                                                                "success":  "Success",
+                                                                                "success":  "Provider accepted",
                                                                                 "failed":  "Failed"
                                                                             }
                                                    }
@@ -787,8 +787,8 @@
                                                   "empty":  "No rules yet for this product.",
                                                   "fromField":  "From field",
                                                   "fetchServices":  "Load services",
-                                                  "servicePickerPlaceholder":  "Pick from provider servicesâ€¦",
-                                                  "serviceSearchPlaceholder":  "Search servicesâ€¦",
+                                                  "servicePickerPlaceholder":  "Pick from provider services…",
+                                                  "serviceSearchPlaceholder":  "Search services…",
                                                   "serviceSearchEmpty":  "No services found",
                                                   "deleteTitle":  "Delete rule",
                                                   "deleteHint":  "This action cannot be undone.",
@@ -850,7 +850,7 @@
                                                                 },
                                                   "hints":  {
                                                                 "normalizeUrl":  "Auto-normalize target links before sending.",
-                                                                "targetValue":  "Use this if your Salla order doesnâ€™t include a target (link/username).",
+                                                                "targetValue":  "Use this if your Salla order doesn't include a target (link/username).",
                                                                 "conditions":  "Optional conditions based on order fields."
                                                             },
                                                   "validation":  {

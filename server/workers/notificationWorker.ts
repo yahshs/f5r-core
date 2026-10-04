@@ -59,21 +59,21 @@ function clampReminderCount(value: number | null | undefined) {
   return Math.max(1, Math.min(3, Math.trunc(value as number)));
 }
 
-function formatMoney(value: number | null, currency: string | null) {
-  if (value === null || !Number.isFinite(value)) return "-";
-  return `${value.toFixed(2)}${currency ? ` ${currency}` : ""}`;
+function formatMoney(value: unknown, currency: unknown) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return "-";
+  return `${value.toFixed(2)}${typeof currency === 'string' ? ` ${currency}` : ""}`;
 }
 
 function receivesAllNotifications(seller: SellerNotificationCandidateRow) {
   return (seller.notification_mode ?? "all") === "all";
 }
 
-function normalizeLocale(locale?: string | null): BotLocale {
+function normalizeLocale(locale?: unknown): BotLocale {
   return locale === "en" ? "en" : "ar";
 }
 
 function renderTelegramMessage(job: NotificationJobRow) {
-  const payload = JSON.parse(job.payload_json || "{}") as Record<string, any>;
+  const payload = JSON.parse(job.payload_json || "{}") as Record<string, unknown>;
   const locale = normalizeLocale(payload.locale);
 
   if (job.event_type === "execution_failed") {
@@ -227,18 +227,16 @@ function renderTelegramMessage(job: NotificationJobRow) {
               `Orders: ${payload.totalOrders ?? 0}`,
               `Success: ${payload.successCount ?? 0}`,
               `Failed: ${payload.failedCount ?? 0}`,
-              `Revenue: ${formatMoney(payload.revenue ?? null, payload.currency ?? null)}`,
-              `Provider spend: ${formatMoney(payload.providerSpend ?? null, payload.currency ?? null)}`,
-              `Net profit: ${formatMoney(payload.netProfit ?? null, payload.currency ?? null)}`,
+              `Invoice totals by currency (not settled): ${payload.invoiceSummary || '-'}`,
+              `Estimated provider costs by currency: ${payload.costSummary || '-'}`,
             ].join("\n")
           : [
               `تقرير ${payload.periodLabel || "شهري"}`,
               `عدد الطلبات: ${payload.totalOrders ?? 0}`,
               `النجاح: ${payload.successCount ?? 0}`,
               `الفشل: ${payload.failedCount ?? 0}`,
-              `إجمالي الإيراد: ${formatMoney(payload.revenue ?? null, payload.currency ?? null)}`,
-              `صرف المزوّد: ${formatMoney(payload.providerSpend ?? null, payload.currency ?? null)}`,
-              `الربح الصافي: ${formatMoney(payload.netProfit ?? null, payload.currency ?? null)}`,
+              `إجمالي الفواتير حسب العملة (غير مسوّى): ${payload.invoiceSummary || '-'}`,
+              `تكلفة المزود التقديرية حسب العملة: ${payload.costSummary || '-'}`,
             ].join("\n"),
       replyMarkup: null,
     };
@@ -256,18 +254,25 @@ export async function processNextNotificationJob() {
   if (!job) return false;
 
   try {
-    const payload = JSON.parse(job.payload_json || "{}") as Record<string, any>;
+    const payload = JSON.parse(job.payload_json || "{}") as Record<string, unknown>;
     const chatId = typeof payload.telegramChatId === "string" ? payload.telegramChatId : null;
     if (!chatId) throw new Error("Telegram chat is not linked");
+    const current = getDb().prepare(`SELECT n.telegram_chat_id FROM users u JOIN seller_notification_settings n ON n.seller_id=u.id WHERE u.id=? AND u.role='seller' AND u.is_disabled=0 AND u.deleted_at IS NULL`).get(job.seller_id) as { telegram_chat_id: string | null } | undefined;
+    if (!current || current.telegram_chat_id !== chatId) {
+      // An old destination must never receive details after unlink, relink, or account removal.
+      getDb().prepare(`UPDATE notification_jobs SET status='FAILED',attempts=20,last_error='Notification destination no longer authorized',updated_at=? WHERE id=? AND lease_id=?`).run(new Date().toISOString(),job.id,job.lease_id);
+      return true;
+    }
 
     const rendered = renderTelegramMessage(job);
     await sendTelegramMessage(chatId, rendered.text, { replyMarkup: rendered.replyMarkup });
-    markNotificationJobSent(job.id, new Date().toISOString());
+    markNotificationJobSent(job.id, new Date().toISOString(), job.lease_id!);
     console.log("[notification-worker] sent", { id: job.id, sellerId: job.seller_id, type: job.event_type });
     return true;
   } catch (e) {
     const message = e instanceof Error ? e.message : "Failed to send notification";
     markNotificationJobFailed(job.id, {
+      leaseId: job.lease_id!,
       error: message,
       nextAttemptAtIso: addSeconds(nowIso, backoffSeconds(job.attempts, 3600)),
       nowIso: new Date().toISOString(),
@@ -395,19 +400,16 @@ function buildMonthlyReportPayload(
     .prepare(`SELECT COUNT(*) as c FROM orders WHERE seller_id = ? AND created_at >= ? AND created_at < ?`)
     .get(sellerId, startIso, endIso) as { c: number }).c;
 
-  const revenue = (db
-    .prepare(`SELECT COALESCE(SUM(total), 0) as s FROM orders WHERE seller_id = ? AND created_at >= ? AND created_at < ?`)
-    .get(sellerId, startIso, endIso) as { s: number }).s;
-
-  const spend = (db
+  const invoiceRows = db.prepare(`SELECT upper(currency) AS currency,SUM(total) AS amount FROM orders WHERE seller_id=? AND created_at>=? AND created_at<? AND total IS NOT NULL AND currency IS NOT NULL AND lower(COALESCE(status,'')) NOT LIKE '%cancel%' AND lower(COALESCE(status,'')) NOT LIKE '%refund%' GROUP BY upper(currency)`).all(sellerId,startIso,endIso) as Array<{currency:string;amount:number}>;
+  const costRows = db
     .prepare(
-      `SELECT COALESCE(SUM(f.panel_cost_store), 0) as s
+      `SELECT upper(f.panel_cost_currency) AS currency,SUM(f.panel_cost_store) AS amount
        FROM fulfillments f
        JOIN order_items oi ON oi.id = f.order_item_id
        JOIN orders o ON o.id = oi.order_id
-       WHERE o.seller_id = ? AND f.status = 'SUCCESS' AND o.created_at >= ? AND o.created_at < ?`,
+       WHERE o.seller_id = ? AND f.status = 'SUCCESS' AND f.panel_cost_store IS NOT NULL AND f.panel_cost_currency IS NOT NULL AND o.created_at >= ? AND o.created_at < ? GROUP BY upper(f.panel_cost_currency)`,
     )
-    .get(sellerId, startIso, endIso) as { s: number }).s;
+    .all(sellerId, startIso, endIso) as Array<{currency:string;amount:number}>;
 
   const statusRows = db
     .prepare(
@@ -434,10 +436,8 @@ function buildMonthlyReportPayload(
     totalOrders,
     successCount,
     failedCount,
-    revenue,
-    providerSpend: spend,
-    netProfit: revenue - spend,
-    currency: null,
+    invoiceSummary: invoiceRows.map(row=>formatMoney(row.amount,row.currency)).join(', '),
+    costSummary: costRows.map(row=>formatMoney(row.amount,row.currency)).join(', '),
   };
 }
 

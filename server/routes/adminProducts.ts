@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAdmin } from "../auth";
 import { listAllProducts, getProductByIdAny, updateSellerProduct, deleteSellerProduct } from "../db/productsRepo";
 import { listRulesForProductAny, getRuleByIdAny, updateRule, deleteRule } from "../db/smmRulesRepo";
+import { getProviderByIdForSeller } from "../db/smmProvidersRepo";
 import { getUserById } from "../db/usersRepo";
 import { insertAuditLog } from "../db/auditLogsRepo";
 
@@ -129,6 +130,7 @@ adminProductsRouter.patch("/rules/:id", (req, res) => {
 
   const rule = getRuleByIdAny(id);
   if (!rule) return res.status(404).json({ success: false, message: "Not found" });
+  if (parsed.data.provider_connection_id && !getProviderByIdForSeller(rule.seller_id, parsed.data.provider_connection_id)) return res.status(400).json({ success: false, message: "Provider must belong to the rule's seller" });
 
   const updated = updateRule(rule.seller_id, id, {
     providerConnectionId: parsed.data.provider_connection_id,

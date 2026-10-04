@@ -1,3 +1,4 @@
+import { ensureTestUser } from "../test/authFixture";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -19,6 +20,7 @@ describe("Salla order reference migration", () => {
     resetDbForTests();
     if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
     await ensureDbReady();
+    ensureTestUser("seller-1");
   });
 
   it("replaces an internal Salla id without losing the order or its items", () => {

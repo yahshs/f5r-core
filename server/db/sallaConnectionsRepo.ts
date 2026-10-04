@@ -34,7 +34,7 @@ export type SallaConnectionRow = {
 
 export function isSallaConnectionOperational(row: Pick<SallaConnectionRow, "is_enabled" | "connection_mode" | "status">) {
   if (!row.is_enabled) return false;
-  if (row.connection_mode === "app") return row.status !== "disconnected";
+  if (row.connection_mode === "app") return row.status === "active";
   // Legacy/manual connections existed before the native app status column, so
   // treat them as operational unless explicitly disabled.
   return true;
@@ -278,6 +278,7 @@ export function connectSallaAppInstallation(input: {
          salla_store_url = ?,
          salla_merchant_id = ?,
          access_token_encrypted = ?,
+         refresh_lock = NULL,
          refresh_token_encrypted = ?,
          token_expires_at = ?,
          installed_at = COALESCE(installed_at, ?),
@@ -312,6 +313,7 @@ export function disconnectSallaConnection(sellerId: string) {
     `UPDATE salla_connections
      SET status = 'disconnected',
          access_token_encrypted = NULL,
+         refresh_lock = NULL,
          refresh_token_encrypted = NULL,
          token_expires_at = NULL,
          updated_at = ?

@@ -7,6 +7,7 @@ import { createProvider } from "../db/smmProvidersRepo";
 import { createRule } from "../db/smmRulesRepo";
 import { upsertSallaConnection } from "../db/sallaConnectionsRepo";
 import { insertWebhookEvent } from "../db/webhookEventsRepo";
+import { signAuthToken } from "../test/authFixture";
 import { encryptSecret } from "./encryption";
 import { processNextFulfillment, resolveQuantityDetailed } from "../workers/fulfillmentWorker";
 import { recoverSallaOrderItem } from "./sallaOrderRecovery";
@@ -15,6 +16,8 @@ import { matchSallaItem, mergeSallaOrderItems } from "./sallaOrderItems";
 const now = () => new Date().toISOString();
 function fixture(withToken = true, rawOptions = false) {
   const db = getDb();
+  process.env.JWT_SECRET="test-secret";
+  signAuthToken({sub:"seller",role:"seller",email:"fixture@example.com",name:"fixture"});
   createProvider({ id: "provider", sellerId: "seller", name: "mock", baseUrl: "https://panel.example.com/api/v2", apiKeyEncrypted: encryptSecret("fake-key"), apiKeyLast4: "-key", isActive: true, isDefault: true });
   db.prepare("INSERT INTO seller_products (id, seller_id, salla_product_id, name, created_at, updated_at) VALUES ('product', 'seller', '321', 'test service', ?, ?)").run(now(), now());
   const rule = createRule({ sellerId: "seller", productId: "product", providerConnectionId: "provider", providerServiceId: 10, serviceName: "test", providerServiceRate: 1, targetField: "link", quantityType: "from_field", quantityField: "اختر عدد", delaySeconds: 0, executionOrder: 1, normalizeUrl: true });

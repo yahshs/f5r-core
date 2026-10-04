@@ -32,7 +32,7 @@ export default function AdminCategoriesPage() {
   const createCategory = useCreateAdminCategory();
   const updateCategory = useUpdateAdminCategory();
   const deleteCategory = useDeleteAdminCategory();
-  const categories = categoriesQuery.data?.data ?? [];
+  const categories = useMemo(() => categoriesQuery.data?.data ?? [], [categoriesQuery.data?.data]);
 
   const filtered = useMemo(() => {
     if (!query.trim()) return categories;

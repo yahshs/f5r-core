@@ -1,4 +1,5 @@
-﻿import { createFulfillmentRetryAttempt, getFulfillmentById, listRetryFulfillmentsBySourceFulfillmentId } from "../db/fulfillmentsRepo";
+import { asRecord } from './unknownValue';
+import { createFulfillmentRetryAttempt, getFulfillmentById, listRetryFulfillmentsBySourceFulfillmentId } from "../db/fulfillmentsRepo";
 import { getOrderById, getOrderItemById } from "../db/ordersRepo";
 import { getSellerProductForOrderItem, type SellerProductRow } from "../db/productsRepo";
 import { getProviderByIdForSeller } from "../db/smmProvidersRepo";
@@ -84,11 +85,11 @@ function normalizeLocale(locale?: string | null): BotLocale {
   return locale === "en" ? "en" : "ar";
 }
 
-function getByCaseInsensitiveKey(obj: any, key: string) {
+function getByCaseInsensitiveKey(obj: unknown, key: string) {
   if (!obj || typeof obj !== "object") return undefined;
   const target = key.trim().toLowerCase();
   for (const k of Object.keys(obj)) {
-    if (k.toLowerCase() === target) return obj[k];
+    if (k.toLowerCase() === target) return asRecord(obj)[k];
   }
   return undefined;
 }

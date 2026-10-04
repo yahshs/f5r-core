@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Request } from "express";
 import { z } from "zod";
 import { requireAdmin } from "../auth";
 import {
@@ -18,7 +18,7 @@ const updateSchema = z.object({
   payment_status_filter: z.enum(["all", "paid"]).optional(),
 });
 
-function getBaseUrl(req: any) {
+function getBaseUrl(req: Request) {
   const env = process.env.BASE_PUBLIC_URL;
   if (env) return env.replace(/\/+$/, "");
   const proto = req.header("x-forwarded-proto") || req.protocol;
@@ -26,7 +26,7 @@ function getBaseUrl(req: any) {
   return `${proto}://${host}`;
 }
 
-function getSallaWebhookPublicUrl(req: any, publicId: string) {
+function getSallaWebhookPublicUrl(req: Request, publicId: string) {
   const wordpressBase = process.env.WORDPRESS_PUBLIC_URL?.trim().replace(/\/+$/, "");
   if (wordpressBase) {
     return new URL(`/wp-json/f5r/v1/salla/${publicId}`, wordpressBase).toString();

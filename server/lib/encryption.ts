@@ -1,7 +1,8 @@
 import crypto from "node:crypto";
 
-function getKeyBytes() {
-  const raw = process.env.ENCRYPTION_KEY;
+function getKeyBytes(keyId?: string) {
+  const ring = JSON.parse(process.env.ENCRYPTION_KEYS_JSON || "{}") as Record<string, string>;
+  const raw = keyId && keyId !== (process.env.ENCRYPTION_KEY_ID || "v1") ? ring[keyId] : process.env.ENCRYPTION_KEY;
   if (!raw) throw new Error("ENCRYPTION_KEY is required");
 
   const trimmed = raw.trim();
@@ -20,12 +21,15 @@ export function encryptSecret(plaintext: string) {
   const ciphertext = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
   const tag = cipher.getAuthTag();
 
-  return Buffer.concat([iv, tag, ciphertext]).toString("base64");
+  const keyId = process.env.ENCRYPTION_KEY_ID || "v1";
+  if (!/^[A-Za-z0-9_-]{1,32}$/.test(keyId)) throw new Error("Invalid encryption key ID");
+  return `${keyId}:${Buffer.concat([iv, tag, ciphertext]).toString("base64")}`;
 }
 
 export function decryptSecret(encrypted: string) {
-  const key = getKeyBytes();
-  const raw = Buffer.from(encrypted, "base64");
+  const split = encrypted.indexOf(":");
+  const key = getKeyBytes(split >= 0 ? encrypted.slice(0, split) : "v1");
+  const raw = Buffer.from(split >= 0 ? encrypted.slice(split+1) : encrypted, "base64");
   if (raw.length < 12 + 16 + 1) throw new Error("Invalid encrypted payload");
 
   const iv = raw.subarray(0, 12);

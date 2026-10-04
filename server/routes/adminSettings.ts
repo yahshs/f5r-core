@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAdmin } from "../auth";
-import { listSettings, setSetting, getSetting } from "../db/settingsRepo";
+import { listSettings, setSetting, getSetting, publicSetting } from "../db/settingsRepo";
 import { insertAuditLog } from "../db/auditLogsRepo";
 import { getNotificationJobStats, listFailedNotificationJobs } from "../db/notificationJobsRepo";
 import { configureTelegramWebhook, getTelegramDiagnostics, validateTelegramSetting } from "../lib/telegram";
@@ -44,7 +44,7 @@ adminSettingsRouter.get("/:key", (req, res) => {
   if (!key) return res.status(400).json({ success: false, message: "Invalid key" });
   const row = getSetting(key);
   if (!row) return res.status(404).json({ success: false, message: "Not found" });
-  res.json({ success: true, data: row });
+  res.json({ success: true, data: publicSetting(row) });
 });
 
 adminSettingsRouter.put("/", async (req, res) => {
@@ -74,5 +74,5 @@ adminSettingsRouter.put("/", async (req, res) => {
     }
   }
 
-  res.json({ success: true, data: row, telegramWebhook });
+  res.json({ success: true, data: publicSetting(row), telegramWebhook });
 });

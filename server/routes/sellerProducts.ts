@@ -128,8 +128,8 @@ sellerProductsRouter.post("/", (req, res) => {
       status: parsed.data.status,
     });
     return res.status(201).json({ success: true, data: row });
-  } catch (e: any) {
-    const msg = typeof e?.message === "string" && e.message.includes("UNIQUE") ? "Duplicate Salla product id" : "Failed to create";
+  } catch (e: unknown) {
+    const msg = e instanceof Error && e.message.includes("UNIQUE") ? "Duplicate Salla product id" : "Failed to create";
     return res.status(409).json({ success: false, message: msg });
   }
 });
@@ -154,8 +154,8 @@ sellerProductsRouter.patch("/:id", (req, res) => {
     });
     if (!row) return res.status(404).json({ success: false, message: "Not found" });
     return res.json({ success: true, data: row });
-  } catch (e: any) {
-    const msg = typeof e?.message === "string" && e.message.includes("UNIQUE") ? "Duplicate Salla product id" : "Failed to update";
+  } catch (e: unknown) {
+    const msg = e instanceof Error && e.message.includes("UNIQUE") ? "Duplicate Salla product id" : "Failed to update";
     return res.status(409).json({ success: false, message: msg });
   }
 });

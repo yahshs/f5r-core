@@ -249,7 +249,7 @@
       "approved": "تمت الموافقة",
       "submitted": "تم الإرسال",
       "inProgress": "قيد التنفيذ",
-      "completed": "مكتمل",
+      "completed": "تم قبول الطلب لدى المزود",
       "partial": "جزئي",
       "failed": "فشل",
       "refunded": "مسترد",
@@ -280,7 +280,7 @@
       "approved": "مقبول",
       "submitted": "تم الإرسال",
       "in_progress": "قيد التنفيذ",
-      "completed": "مكتمل",
+      "completed": "تم قبول الطلب لدى المزود",
       "partial": "جزئي",
       "failed": "فشل",
       "refunded": "مسترجع",
@@ -375,7 +375,7 @@
       "rejectReason": "سبب الرفض"
     },
     "stats": {
-      "totalRevenue": "إجمالي الإيرادات",
+      "totalRevenue": "إجمالي الفواتير",
       "totalOrders": "إجمالي الطلبات",
       "pendingOrders": "الطلبات المعلقة",
       "activeUsers": "المستخدمين النشطين",
@@ -390,7 +390,7 @@
       "empty": "لا توجد بيانات بعد.",
       "kpi": {
         "ordersLast7d": "الطلبات (7 أيام)",
-        "revenueLast30d": "الإيراد (30 يوم)",
+        "revenueLast30d": "إجمالي الفواتير (30 يوم)",
         "pendingFulfillments": "تنفيذات معلّقة",
         "failedFulfillmentsLast7d": "تنفيذات فاشلة (7 أيام)",
         "webhookBacklog": "تراكم الويبهوك",
@@ -403,7 +403,7 @@
       "columns": {
         "day": "اليوم",
         "orders": "الطلبات",
-        "revenue": "الإيراد",
+        "revenue": "إجمالي الفواتير",
         "seller": "البائع",
         "provider": "المزوّد",
         "total": "الإجمالي",
@@ -412,7 +412,7 @@
       "fulfillmentStatus": {
         "pending": "معلّق",
         "submitted": "مُرسل",
-        "success": "نجاح",
+        "success": "قبول المزود",
         "failed": "فشل"
       }
     },
@@ -553,7 +553,7 @@
       },
       "kpi": {
         "orders": "الطلبات",
-        "revenue": "الإيراد",
+        "revenue": "إجمالي الفواتير",
         "pendingFulfillments": "تنفيذات معلّقة",
         "failedFulfillments": "تنفيذات فاشلة"
       }
@@ -610,8 +610,8 @@
       },
       "kpi": {
         "orders": "الطلبات",
-        "revenue": "الإيراد",
-        "successRate": "نجاح التنفيذ (30 يوم)",
+        "revenue": "إجمالي الفواتير",
+        "successRate": "قبول المزود (30 يوم)",
         "webhookBacklog": "تراكم الويبهوك",
         "totalOrdersAllTime": "الإجمالي: {{count}}",
         "revenue30d": "30 يوم: {{amount}}"
@@ -631,9 +631,9 @@
         "totalOrdersHint": "ملخص النشاط الأخير",
         "activeOrders": "الطلبات النشطة",
         "activeOrdersHint": "طلبات قيد التنفيذ/الانتظار",
-        "completedOrders": "المكتملة",
-        "completedOrdersHint": "طلبات تم تنفيذها بنجاح",
-        "revenue": "الإيرادات",
+        "completedOrders": "المقبولة لدى المزود",
+        "completedOrdersHint": "طلبات قبلها المزود؛ يتم تتبع التسليم بشكل منفصل",
+        "revenue": "إجمالي الفواتير",
         "revenueHint": "إجمالي قيمة الطلبات الأخيرة",
         "products": "المنتجات",
         "productsHint": "المنتجات المرتبطة",
@@ -671,10 +671,10 @@
         "cards": {
           "ordersLast7d": "الطلبات (7 أيام)",
           "ordersLast7dHint": "عدد الطلبات التي تم إنشاؤها خلال آخر 7 أيام.",
-          "revenueLast30d": "الإيراد (30 يوم)",
+          "revenueLast30d": "إجمالي الفواتير (30 يوم)",
           "revenueLast30dHint": "مجموع إجمالي الطلبات خلال آخر 30 يوم.",
-          "fulfillmentSuccess": "نجاح التنفيذ (30 يوم)",
-          "fulfillmentSuccessHint": "نسبة النجاح للتنفيذات المكتملة (نجاح / (نجاح + فشل)).",
+          "fulfillmentSuccess": "قبول المزود (30 يوم)",
+          "fulfillmentSuccessHint": "الطلبات المقبولة / (المقبولة + الفاشلة)؛ ليست نسبة اكتمال التسليم.",
           "webhookBacklog": "تراكم الويبهوك",
           "webhookBacklogHint": "أحداث بانتظار المعالجة.",
           "routingIssues": "مشاكل التوجيه (30 يوم)",
@@ -693,7 +693,7 @@
         "columns": {
           "day": "اليوم",
           "orders": "الطلبات",
-          "revenue": "الإيراد",
+          "revenue": "إجمالي الفواتير",
           "product": "المنتج",
           "items": "العناصر",
           "provider": "المزوّد",
@@ -704,7 +704,7 @@
         "fulfillmentStatus": {
           "pending": "معلّق",
           "submitted": "مُرسل",
-          "success": "نجاح",
+          "success": "قبول المزود",
           "failed": "فشل"
         }
       }

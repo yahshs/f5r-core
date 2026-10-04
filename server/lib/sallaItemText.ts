@@ -3,7 +3,7 @@
 export function extractSallaUrlFromText(input: string): string | null {
   const text = String(input ?? "");
   const markdown = text.match(/\[[^\]\r\n]*\]\((https?:\/\/[^\s<>]+)\)/i);
-  let url = markdown?.[1] ?? text.match(/https?:\/\/[^\s<>"\[\]]+/i)?.[0];
+  let url = markdown?.[1] ?? text.match(/https?:\/\/[^\s<>"[\]]+/i)?.[0];
   if (!url) return null;
   if (!markdown) {
     url = url.replace(/[.,;!؟،؛]+$/u, "");

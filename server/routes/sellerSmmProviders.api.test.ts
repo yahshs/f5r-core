@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { createApp } from '../app';
 import { resetDbForTests } from '../db/db';
-import { signAuthToken } from '../lib/jwt';
+import { signAuthToken } from "../test/authFixture";
 
 function sellerHeaders(sellerId: string) {
   process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret';

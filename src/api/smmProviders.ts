@@ -77,7 +77,7 @@ export const smmProvidersApi = {
   },
 
   test: async (id: string): Promise<{ message: string; provider: Pick<SmmProviderConnection, 'last_test_status' | 'last_tested_at' | 'last_test_message'> }> => {
-    const res = await apiFetch<{ success: boolean; message: string; data: any }>(`/seller/smm-providers/${id}/test`, { method: 'POST' });
+    const res = await apiFetch<{ success: boolean; message: string; data: Pick<SmmProviderConnection,'last_test_status'|'last_tested_at'|'last_test_message'> }>(`/seller/smm-providers/${id}/test`, { method: 'POST' });
     return {
       message: res.message,
       provider: {

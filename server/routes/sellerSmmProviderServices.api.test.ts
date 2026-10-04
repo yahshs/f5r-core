@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { resetDbForTests } from "../db/db";
-import { signAuthToken } from "../lib/jwt";
+import { signAuthToken } from "../test/authFixture";
 
 vi.mock("../smm/panelV2Adapter", async () => {
   const actual = await vi.importActual<typeof import("../smm/panelV2Adapter")>("../smm/panelV2Adapter");

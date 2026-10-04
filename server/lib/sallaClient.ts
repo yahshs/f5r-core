@@ -1,3 +1,5 @@
+import { asRecord, asArray } from './unknownValue';
+import { boundedFetch } from "./boundedFetch";
 import { mergeSallaOrderItems } from "./sallaOrderItems";
 
 type SallaTokenResponse = {
@@ -51,13 +53,13 @@ export async function exchangeSallaCodeForTokens(code: string): Promise<SallaTok
     code,
   });
 
-  const res = await fetch(tokenUrl, {
+  const res = await boundedFetch(tokenUrl, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded", accept: "application/json" },
     body,
   });
-  const json = (await res.json().catch(() => null)) as any;
-  if (!res.ok) throw new Error(json?.message || json?.error_description || "Failed to exchange Salla code");
+  const json = asRecord((await res.json().catch(() => null)));
+  if (!res.ok) throw new Error(String(json?.message || json?.error_description || "Failed to exchange Salla code"));
 
   const accessToken = String(json?.access_token || "").trim();
   if (!accessToken) throw new Error("Missing Salla access token");
@@ -71,26 +73,26 @@ export async function exchangeSallaCodeForTokens(code: string): Promise<SallaTok
 export async function fetchSallaStoreIdentity(accessToken: string): Promise<SallaStoreIdentity> {
   const authBaseUrl = trimSlash(getEnv("SALLA_AUTH_BASE_URL", "https://accounts.salla.sa"));
   const meUrl = new URL("/oauth2/user/info", authBaseUrl);
-  const res = await fetch(meUrl, {
+  const res = await boundedFetch(meUrl, {
     headers: { authorization: `Bearer ${accessToken}`, accept: "application/json" },
   });
-  const json = (await res.json().catch(() => null)) as any;
-  if (!res.ok) throw new Error(json?.message || "Failed to fetch Salla store identity");
+  const json = asRecord((await res.json().catch(() => null)));
+  if (!res.ok) throw new Error(String(json?.message || "Failed to fetch Salla store identity"));
 
   const data = json?.data ?? json ?? {};
-  const merchant = data?.merchant ?? data?.user ?? data;
-  const store = data?.store ?? data?.merchant?.store ?? data?.data?.store ?? data;
+  const merchant = asRecord(data)?.merchant ?? asRecord(data)?.user ?? data;
+  const store = asRecord(data)?.store ?? asRecord(asRecord(data)?.merchant)?.store ?? asRecord(asRecord(data)?.data)?.store ?? data;
 
   const storeId = String(
-    store?.id ?? store?.store_id ?? merchant?.store_id ?? merchant?.id ?? data?.store_id ?? data?.id ?? "",
+    asRecord(store)?.id ?? asRecord(store)?.store_id ?? asRecord(merchant)?.store_id ?? asRecord(merchant)?.id ?? asRecord(data)?.store_id ?? asRecord(data)?.id ?? "",
   ).trim();
   if (!storeId) throw new Error("Missing Salla store id");
 
   return {
     storeId,
-    storeName: String(store?.name ?? merchant?.name ?? "").trim() || null,
-    storeUrl: String(store?.domain ?? store?.url ?? merchant?.domain ?? "").trim() || null,
-    merchantId: String(merchant?.id ?? data?.merchant_id ?? "").trim() || null,
+    storeName: String(asRecord(store)?.name ?? asRecord(merchant)?.name ?? "").trim() || null,
+    storeUrl: String(asRecord(store)?.domain ?? asRecord(store)?.url ?? asRecord(merchant)?.domain ?? "").trim() || null,
+    merchantId: String(asRecord(merchant)?.id ?? asRecord(data)?.merchant_id ?? "").trim() || null,
   };
 }
 
@@ -113,7 +115,7 @@ export async function registerSallaInvoiceCreatedWebhook(input: {
     secret: webhookSecret,
   };
 
-  const res = await fetch(webhooksUrl, {
+  const res = await boundedFetch(webhooksUrl, {
     method: "POST",
     headers: {
       authorization: `Bearer ${input.accessToken}`,
@@ -122,15 +124,15 @@ export async function registerSallaInvoiceCreatedWebhook(input: {
     },
     body: JSON.stringify(body),
   });
-  const json = (await res.json().catch(() => null)) as any;
+  const json = asRecord((await res.json().catch(() => null)));
   if (!res.ok) {
-    const errorMessage = json?.error?.message || json?.message || json?.error_description;
-    throw new Error(errorMessage || `Failed to register Salla webhook (${res.status})`);
+    const errorMessage = asRecord(json?.error)?.message || json?.message || json?.error_description;
+    throw new Error(String(errorMessage || `Failed to register Salla webhook (${res.status})`));
   }
 
   const data = json?.data ?? json;
-  const registeredEvent = String(data?.event || "").trim().toLowerCase();
-  const registeredUrl = String(data?.url || "").trim();
+  const registeredEvent = String(asRecord(data)?.event || "").trim().toLowerCase();
+  const registeredUrl = String(asRecord(data)?.url || "").trim();
   if (registeredEvent !== "invoice.created") {
     throw new Error("Salla did not confirm the invoice.created webhook event");
   }
@@ -139,10 +141,10 @@ export async function registerSallaInvoiceCreatedWebhook(input: {
   }
 
   return {
-    id: data?.id === undefined || data?.id === null ? null : String(data.id),
+    id: asRecord(data)?.id === undefined || asRecord(data)?.id === null ? null : String(asRecord(data).id),
     event: registeredEvent,
     url: registeredUrl,
-    version: Number(data?.version || 2),
+    version: Number(asRecord(data)?.version || 2),
   };
 }
 
@@ -150,38 +152,38 @@ export async function registerSallaInvoiceCreatedWebhook(input: {
 export async function fetchSallaOrderDetails(accessToken: string, orderId: string) {
   const apiBaseUrl = trimSlash(getEnv("SALLA_API_BASE_URL", "https://api.salla.dev/admin/v2"));
   const orderUrl = new URL(`orders/${encodeURIComponent(orderId)}`, `${apiBaseUrl}/`);
-  const res = await fetch(orderUrl, {
+  const res = await boundedFetch(orderUrl, {
     signal: AbortSignal.timeout(10_000),
     headers: {
       authorization: `Bearer ${accessToken}`,
       accept: "application/json",
     },
   });
-  const json = (await res.json().catch(() => null)) as any;
-  if (!res.ok) throw new Error(json?.message || `Failed to fetch Salla order (${res.status})`);
+  const json = asRecord((await res.json().catch(() => null)));
+  if (!res.ok) throw new Error(String(json?.message || `Failed to fetch Salla order (${res.status})`));
   const order = json?.data ?? json ?? {};
   if (!order || typeof order !== "object" || Array.isArray(order)) throw new Error("Invalid Salla order response");
-  return order;
+  return asRecord(order);
 }
 
 export async function fetchSallaOrderItems(accessToken: string, orderId: string) {
   const apiBaseUrl = trimSlash(getEnv("SALLA_API_BASE_URL", "https://api.salla.dev/admin/v2"));
   const url = new URL("orders/items", `${apiBaseUrl}/`);
   url.searchParams.set("order_id", orderId);
-  const res = await fetch(url, {
+  const res = await boundedFetch(url, {
     signal: AbortSignal.timeout(10_000),
     headers: { authorization: `Bearer ${accessToken}`, accept: "application/json" },
   });
   if (!res.ok) throw new Error(`Salla order items HTTP ${res.status}`);
-  const json = await res.json() as any;
-  const items = json?.data?.data ?? json?.data;
+  const json = asRecord(await res.json());
+  const items = asRecord(json?.data)?.data ?? json?.data;
   if (!Array.isArray(items)) throw new Error("Invalid Salla order items response");
   return items;
 }
 
-export async function fetchSallaOrderWithItems(accessToken: string, orderId: string) {
+export async function fetchSallaOrderWithItems(accessToken: string, orderId: string): Promise<Record<string, unknown> & { items: unknown[]; itemDetailsUnavailable?: boolean }> {
   const order = await fetchSallaOrderDetails(accessToken, orderId);
-  const base = Array.isArray(order.items) ? order.items : Array.isArray(order.items?.data) ? order.items.data : [];
+  const base = Array.isArray(order.items) ? asArray(order.items) : asArray(asRecord(order.items).data);
   try {
     const items = await fetchSallaOrderItems(accessToken, orderId);
     return { ...order, items: mergeSallaOrderItems(base, items) };

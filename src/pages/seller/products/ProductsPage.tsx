@@ -58,7 +58,7 @@ export default function ProductsPage() {
   const updateMutation = useUpdateSellerProduct();
   const deleteMutation = useDeleteSellerProduct();
 
-  const products = listQuery.data ?? [];
+  const products = useMemo(() => listQuery.data ?? [], [listQuery.data]);
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -97,8 +97,8 @@ export default function ProductsPage() {
       const created = await createMutation.mutateAsync(values);
       toast({ title: t("common.success"), description: t("seller.products.toasts.created") });
       setSelectedId(created.id);
-    } catch (e: any) {
-      toast({ title: t("common.error"), description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: t("common.error"), description: (e instanceof Error ? e.message : 'Request failed'), variant: "destructive" });
       throw e;
     }
   };
@@ -121,8 +121,8 @@ export default function ProductsPage() {
     try {
       await updateMutation.mutateAsync({ id, input: values });
       toast({ title: t("common.success"), description: t("seller.products.toasts.updated") });
-    } catch (e: any) {
-      toast({ title: t("common.error"), description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: t("common.error"), description: (e instanceof Error ? e.message : 'Request failed'), variant: "destructive" });
       throw e;
     }
   };
@@ -131,8 +131,8 @@ export default function ProductsPage() {
     try {
       await deleteMutation.mutateAsync(id);
       toast({ title: t("common.success"), description: t("seller.products.toasts.deleted") });
-    } catch (e: any) {
-      toast({ title: t("common.error"), description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: t("common.error"), description: (e instanceof Error ? e.message : 'Request failed'), variant: "destructive" });
     }
   };
 

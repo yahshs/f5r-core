@@ -1,22 +1,79 @@
-import { claimNextFulfillment, hasRecentLinkConflict, listFulfillmentsByOrderId, markFulfillmentFailed, markFulfillmentSuccess, rescheduleFulfillment } from "../db/fulfillmentsRepo";
+import {
+  ruleExpectsUrl,
+  inferPlatformHint,
+  pickRule,
+  resolveTarget,
+  isPermanentFulfillmentError,
+  normalizeProviderErrorMessage,
+  resolveQuantityDetailed,
+  uniqueOrdered,
+  extractTargetForSuccessNotification,
+} from "../lib/fulfillmentParsing";
+export {
+  resolveTarget,
+  resolveQuantityDetailed,
+} from "../lib/fulfillmentParsing";
+import { asRecord } from "../lib/unknownValue";
+import {
+  claimNextFulfillment,
+  hasRecentLinkConflict,
+  listFulfillmentsByOrderId,
+  markFulfillmentFailed,
+  markFulfillmentSuccess,
+  rescheduleFulfillment,
+} from "../db/fulfillmentsRepo";
+import {
+  beginProviderSubmission,
+  finishProviderSubmission,
+} from "../db/fulfillmentsRepo";
+import { reserveOrderExecution } from "../lib/executionPolicy";
 import { decryptSecret } from "../lib/encryption";
 import { assertPublicHttpsUrl } from "../lib/ssrf";
 import { getProviderByIdForSeller } from "../db/smmProvidersRepo";
 import { getOrderItemById, getOrderById } from "../db/ordersRepo";
 import { getSellerProductForOrderItem } from "../db/productsRepo";
-import { getRuleById, listRulesForProduct, updateRule, type SmmProductRuleRow } from "../db/smmRulesRepo";
-import { getSallaConnectionBySellerId } from "../db/sallaConnectionsRepo";
+import {
+  getRuleById,
+  listRulesForProduct,
+  updateRule,
+  type SmmProductRuleRow,
+} from "../db/smmRulesRepo";
+import {
+  getSallaConnectionBySellerId,
+  isSallaConnectionOperational,
+} from "../db/sallaConnectionsRepo";
+import {
+  captureJobSnapshot,
+  readJobSnapshot,
+  currencyAmount,
+  currencyMinorUnits,
+} from "../lib/jobSnapshot";
+import { getDb } from "../db/db";
 import { getUserById } from "../db/usersRepo";
 import { ensureNotificationSettings } from "../db/notificationSettingsRepo";
-import { createPanelV2Order, listPanelV2Services, type CreateOrderResult } from "../smm/panelV2Adapter";
+import {
+  createPanelV2Order,
+  listPanelV2Services,
+  type CreateOrderResult,
+} from "../smm/panelV2Adapter";
 import { enqueueNotification } from "../lib/notifications";
 import { sha256Hex } from "../lib/hash";
 import { recoverSallaOrderItem } from "../lib/sallaOrderRecovery";
-import { extractSallaUrlFromText, invoiceDescriptionFields } from "../lib/sallaItemText";
+import {
+  extractSallaUrlFromText,
+  invoiceDescriptionFields,
+} from "../lib/sallaItemText";
 
-type ServiceSnapshot = { rate: number | null; min: number | null; max: number | null };
+type ServiceSnapshot = {
+  rate: number | null;
+  min: number | null;
+  max: number | null;
+};
 
-const servicesCache = new Map<string, { fetchedAt: number; byId: Map<number, ServiceSnapshot> }>();
+const servicesCache = new Map<
+  string,
+  { fetchedAt: number; byId: Map<number, ServiceSnapshot> }
+>();
 const SERVICES_CACHE_TTL_MS = 15 * 60 * 1000;
 
 async function getServiceSnapshotCached(input: {
@@ -36,7 +93,11 @@ async function getServiceSnapshotCached(input: {
 
   const byId = new Map<number, ServiceSnapshot>();
   for (const s of result.services) {
-    byId.set(s.id, { rate: s.rate ?? null, min: s.min ?? null, max: s.max ?? null });
+    byId.set(s.id, {
+      rate: s.rate ?? null,
+      min: s.min ?? null,
+      max: s.max ?? null,
+    });
   }
   servicesCache.set(input.providerId, { fetchedAt: now, byId });
 
@@ -60,804 +121,22 @@ function duplicateDelayJitterSeconds(seed: string) {
   return hash % 30;
 }
 
-function getByPath(obj: any, path: string) {
-  const parts = path.split(".").map((p) => p.trim()).filter(Boolean);
-  let cur = obj;
-  for (const p of parts) {
-    if (!cur || typeof cur !== "object") return undefined;
-    cur = cur[p];
-  }
-  return cur;
-}
-
-function getByCaseInsensitiveKey(obj: any, key: string) {
-  if (!obj || typeof obj !== "object") return undefined;
-  const target = key.trim().toLowerCase();
-  if (!target) return undefined;
-  for (const k of Object.keys(obj)) {
-    if (k.toLowerCase() === target) return obj[k];
-  }
-  return undefined;
-}
-
-function looksLikeUrl(s: string) {
-  const v = s.trim();
-  if (!v) return false;
-  return /^https?:\/\/\S+/i.test(v) || /^www\.\S+/i.test(v);
-}
-
-function normalizeLabelKey(s: string) {
-  return String(s ?? "")
-    .normalize("NFKC")
-    .replace(/[\u200E\u200F\u061C\u202A-\u202E\u2066-\u2069]/g, "")
-    .replace(/\p{M}/gu, "")
-    .replace(/[^\p{L}\p{N}]+/gu, " ")
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, " ");
-}
-
-function findValueByLabel(itemObj: any, label: string) {
-  const target = normalizeLabelKey(label);
-  if (!target) return undefined;
-
-  return findValueByLabelDeep(itemObj, target);
-}
-
-function extractQuantityFromSelectedValue(raw: any, depth = 0): number {
-  if (depth > 5 || raw == null) return NaN;
-  if (typeof raw === "string" || typeof raw === "number") {
-    if (typeof raw === "number") return Number.isSafeInteger(raw) ? raw : NaN;
-    const clean = toLatinDigits(raw).normalize("NFKC")
-      .replace(/[\u200E\u200F\u061C\u202A-\u202E\u2066-\u2069]/g, "")
-      .replace(/\u066B/g, ".").replace(/[\u066C\u060C]/g, ",").trim();
-    // A selected count, not an id embedded in a URL or a price/duration.
-    if (/https?:|www\.|@|ريال|SAR|USD|دولار|يوم|ساعة|شهر|\$|%/i.test(clean)) return NaN;
-    if (!/^\d/.test(clean)) return NaN;
-    const numbers = clean.match(/\d[\d,]*(?:\.\d+)?/g) ?? [];
-    if (numbers.length > 1 && !clean.includes("+")) return NaN;
-    return parsePositiveIntFromUnknown(clean);
-  }
-  if (Array.isArray(raw)) {
-    const values = [...new Set(raw.map((entry) => extractQuantityFromSelectedValue(entry, depth + 1)).filter(isPlausibleOrderQuantity))];
-    if (values.length > 1) throw new Error("Quantity selection ambiguous: multiple different selected counts");
-    return values[0] ?? NaN;
-  }
-  if (typeof raw !== "object") return NaN;
-
-  // Only inspect customer-visible selected values. IDs and prices are deliberately
-  // excluded because Salla option IDs can look like valid SMM quantities.
-  const preferredKeys = [
-    "selected",
-    "selection",
-    "selected_value",
-    "selectedValue",
-    "selected_option",
-    "selectedOption",
-    "selected_options",
-    "selectedOptions",
-    "option_value",
-    "optionValue",
-    "choice",
-    "submitted",
-    "answer",
-    "input",
-    "name",
-    "text",
-    "title",
-    "label",
-    "value",
-    "values",
-    "data",
-  ];
-  for (const key of preferredKeys) {
-    const value = getByCaseInsensitiveKey(raw, key);
-    if (value == null) continue;
-    const parsed = extractQuantityFromSelectedValue(value, depth + 1);
-    if (isPlausibleOrderQuantity(parsed)) return parsed;
-  }
-  return NaN;
-}
-
-function quantityLabelScore(label: unknown, configuredField: string) {
-  if (typeof label !== "string") return 0;
-  const normalized = normalizeLabelKey(label);
-  const configured = normalizeLabelKey(configuredField);
-  if (!normalized) return 0;
-  if (/سعر|تكلف|مبلغ|رقم الطلب|أيام|ايام|يوم|ساع|شهر|مدة|price|cost|duration|days|hours/i.test(normalized)) return 0;
-  if (configured && (normalized === configured || normalized.includes(configured) || configured.includes(normalized))) return 100;
-  if (/\b(quantity|qty|count)\b/i.test(normalized) || normalized.includes("عدد") || normalized.includes("كمية")) return 80;
-  if (
-    normalized.includes("مشاهد") ||
-    normalized.includes("متابع") ||
-    normalized.includes("لايك") ||
-    normalized.includes("اعجاب") ||
-    normalized.includes("حفظ") ||
-    normalized.includes("شير") ||
-    normalized.includes("تعليق")
-  ) return 50;
-  return 0;
-}
-
-function findQuantityInSallaOrderItem(itemObj: any, configuredField: string) {
-  // Start from the complete Salla order item. The same selected option has
-  // appeared under options, product.options, services, attributes and custom
-  // fields across different invoice/order payload versions.
-  const containers = [itemObj].filter((value) => value && typeof value === "object");
-
-  const candidates: Array<{ quantity: number; score: number }> = [];
-  // Salla invoice.created places the actual buyer count in the purchased
-  // item's description, e.g. "عدد المشاهدات : 1000.", even with quantity: 1.
-  // Read that item only, never the product's catalogue description.
-  for (const field of invoiceDescriptionFields(itemObj?.description)) {
-    const score = quantityLabelScore(field.label, configuredField);
-    if (!score) continue;
-    const quantity = extractQuantityFromSelectedValue(field.value);
-    if (isPlausibleOrderQuantity(quantity)) candidates.push({ quantity, score });
-  }
-  const stack: Array<{ value: any; depth: number }> = containers.map((value) => ({ value, depth: 0 }));
-  const seen = new Set<any>();
-  let nodes = 0;
-
-  while (stack.length && nodes < 1200) {
-    const current = stack.pop()!;
-    nodes += 1;
-    const value = current.value;
-    if (!value || typeof value !== "object" || current.depth > 6 || seen.has(value)) continue;
-    seen.add(value);
-
-    if (Array.isArray(value)) {
-      for (let index = value.length - 1; index >= 0; index -= 1) {
-        stack.push({ value: value[index], depth: current.depth + 1 });
-      }
-      continue;
-    }
-
-    const label =
-      getByCaseInsensitiveKey(value, "label") ??
-      getByCaseInsensitiveKey(value, "name") ??
-      getByCaseInsensitiveKey(value, "title") ??
-      getByCaseInsensitiveKey(value, "question") ??
-      getByCaseInsensitiveKey(value, "key") ??
-      // Salla can separate the option definition from the selected value:
-      // { option: { name: "اختر عدد" }, value: { name: "5000" } }.
-      // Read the definition solely as a label; ids/prices remain excluded.
-      getByCaseInsensitiveKey(getByCaseInsensitiveKey(value, "option"), "label") ??
-      getByCaseInsensitiveKey(getByCaseInsensitiveKey(value, "option"), "name") ??
-      getByCaseInsensitiveKey(getByCaseInsensitiveKey(value, "option"), "title") ??
-      getByCaseInsensitiveKey(getByCaseInsensitiveKey(value, "field"), "label") ??
-      getByCaseInsensitiveKey(getByCaseInsensitiveKey(value, "field"), "name") ??
-      getByCaseInsensitiveKey(getByCaseInsensitiveKey(value, "attribute"), "label") ??
-      getByCaseInsensitiveKey(getByCaseInsensitiveKey(value, "attribute"), "name");
-    const score = quantityLabelScore(label, configuredField);
-    if (score > 0) {
-      const selected =
-        getByCaseInsensitiveKey(value, "selected") ??
-        getByCaseInsensitiveKey(value, "selection") ??
-        getByCaseInsensitiveKey(value, "selected_value") ??
-        getByCaseInsensitiveKey(value, "selectedValue") ??
-        getByCaseInsensitiveKey(value, "selected_option") ??
-        getByCaseInsensitiveKey(value, "selectedOption") ??
-        getByCaseInsensitiveKey(value, "selected_options") ??
-        getByCaseInsensitiveKey(value, "selectedOptions") ??
-        getByCaseInsensitiveKey(value, "option_value") ??
-        getByCaseInsensitiveKey(value, "optionValue") ??
-        getByCaseInsensitiveKey(value, "choice") ??
-        getByCaseInsensitiveKey(value, "submitted") ??
-        getByCaseInsensitiveKey(value, "answer") ??
-        getByCaseInsensitiveKey(value, "input") ??
-        getByCaseInsensitiveKey(value, "value") ??
-        getByCaseInsensitiveKey(value, "values");
-      const quantity = extractQuantityFromSelectedValue(selected);
-      if (isPlausibleOrderQuantity(quantity)) candidates.push({ quantity: Math.floor(quantity), score });
-    }
-
-    // Some Salla/Make payloads flatten custom inputs as a map:
-    // { "اختر عدد": "5000" }. Treat the map key as the label.
-    for (const [key, child] of Object.entries(value)) {
-      if (current.depth === 0 && ["quantity", "qty", "count"].includes(String(key).trim().toLowerCase())) continue;
-      const keyScore = quantityLabelScore(key, configuredField);
-      if (keyScore <= 0) continue;
-      const quantity = extractQuantityFromSelectedValue(child);
-      if (isPlausibleOrderQuantity(quantity)) {
-        candidates.push({ quantity: Math.floor(quantity), score: keyScore });
-      }
-    }
-
-    for (const [key, child] of Object.entries(value)) {
-      if (/^(id|.*_id|price|amounts|stock|metadata|_f5r)$/i.test(key)) continue;
-      if (child && typeof child === "object") stack.push({ value: child, depth: current.depth + 1 });
-    }
-  }
-
-  candidates.sort((a, b) => b.score - a.score || b.quantity - a.quantity);
-  const best = candidates.filter((entry) => entry.score === candidates[0]?.score);
-  if (new Set(best.map((entry) => entry.quantity)).size > 1) {
-    throw new Error("Quantity selection ambiguous: more than one matching count field");
-  }
-  return candidates[0]?.quantity ?? null;
-}
-
-function toLatinDigits(input: string) {
-  return String(input ?? "")
-    .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660))
-    .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0));
-}
-
-function parsePositiveIntFromUnknown(raw: any) {
-  if (typeof raw === "number" && Number.isFinite(raw)) return Math.floor(raw);
-  if (raw == null) return NaN;
-  if (typeof raw === "object") return NaN;
-
-  const parsed = parseHumanQuantity(String(raw));
-  if (parsed === undefined) return NaN;
-  return Math.floor(parsed);
-}
-
-function parseHumanQuantity(input: string): number | undefined {
-  const normalized = toLatinDigits(String(input ?? ""))
-    // Arabic decimal separator and thousands separators
-    .replace(/\u066B/g, ".")
-    .replace(/\u066C/g, ",")
-    .replace(/\u060C/g, ",")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (!normalized) return undefined;
-
-  const parts = normalized
-    .split("+")
-    .map((p) => p.trim())
-    .filter(Boolean);
-  if (!parts.length) return undefined;
-
-  let sum = 0;
-  for (const part of parts) {
-    const v = parseHumanQuantityTerm(part);
-    if (v === undefined) return undefined;
-    sum += v;
-  }
-
-  const rounded = Math.round(sum);
-  return rounded > 0 ? rounded : undefined;
-}
-
-function parseHumanQuantityTerm(term: string): number | undefined {
-  const t = String(term ?? "")
-    .replace(/[()]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (!t) return undefined;
-
-  // K / M suffix (supports decimals)
-  {
-    const m = t.match(/([0-9][0-9,]*(?:\.[0-9]+)?)\s*([kKmM])\b/);
-    if (m) {
-      const num = Number(String(m[1]).replace(/,/g, ""));
-      if (!Number.isFinite(num)) return undefined;
-      const mult = String(m[2]).toLowerCase() === "m" ? 1_000_000 : 1_000;
-      return num * mult;
-    }
-  }
-
-  // Arabic words for thousand/million
-  {
-    const m = t.match(/([0-9][0-9,]*(?:\.[0-9]+)?)\s*(ألف|الف|آلاف|الاف)(?:\s|$)/);
-    if (m) {
-      const num = Number(String(m[1]).replace(/,/g, ""));
-      if (!Number.isFinite(num)) return undefined;
-      return num * 1_000;
-    }
-  }
-  {
-    const m = t.match(/([0-9][0-9,]*(?:\.[0-9]+)?)\s*(مليون|ملايين)(?:\s|$)/);
-    if (m) {
-      const num = Number(String(m[1]).replace(/,/g, ""));
-      if (!Number.isFinite(num)) return undefined;
-      return num * 1_000_000;
-    }
-  }
-
-  // Fallback: extract first number, ignore any trailing words (e.g. "500 لايك")
-  const matches = Array.from(t.matchAll(/([0-9][0-9,]*(?:\.[0-9]+)?)/g))
-    .map((m) => m[1])
-    .filter(Boolean);
-  if (!matches.length) return undefined;
-
-  let best = 0;
-  for (const raw of matches) {
-    const n = Number(String(raw).replace(/,/g, ""));
-    if (!Number.isFinite(n)) continue;
-    if (n > best) best = n;
-  }
-
-  return best > 0 ? best : undefined;
-}
-
-function extractPositiveIntFromObject(raw: any) {
-  if (!raw || typeof raw !== "object") return NaN;
-
-  const preferredKeys = [
-    "quantity",
-    "qty",
-    "value",
-    "option_value",
-    "optionValue",
-    "selected_value",
-    "selectedValue",
-    "name",
-    "text",
-    "title",
-    "label",
-  ];
-
-  for (const k of preferredKeys) {
-    const v = getByCaseInsensitiveKey(raw, k);
-    if (v == null) continue;
-    const n = parsePositiveIntFromUnknown(v);
-    if (Number.isFinite(n) && n > 0) return n;
-  }
-
-  return NaN;
-}
-
-function isPlausibleOrderQuantity(n: number) {
-  // SMM quantities are typically in the thousands; treat very large values as likely IDs/metadata.
-  return Number.isFinite(n) && n > 0 && n <= 10_000_000;
-}
-
-function findFirstNumericPrimitiveDeep(
-  root: any,
-  opts?: { maxDepth?: number; maxNodes?: number; skipKeys?: Set<string>; preferStringKeys?: string[] },
-) {
-  const maxDepth = opts?.maxDepth ?? 4;
-  const maxNodes = opts?.maxNodes ?? 600;
-  const skipKeys = opts?.skipKeys ?? new Set<string>(["id", "service", "service_id", "order", "order_id"]);
-  const preferStringKeys = opts?.preferStringKeys ?? ["name", "value", "option_value", "optionValue", "text", "title", "label"];
-
-  const stack: Array<{ v: any; depth: number }> = [{ v: root, depth: 0 }];
-  const seen = new Set<any>();
-  let nodes = 0;
-
-  while (stack.length) {
-    const cur = stack.pop()!;
-    nodes += 1;
-    if (nodes > maxNodes) break;
-
-    const v = cur.v;
-    if (typeof v === "string") {
-      const n = parsePositiveIntFromUnknown(v);
-      if (isPlausibleOrderQuantity(n)) return n;
-      continue;
-    }
-    if (typeof v === "number") {
-      const n = parsePositiveIntFromUnknown(v);
-      if (isPlausibleOrderQuantity(n)) return n;
-      continue;
-    }
-
-    if (!v || typeof v !== "object") continue;
-    if (seen.has(v)) continue;
-    seen.add(v);
-    if (cur.depth > maxDepth) continue;
-
-    const preferred = extractPositiveIntFromObject(v);
-    if (isPlausibleOrderQuantity(preferred)) return preferred;
-
-    if (Array.isArray(v)) {
-      for (let i = v.length - 1; i >= 0; i--) stack.push({ v: v[i], depth: cur.depth + 1 });
-      continue;
-    }
-
-    const keys = Object.keys(v);
-    for (let i = keys.length - 1; i >= 0; i--) {
-      const key = keys[i] ?? "";
-      if (skipKeys.has(String(key).toLowerCase())) continue;
-      stack.push({ v: (v as any)[key], depth: cur.depth + 1 });
-    }
-  }
-
-  return null;
-}
-
-function findValueByLabelDeep(root: any, labelNormalized: string, opts?: { maxDepth?: number; maxNodes?: number }) {
-  const maxDepth = opts?.maxDepth ?? 8;
-  const maxNodes = opts?.maxNodes ?? 6000;
-
-  const stack: Array<{ v: any; depth: number }> = [{ v: root, depth: 0 }];
-  const seen = new Set<any>();
-  let nodes = 0;
-
-  while (stack.length) {
-    const cur = stack.pop()!;
-    nodes += 1;
-    if (nodes > maxNodes) break;
-
-    const v = cur.v;
-    if (!v || typeof v !== "object") continue;
-    if (seen.has(v)) continue;
-    seen.add(v);
-    if (cur.depth > maxDepth) continue;
-
-    if (Array.isArray(v)) {
-      for (let i = v.length - 1; i >= 0; i--) {
-        stack.push({ v: v[i], depth: cur.depth + 1 });
-      }
-      continue;
-    }
-
-    const name =
-      getByCaseInsensitiveKey(v, "name") ??
-      getByCaseInsensitiveKey(v, "label") ??
-      getByCaseInsensitiveKey(v, "title") ??
-      getByCaseInsensitiveKey(v, "key");
-    if (typeof name === "string" && name.trim()) {
-      const n = normalizeLabelKey(name);
-      if (n === labelNormalized || n.includes(labelNormalized) || labelNormalized.includes(n)) {
-        const raw =
-          getByCaseInsensitiveKey(v, "value") ??
-          getByCaseInsensitiveKey(v, "answer") ??
-          getByCaseInsensitiveKey(v, "input") ??
-          getByCaseInsensitiveKey(v, "val") ??
-          getByCaseInsensitiveKey(v, "text");
-        if (raw !== undefined) return raw;
-
-        const numericFallback = findFirstNumericPrimitiveDeep(v);
-        if (numericFallback !== null) return numericFallback;
-      }
-    }
-
-    const keys = Object.keys(v);
-    for (let i = keys.length - 1; i >= 0; i--) {
-      stack.push({ v: (v as any)[keys[i]], depth: cur.depth + 1 });
-    }
-  }
-
-  return undefined;
-}
-
-function normalizeUrlish(s: string) {
-  const v = s.trim();
-  if (!v) return null;
-  // If the string contains whitespace, it is not a clean URL token.
-  // This happens when Salla/Make forwards a URL followed by page text.
-  if (/\s/.test(v)) return null;
-  if (v.toLowerCase().startsWith("http://") || v.toLowerCase().startsWith("https://")) return v;
-  return null;
-}
-
-function extractUrlFromText(s: string) {
-  return extractSallaUrlFromText(s);
-}
-
-function isSocialTargetUrl(value: string) {
-  try {
-    const host = new URL(value).hostname.toLowerCase();
-    return (
-      host === "tiktok.com" ||
-      host.endsWith(".tiktok.com") ||
-      host === "instagram.com" ||
-      host.endsWith(".instagram.com") ||
-      host === "instagr.am" ||
-      host.endsWith(".instagr.am") ||
-      host === "x.com" ||
-      host.endsWith(".x.com") ||
-      host === "twitter.com" ||
-      host.endsWith(".twitter.com")
-    );
-  } catch {
-    return false;
-  }
-}
-
-function isUsableTargetUrl(value: string, socialOnly: boolean) {
-  try {
-    const url = new URL(value);
-    const host = url.hostname.toLowerCase();
-    if (host === 'salla.sa' || host.endsWith('.salla.sa') || host === 'salla.network' || host.endsWith('.salla.network')) return false;
-    if ((host === 'tiktok.com' || host.endsWith('.tiktok.com')) && /^\/@\/?$/.test(url.pathname)) return false;
-    return !socialOnly || isSocialTargetUrl(value);
-  } catch {
-    return false;
-  }
-}
-
-function findUrlDeep(root: any, socialOnly: boolean) {
-  const stack: Array<{ value: any; depth: number }> = [{ value: root, depth: 0 }];
-  const seen = new Set<any>();
-  let nodes = 0;
-
-  while (stack.length && nodes < 4000) {
-    const current = stack.pop()!;
-    nodes += 1;
-
-    if (typeof current.value === "string") {
-      const url = extractUrlFromText(current.value) ?? normalizeUrlish(current.value);
-      if (url && isUsableTargetUrl(url, socialOnly)) return url;
-      continue;
-    }
-    if (!current.value || typeof current.value !== "object" || current.depth >= 10) continue;
-    if (seen.has(current.value)) continue;
-    seen.add(current.value);
-
-    if (Array.isArray(current.value)) {
-      for (let i = current.value.length - 1; i >= 0; i--) {
-        stack.push({ value: current.value[i], depth: current.depth + 1 });
-      }
-      continue;
-    }
-
-    const keys = Object.keys(current.value);
-    for (let i = keys.length - 1; i >= 0; i--) {
-      stack.push({ value: current.value[keys[i]], depth: current.depth + 1 });
-    }
-  }
-
-  return null;
-}
-
-function ruleExpectsUrl(rule: SmmProductRuleRow) {
-  const raw = String(rule.target_field || "").trim();
-  if (!raw) return false;
-
-  const f = normalizeLabelKey(raw);
-  if (!f) return false;
-
-  // Explicit username-like fields should not be treated as URLs.
-  if (f.includes("username") || f.includes("user name") || f.includes("handle") || f.includes("account") || f.includes("اسم المستخدم")) return false;
-
-  if (rule.normalize_url === 1) return true;
-
-  // Treat link-ish fields as URLs (supports Arabic labels like "ضع رابط المقطع").
-  if (f === "link" || f === "url" || f === "post link" || f === "video link") return true;
-  if (f.includes("link") || f.includes("url") || f.includes("http") || f.includes("www")) return true;
-  if (f.includes("رابط") || f.includes("لينك") || f.includes("وصلة")) return true;
-
-  return false;
-}
-
-function inferPlatformHint(
-  rule: SmmProductRuleRow,
-  sellerProduct?: { category?: string | null; product_type?: string | null; name?: string | null },
-) {
-  const hay = [rule.service_name, sellerProduct?.category, sellerProduct?.product_type, sellerProduct?.name]
-    .filter((v) => typeof v === "string" && v.trim().length > 0)
-    .map((v) => String(v).toLowerCase());
-
-  const joined = hay.join(" | ");
-  if (!joined) return null;
-
-  if (joined.includes("tiktok") || joined.includes("tik tok") || joined.includes("تيك توك") || joined.includes("تيكتوك")) return "tiktok" as const;
-  if (joined.includes("instagram") || joined.includes("insta") || joined.includes("انستقرام") || joined.includes("إنستقرام") || joined.includes("انستا")) return "instagram" as const;
-  if (joined.includes("twitter") || joined.includes("x.com") || joined.includes("تويتر") || joined.includes("منصة اكس") || joined.includes("منصة إكس")) return "twitter" as const;
-
-  if (joined.includes("tiktok") || joined.includes("tik tok") || joined.includes("تيك") || joined.includes("تيكتوك")) return "tiktok" as const;
-  if (joined.includes("instagram") || joined.includes("insta") || joined.includes("انستا") || joined.includes("انستقرام")) return "instagram" as const;
-  if (joined.includes("twitter") || joined.includes("x.com") || joined.includes("تويتر") || joined.includes("اكس") || joined.includes("إكس")) return "twitter" as const;
-
-  return null;
-}
-
-function pickRule(rules: SmmProductRuleRow[], providerId: string) {
-  const filtered = rules.filter((r) => r.provider_connection_id === providerId);
-  return filtered[0] ?? null;
-}
-
-export function resolveTarget(rule: SmmProductRuleRow, itemObj: any, _platformHint?: "tiktok" | "instagram" | "twitter" | null): string | null {
-  const expectsUrl = ruleExpectsUrl(rule);
-  const socialOnly = !!(_platformHint || rule.platform);
-
-  // URL-based services must use a URL that came from Salla.
-  // Never manufacture a profile URL from a username and never fall back to rule defaults/url_handler.
-  if (expectsUrl) {
-    const trusted = itemObj?._f5r?.salla_target_url;
-    if (typeof trusted === "string") {
-      const exact = extractUrlFromText(trusted) ?? normalizeUrlish(trusted);
-      if (exact && isUsableTargetUrl(exact, socialOnly)) return exact;
-    }
-
-    const field = typeof rule.target_field === "string" ? rule.target_field.trim() : "";
-    const explicitValues = [
-      field ? getByPath(itemObj, field) : undefined,
-      field ? getByCaseInsensitiveKey(itemObj, field) : undefined,
-      field ? findValueByLabelDeep(itemObj, normalizeLabelKey(field)) : undefined,
-      itemObj?.target,
-      itemObj?.link,
-      itemObj?.url,
-      itemObj?.post_link,
-      itemObj?.video_link,
-      itemObj?.fields?.link,
-      itemObj?.custom_fields?.link,
-      itemObj?.customFields?.link,
-    ];
-    for (const value of explicitValues) {
-      const exact = findUrlDeep(value, socialOnly);
-      if (exact) return exact;
-    }
-
-    // Salla changes the nesting of product inputs between webhook payload versions.
-    // A social URL anywhere inside the purchased item is safe to use and avoids losing valid orders.
-    return findUrlDeep(itemObj, true);
-  }
-
-  const tryRawSallaValue = (val: any) => {
-    if (typeof val !== "string") return null;
-    const raw = val.trim();
-    if (!raw) return null;
-    return extractUrlFromText(raw) ?? normalizeUrlish(raw) ?? raw;
-  };
-
-  const field = rule.target_field;
-  if (typeof field === "string" && field.trim()) {
-    const values = [
-      getByPath(itemObj, field),
-      itemObj?.[field],
-      getByCaseInsensitiveKey(itemObj, field),
-      getByCaseInsensitiveKey(itemObj?.fields, field),
-      getByCaseInsensitiveKey(itemObj?.custom_fields, field),
-      getByCaseInsensitiveKey(itemObj?.customFields, field),
-      findValueByLabelDeep(itemObj, normalizeLabelKey(field)),
-    ];
-    for (const value of values) {
-      const resolved = tryRawSallaValue(value);
-      if (resolved) return resolved;
-    }
-  }
-
-  const candidates = [
-    itemObj?.target,
-    itemObj?.link,
-    itemObj?.url,
-    itemObj?.post_link,
-    itemObj?.video_link,
-    itemObj?.username,
-    itemObj?.handle,
-    itemObj?.account,
-    itemObj?.fields?.link,
-    itemObj?.custom_fields?.link,
-    itemObj?.customFields?.link,
-  ];
-  for (const candidate of candidates) {
-    const resolved = tryRawSallaValue(candidate);
-    if (resolved) return resolved;
-  }
-
-  return null;
-}
-
-function isPermanentFulfillmentError(message: string) {
-  const m = message.toLowerCase();
-  return (
-    m.includes("target value missing") ||
-    m.includes("quantity value missing") ||
-    m.includes("quantity selection ambiguous") ||
-    m.includes("missing quantity_value") ||
-    m.includes("no seller product mapping") ||
-    m.includes("no smm rules for product") ||
-    m.includes("no matching rule") ||
-    m.includes("min_quantity") ||
-    m.includes("neworder.error.min_quantity")
-  );
-}
-
-function normalizeProviderErrorMessage(message: string) {
-  const m = message.toLowerCase().trim();
-  if (m === "neworder.error.min_quantity" || m.includes("min_quantity")) {
-    return "Order quantity is below the service minimum (min_quantity).";
-  }
-  return message;
-}
-
-export function resolveQuantityDetailed(rule: SmmProductRuleRow, itemObj: any, fallback: number) {
-  const orderQty = Number.isFinite(fallback) && fallback > 0 ? Math.floor(fallback) : 1;
-
-  if (rule.quantity_type === "fixed") {
-    const v = rule.quantity_value;
-    if (typeof v === "number" && Number.isFinite(v) && v > 0) {
-      const base = Math.floor(v);
-      return { quantity: base * Math.max(1, orderQty), meta: { mode: "fixed" as const, base, orderQty } };
-    }
-    throw new Error("Fixed quantity rule is missing quantity_value");
-  }
-
-  if (rule.quantity_type === "from_field" && rule.quantity_field) {
-    const rawPath = getByPath(itemObj, rule.quantity_field);
-    const raw = rawPath;
-
-    const direct = extractQuantityFromSelectedValue(raw);
-    if (isPlausibleOrderQuantity(direct)) {
-      const base = Math.floor(direct);
-      const nativeQuantity = /^(quantity|qty|count)$/i.test(rule.quantity_field.trim());
-      return {
-        quantity: nativeQuantity ? base : base * Math.max(1, orderQty),
-        meta: { mode: "from_field" as const, base, orderQty: nativeQuantity ? 1 : orderQty, field: rule.quantity_field, rawType: typeof raw },
-      };
-    }
-
-    const selectedFromOrder = findQuantityInSallaOrderItem(itemObj, rule.quantity_field);
-    if (selectedFromOrder !== null) {
-      const base = Math.floor(selectedFromOrder);
-      return {
-        quantity: base * Math.max(1, orderQty),
-        meta: { mode: "from_field" as const, base, orderQty, field: rule.quantity_field, rawType: "salla_order_option" },
-      };
-    }
-
-    // If the buyer selected the service count through Salla's native line-item
-    // quantity, use it directly. Small values are kept as multipliers only and
-    // are not silently sent as an SMM quantity.
-    if (orderQty >= 10 && isPlausibleOrderQuantity(orderQty)) {
-      return {
-        quantity: orderQty,
-        meta: { mode: "from_field" as const, base: orderQty, orderQty: 1, field: rule.quantity_field, rawType: "salla_line_quantity" },
-      };
-    }
-
-    throw new Error(`Quantity value missing (field=${rule.quantity_field})`);
-  }
-
-  return { quantity: fallback, meta: { mode: "fallback" as const, orderQty } };
-}
-
-function uniqueOrdered(values: Array<string | null | undefined>) {
-  const out: string[] = [];
-  const seen = new Set<string>();
-  for (const value of values) {
-    const clean = String(value ?? "").trim();
-    if (!clean || seen.has(clean)) continue;
-    seen.add(clean);
-    out.push(clean);
-  }
-  return out;
-}
-
-function extractFallbackTarget(itemObj: any) {
-  const candidates = [
-    itemObj?.target,
-    itemObj?.link,
-    itemObj?.url,
-    itemObj?.post_link,
-    itemObj?.video_link,
-    itemObj?.username,
-    itemObj?.handle,
-    itemObj?.account,
-  ];
-  for (const candidate of candidates) {
-    if (typeof candidate === "string" && candidate.trim()) return candidate.trim();
-  }
-  return null;
-}
-
-function extractTargetForSuccessNotification(
-  orderItem: { target_json: string | null },
-  rule: SmmProductRuleRow | null,
-  sellerProduct?: { category?: string | null; product_type?: string | null; name?: string | null },
-) {
-  if (!orderItem.target_json) return null;
-  try {
-    const itemObj = JSON.parse(orderItem.target_json);
-    if (rule) {
-      const rawPlatform = typeof rule.platform === "string" ? rule.platform.trim().toLowerCase() : "";
-      const platformHint =
-        rawPlatform === "tiktok" || rawPlatform === "instagram" || rawPlatform === "twitter"
-          ? (rawPlatform as "tiktok" | "instagram" | "twitter")
-          : inferPlatformHint(rule, sellerProduct);
-      const resolved = resolveTarget(rule, itemObj, platformHint);
-      if (resolved) return resolved;
-    }
-    return extractFallbackTarget(itemObj);
-  } catch {
-    return null;
-  }
-}
-
 export async function processNextFulfillment(opts?: {
-  createOrder?: (baseUrl: URL, apiKey: string, input: { service: number; link: string; quantity: number }) => Promise<CreateOrderResult>;
+  createOrder?: (
+    baseUrl: URL,
+    apiKey: string,
+    input: { service: number; link: string; quantity: number },
+  ) => Promise<CreateOrderResult>;
 }) {
   const nowIso = new Date().toISOString();
   const job = claimNextFulfillment(nowIso);
   if (!job) return false;
 
-  console.log("[fulfillment-worker] claimed", { id: job.id, orderItemId: job.order_item_id, providerId: job.provider_id });
+  console.log("[fulfillment-worker] claimed", {
+    id: job.id,
+    orderItemId: job.order_item_id,
+    providerId: job.provider_id,
+  });
 
   const createOrderFn = opts?.createOrder ?? createPanelV2Order;
   let duplicateDelaySeconds = 0;
@@ -879,15 +158,27 @@ export async function processNextFulfillment(opts?: {
     if (!lastSellerId || !lastInternalOrderId) return;
     try {
       const notificationSettings = ensureNotificationSettings(lastSellerId);
-      if (notificationSettings?.telegram_chat_id && notificationSettings.notification_mode === "all") {
+      if (
+        notificationSettings?.telegram_chat_id &&
+        notificationSettings.notification_mode === "all"
+      ) {
         const order = getOrderById(lastInternalOrderId);
         if (!order) return;
 
         const fulfillments = listFulfillmentsByOrderId(order.id);
         if (!fulfillments.length) return;
-        if (fulfillments.some((fulfillment) => fulfillment.status === "PENDING" || fulfillment.status === "SUBMITTED")) return;
+        if (
+          fulfillments.some(
+            (fulfillment) =>
+              fulfillment.status === "PENDING" ||
+              fulfillment.status === "SUBMITTED",
+          )
+        )
+          return;
 
-        const successful = fulfillments.filter((fulfillment) => fulfillment.status === "SUCCESS");
+        const successful = fulfillments.filter(
+          (fulfillment) => fulfillment.status === "SUCCESS",
+        );
         if (!successful.length) return;
 
         const serviceNames: string[] = [];
@@ -900,17 +191,40 @@ export async function processNextFulfillment(opts?: {
           const orderItem = getOrderItemById(fulfillment.order_item_id);
           if (!orderItem) continue;
 
-          const sellerProduct = getSellerProductForOrderItem(lastSellerId, orderItem);
-          const rule = fulfillment.rule_id ? getRuleById(lastSellerId, fulfillment.rule_id) ?? null : null;
-          const provider = getProviderByIdForSeller(lastSellerId, fulfillment.provider_id);
+          const sellerProduct = getSellerProductForOrderItem(
+            lastSellerId,
+            orderItem,
+          );
+          const rule = fulfillment.rule_id
+            ? (getRuleById(lastSellerId, fulfillment.rule_id) ?? null)
+            : null;
+          const provider = getProviderByIdForSeller(
+            lastSellerId,
+            fulfillment.provider_id,
+          );
 
-          serviceNames.push(rule?.service_name ?? sellerProduct?.name ?? orderItem.salla_product_id);
+          serviceNames.push(
+            rule?.service_name ??
+              sellerProduct?.name ??
+              orderItem.salla_product_id,
+          );
           providerNames.push(provider?.name ?? fulfillment.provider_id);
-          if (fulfillment.provider_order_id?.trim()) providerOrderIds.push(fulfillment.provider_order_id.trim());
+          if (fulfillment.provider_order_id?.trim())
+            providerOrderIds.push(fulfillment.provider_order_id.trim());
           completedAtValues.push(fulfillment.updated_at);
           const target =
             fulfillment.override_target?.trim() ||
-            extractTargetForSuccessNotification(orderItem, rule, sellerProduct ? { category: sellerProduct.category, product_type: sellerProduct.product_type, name: sellerProduct.name } : undefined);
+            extractTargetForSuccessNotification(
+              orderItem,
+              rule,
+              sellerProduct
+                ? {
+                    category: sellerProduct.category,
+                    product_type: sellerProduct.product_type,
+                    name: sellerProduct.name,
+                  }
+                : undefined,
+            );
           if (target) targets.push(target);
         }
 
@@ -919,7 +233,8 @@ export async function processNextFulfillment(opts?: {
         const uniqueProviderOrderIds = uniqueOrdered(providerOrderIds);
         const uniqueTargets = uniqueOrdered(targets);
         const uniqueCompletedAtValues = uniqueOrdered(completedAtValues);
-        if (!uniqueServiceNames.length && !uniqueProviderOrderIds.length) return;
+        if (!uniqueServiceNames.length && !uniqueProviderOrderIds.length)
+          return;
 
         enqueueNotification({
           sellerId: lastSellerId,
@@ -942,11 +257,17 @@ export async function processNextFulfillment(opts?: {
         });
       }
     } catch (notificationError) {
-      console.error("[fulfillment-worker] success notification enqueue failed", {
-        id: job.id,
-        sellerId: lastSellerId,
-        error: notificationError instanceof Error ? notificationError.message : String(notificationError),
-      });
+      console.error(
+        "[fulfillment-worker] success notification enqueue failed",
+        {
+          id: job.id,
+          sellerId: lastSellerId,
+          error:
+            notificationError instanceof Error
+              ? notificationError.message
+              : String(notificationError),
+        },
+      );
     }
   };
 
@@ -959,14 +280,30 @@ export async function processNextFulfillment(opts?: {
     if (!order) throw new Error("Order not found");
 
     const sellerId = order.seller_id;
+    if (!alreadySubmittedProviderOrderId) {
+      const blockReason = reserveOrderExecution(sellerId, order.id);
+      if (blockReason) throw new Error(blockReason);
+    }
     lastSellerId = sellerId;
     lastSallaOrderId = order.salla_order_id;
     lastInternalOrderId = order.id;
     lastSellerName = getUserById(sellerId)?.name ?? null;
     lastProductSku = orderItem.salla_sku;
     const conn = getSallaConnectionBySellerId(sellerId);
+    if (
+      !alreadySubmittedProviderOrderId &&
+      conn &&
+      !isSallaConnectionOperational(conn)
+    )
+      throw new Error("Integration inactive");
     if (conn && Number.isFinite(conn.duplicate_link_delay_seconds)) {
-      duplicateDelaySeconds = Math.max(0, Math.min(60 * 60 * 24 * 7, Math.trunc(conn.duplicate_link_delay_seconds)));
+      duplicateDelaySeconds = Math.max(
+        0,
+        Math.min(
+          60 * 60 * 24 * 7,
+          Math.trunc(conn.duplicate_link_delay_seconds),
+        ),
+      );
     }
     const sellerProduct = getSellerProductForOrderItem(sellerId, orderItem);
     if (!sellerProduct) {
@@ -975,12 +312,16 @@ export async function processNextFulfillment(opts?: {
       );
     }
     lastProductName = sellerProduct.name;
+    if (!alreadySubmittedProviderOrderId && sellerProduct.status !== "active")
+      throw new Error("Product inactive");
 
     let rule: SmmProductRuleRow | null = null;
     if (job.rule_id) {
       rule = getRuleById(sellerId, job.rule_id) ?? null;
       if (!rule) throw new Error("Rule not found");
     } else {
+      if (!alreadySubmittedProviderOrderId)
+        throw new Error("Legacy job has no bound rule; operator review required");
       const rules = listRulesForProduct(sellerId, sellerProduct.id);
       if (!rules.length) throw new Error("No SMM rules for product");
       rule = pickRule(rules, job.provider_id);
@@ -988,7 +329,31 @@ export async function processNextFulfillment(opts?: {
     }
 
     const provider = getProviderByIdForSeller(sellerId, job.provider_id);
-    if (!provider || !provider.is_active) throw new Error("Provider not found or inactive");
+    if (!provider || !provider.is_active)
+      throw new Error("Provider not found or inactive");
+    if (!job.job_snapshot_json) {
+      const text = captureJobSnapshot(rule, provider, {
+        targetJson: orderItem.target_json,
+        quantity: orderItem.quantity,
+      });
+      getDb()
+        .prepare(
+          "UPDATE fulfillments SET job_snapshot_json=? WHERE id=? AND job_snapshot_json IS NULL",
+        )
+        .run(text, job.id);
+      job.job_snapshot_json = text;
+    }
+    const frozen = readJobSnapshot(job.job_snapshot_json);
+    if (
+      frozen.rule.seller_id !== sellerId ||
+      frozen.rule.product_id !== sellerProduct.id ||
+      frozen.provider.id !== provider.id ||
+      frozen.rule.provider_connection_id !== provider.id
+    )
+      throw new Error("Job configuration ownership mismatch");
+    if (frozen.provider.baseUrl !== provider.base_url)
+      throw new Error("Provider endpoint changed; operator review required");
+    rule = frozen.rule;
     lastProviderName = provider.name;
 
     const baseUrl = assertPublicHttpsUrl(provider.base_url);
@@ -1000,14 +365,29 @@ export async function processNextFulfillment(opts?: {
       throw new Error("Stored API key cannot be decrypted");
     }
 
-    const itemObj = orderItem.target_json ? JSON.parse(orderItem.target_json) : {};
-    const rawPlatform = typeof rule.platform === "string" ? rule.platform.trim().toLowerCase() : "";
+    const sourceTarget = frozen.input
+      ? frozen.input.targetJson
+      : orderItem.target_json;
+    const itemObj = sourceTarget ? JSON.parse(sourceTarget) : {};
+    const latestItem = orderItem.target_json
+      ? JSON.parse(orderItem.target_json)
+      : {};
+    const rawPlatform =
+      typeof rule.platform === "string"
+        ? rule.platform.trim().toLowerCase()
+        : "";
     const platformHint =
-      rawPlatform === "tiktok" || rawPlatform === "instagram" || rawPlatform === "twitter"
+      rawPlatform === "tiktok" ||
+      rawPlatform === "instagram" ||
+      rawPlatform === "twitter"
         ? (rawPlatform as "tiktok" | "instagram" | "twitter")
-        : inferPlatformHint(rule, sellerProduct as any);
+        : inferPlatformHint(rule, asRecord(sellerProduct));
     lastPlatform = platformHint;
-    const target = job.override_target?.trim() ? job.override_target.trim() : resolveTarget(rule, itemObj, platformHint);
+    const frozenTarget = resolveTarget(rule, itemObj, platformHint);
+    // Enrichment may fill a missing input, but never replace a usable queued input.
+    const target = job.override_target?.trim()
+      ? job.override_target.trim()
+      : (frozenTarget ?? resolveTarget(rule, latestItem, platformHint));
     if (!target) {
       const field = rule.target_field;
       throw new Error(`Target value missing (field=${field})`);
@@ -1015,20 +395,46 @@ export async function processNextFulfillment(opts?: {
 
     let resolved: ReturnType<typeof resolveQuantityDetailed>;
     try {
-      resolved = resolveQuantityDetailed(rule, itemObj, orderItem.quantity);
+      resolved = resolveQuantityDetailed(
+        rule,
+        itemObj,
+        frozen.input?.quantity ?? orderItem.quantity,
+      );
     } catch (error) {
-      if (!(error instanceof Error) || !error.message.startsWith("Quantity value missing") || alreadySubmittedProviderOrderId) throw error;
-      const recovery = await recoverSallaOrderItem(order, orderItem);
-      try { resolved = resolveQuantityDetailed(rule, recovery.item, recovery.quantity); }
-      catch (retryError) {
-        if (retryError instanceof Error && retryError.message.startsWith("Quantity value missing")) {
-          throw new Error(`${retryError.message} — ${recovery.reason}`);
+      if (
+        !(error instanceof Error) ||
+        !error.message.startsWith("Quantity value missing") ||
+        alreadySubmittedProviderOrderId
+      )
+        throw error;
+      try {
+        resolved = resolveQuantityDetailed(
+          rule,
+          latestItem,
+          orderItem.quantity,
+        );
+      } catch {
+        const recovery = await recoverSallaOrderItem(order, orderItem);
+        try {
+          resolved = resolveQuantityDetailed(
+            rule,
+            recovery.item,
+            recovery.quantity,
+          );
+        } catch (retryError) {
+          if (
+            retryError instanceof Error &&
+            retryError.message.startsWith("Quantity value missing")
+          ) {
+            throw new Error(`${retryError.message} — ${recovery.reason}`);
+          }
+          throw retryError;
         }
-        throw retryError;
       }
     }
     const { quantity, meta: quantityMeta } = resolved;
-    if (!Number.isFinite(quantity) || quantity <= 0) throw new Error("Quantity invalid");
+    if (!Number.isFinite(quantity) || quantity <= 0)
+      throw new Error("Quantity invalid");
 
     const link = rule.normalize_url ? target.trim() : target;
     lastServiceId = rule.provider_service_id ?? null;
@@ -1042,13 +448,28 @@ export async function processNextFulfillment(opts?: {
       orderItemId: orderItem.id,
       providerId: job.provider_id,
       serviceId: rule.provider_service_id,
-      link,
       quantity,
       quantityMeta,
     });
 
     const submittedQuantity = Math.trunc(quantity);
-    let submittedRate: number | null = Number.isFinite(rule.provider_service_rate as any) ? (rule.provider_service_rate ?? null) : null;
+    if (submittedQuantity !== quantity)
+      throw new Error("Quantity must be an integer");
+    if (
+      rule.provider_service_min != null &&
+      quantity < rule.provider_service_min
+    )
+      throw new Error("Quantity below service minimum");
+    if (
+      rule.provider_service_max != null &&
+      quantity > rule.provider_service_max
+    )
+      throw new Error("Quantity above service maximum");
+    let submittedRate: number | null = Number.isFinite(
+      rule.provider_service_rate,
+    )
+      ? (rule.provider_service_rate ?? null)
+      : null;
     let snapshot: ServiceSnapshot | null = null;
     if (submittedRate === null) {
       snapshot = await getServiceSnapshotCached({
@@ -1068,19 +489,43 @@ export async function processNextFulfillment(opts?: {
       }
     }
 
+    if (snapshot?.min != null && quantity < snapshot.min)
+      throw new Error("Quantity below current service minimum");
+    if (snapshot?.max != null && quantity > snapshot.max)
+      throw new Error("Quantity above current service maximum");
     let panelCostProvider: number | null = null;
-    if (submittedRate !== null && Number.isFinite(submittedRate)) {
+    if (
+      submittedRate !== null &&
+      Number.isFinite(submittedRate) &&
+      submittedRate >= 0
+    ) {
       panelCostProvider = (submittedRate * submittedQuantity) / 1000;
     }
 
-    const fx = Number.isFinite(provider.fx_rate_to_store as any) && (provider.fx_rate_to_store as any) > 0 ? (provider.fx_rate_to_store as number) : 1;
-    const storeCurrency = typeof order.currency === "string" && order.currency.trim().length ? order.currency.trim() : null;
-    const panelCostStore = panelCostProvider !== null && storeCurrency ? panelCostProvider * fx : null;
-    const panelCostCurrency = panelCostProvider !== null && storeCurrency ? storeCurrency : null;
+    const storeCurrency =
+      typeof order.currency === "string" && order.currency.trim().length
+        ? order.currency.trim()
+        : null;
+    const fx =
+      frozen.provider.currency && storeCurrency
+        ? frozen.provider.currency.toUpperCase() === storeCurrency.toUpperCase()
+          ? 1
+          : frozen.provider.fx
+        : null;
+    const panelCostStore =
+      panelCostProvider !== null && storeCurrency && fx !== null
+        ? currencyAmount(
+            currencyMinorUnits(panelCostProvider * fx, storeCurrency),
+            storeCurrency,
+          )
+        : null;
+    const panelCostCurrency =
+      panelCostProvider !== null && storeCurrency ? storeCurrency : null;
 
     if (alreadySubmittedProviderOrderId) {
       const successNowIso = new Date().toISOString();
       markFulfillmentSuccess(job.id, {
+        leaseId: job.lease_id!,
         providerOrderId: alreadySubmittedProviderOrderId,
         nowIso: successNowIso,
         submittedQuantity,
@@ -1090,7 +535,10 @@ export async function processNextFulfillment(opts?: {
         panelCostCurrency,
       });
       enqueueSuccessNotification();
-      console.log("[fulfillment-worker] already submitted", { id: job.id, providerOrderId: alreadySubmittedProviderOrderId });
+      console.log("[fulfillment-worker] already submitted", {
+        id: job.id,
+        providerOrderId: alreadySubmittedProviderOrderId,
+      });
       return true;
     }
 
@@ -1109,12 +557,15 @@ export async function processNextFulfillment(opts?: {
       ) {
         const jitterSeconds = duplicateDelayJitterSeconds(job.id);
         rescheduleFulfillment(job.id, {
-          nextAttemptAtIso: addSeconds(nowIso3, duplicateDelaySeconds + jitterSeconds),
+          leaseId: job.lease_id!,
+          nextAttemptAtIso: addSeconds(
+            nowIso3,
+            duplicateDelaySeconds + jitterSeconds,
+          ),
           nowIso: nowIso3,
         });
         console.log("[fulfillment-worker] delayed (duplicate link)", {
           id: job.id,
-          link,
           serviceId: rule.provider_service_id,
           delaySeconds: duplicateDelaySeconds,
           jitterSeconds,
@@ -1123,18 +574,60 @@ export async function processNextFulfillment(opts?: {
       }
     }
 
-    const result = await createOrderFn(baseUrl, apiKey, {
+    const finalBlock = reserveOrderExecution(sellerId, order.id);
+    if (finalBlock) throw new Error(finalBlock);
+    const currentProvider = getProviderByIdForSeller(sellerId, job.provider_id);
+    const currentProduct = getSellerProductForOrderItem(sellerId, orderItem);
+    const currentConnection = getSallaConnectionBySellerId(sellerId);
+    if (
+      !currentProvider?.is_active ||
+      currentProvider.base_url !== provider.base_url ||
+      currentProvider.api_key_encrypted !== provider.api_key_encrypted ||
+      currentProduct?.status !== "active" ||
+      (currentConnection && !isSallaConnectionOperational(currentConnection)) ||
+      (job.rule_id && !getRuleById(sellerId, job.rule_id))
+    )
+      throw new Error("Execution configuration changed before submission");
+    const attemptId = beginProviderSubmission(job.id, job.lease_id!, {
       service: rule.provider_service_id,
-      link,
       quantity,
+      targetHash: sha256Hex(link),
+      targetSource: job.override_target
+        ? "audited_override"
+        : frozenTarget
+          ? "queued_input"
+          : "missing_input_enrichment",
     });
+    let result: CreateOrderResult;
+    try {
+      result = await createOrderFn(baseUrl, apiKey, {
+        service: rule.provider_service_id,
+        link,
+        quantity,
+      });
+    } catch (error) {
+      finishProviderSubmission(job.id, attemptId, "UNKNOWN");
+      throw error;
+    }
 
     if (!result.ok) {
+      finishProviderSubmission(
+        job.id,
+        attemptId,
+        result.ambiguous ? "UNKNOWN" : "REJECTED",
+      );
       throw new Error(result.message);
     }
+    finishProviderSubmission(
+      job.id,
+      attemptId,
+      "ACCEPTED",
+      result.providerOrderId,
+    );
 
     const successNowIso = new Date().toISOString();
     markFulfillmentSuccess(job.id, {
+      leaseId: job.lease_id!,
       providerOrderId: result.providerOrderId,
       nowIso: successNowIso,
       submittedQuantity,
@@ -1145,7 +638,10 @@ export async function processNextFulfillment(opts?: {
     });
     lastProviderOrderId = result.providerOrderId;
     enqueueSuccessNotification();
-    console.log("[fulfillment-worker] success", { id: job.id, providerOrderId: result.providerOrderId });
+    console.log("[fulfillment-worker] success", {
+      id: job.id,
+      providerOrderId: result.providerOrderId,
+    });
     return true;
   } catch (e) {
     const messageRaw = e instanceof Error ? e.message : "Fulfillment failed";
@@ -1154,7 +650,12 @@ export async function processNextFulfillment(opts?: {
 
     const m = message.toLowerCase();
     if (m.includes("active order with this link")) {
-      if (duplicateDelaySeconds > 0 && lastRuleExpectsUrl && lastLink && lastOrderItemId) {
+      if (
+        duplicateDelaySeconds > 0 &&
+        lastRuleExpectsUrl &&
+        lastLink &&
+        lastOrderItemId
+      ) {
         const shouldDelay = hasRecentLinkConflict({
           fulfillmentId: job.id,
           providerId: job.provider_id,
@@ -1167,13 +668,16 @@ export async function processNextFulfillment(opts?: {
         if (shouldDelay) {
           const jitterSeconds = duplicateDelayJitterSeconds(job.id);
           rescheduleFulfillment(job.id, {
-            nextAttemptAtIso: addSeconds(nowIso2, duplicateDelaySeconds + jitterSeconds),
+            leaseId: job.lease_id!,
+            nextAttemptAtIso: addSeconds(
+              nowIso2,
+              duplicateDelaySeconds + jitterSeconds,
+            ),
             nowIso: nowIso2,
           });
           console.error("[fulfillment-worker] delayed (active link)", {
             id: job.id,
             error: message,
-            link: lastLink,
             serviceId: lastServiceId,
             delaySeconds: duplicateDelaySeconds,
             jitterSeconds,
@@ -1183,16 +687,26 @@ export async function processNextFulfillment(opts?: {
       }
     }
 
-    const retryMissingQuantity = message.startsWith("Quantity value missing") && job.attempts <= 3;
-    const next = isPermanentFulfillmentError(message) && !retryMissingQuantity
-      ? addSeconds(nowIso2, 60 * 60 * 24 * 365)
-      : addSeconds(nowIso2, backoffSeconds(job.attempts, 1800));
-    markFulfillmentFailed(job.id, { error: message, nextAttemptAtIso: next, nowIso: new Date().toISOString() });
+    const retryMissingQuantity =
+      message.startsWith("Quantity value missing") && job.attempts <= 3;
+    const next =
+      isPermanentFulfillmentError(message) && !retryMissingQuantity
+        ? addSeconds(nowIso2, 60 * 60 * 24 * 365)
+        : addSeconds(nowIso2, backoffSeconds(job.attempts, 1800));
+    markFulfillmentFailed(job.id, {
+      leaseId: job.lease_id!,
+      error: message,
+      nextAttemptAtIso: next,
+      nowIso: new Date().toISOString(),
+    });
 
     if (lastSellerId) {
       try {
         const notificationSettings = ensureNotificationSettings(lastSellerId);
-        if (notificationSettings?.telegram_chat_id && notificationSettings.notify_execution_failed === 1) {
+        if (
+          notificationSettings?.telegram_chat_id &&
+          notificationSettings.notify_execution_failed === 1
+        ) {
           enqueueNotification({
             sellerId: lastSellerId,
             eventType: "execution_failed",
@@ -1223,12 +737,18 @@ export async function processNextFulfillment(opts?: {
         console.error("[fulfillment-worker] notification enqueue failed", {
           id: job.id,
           sellerId: lastSellerId,
-          error: notificationError instanceof Error ? notificationError.message : String(notificationError),
+          error:
+            notificationError instanceof Error
+              ? notificationError.message
+              : String(notificationError),
         });
       }
     }
 
-    console.error("[fulfillment-worker] failed", { id: job.id, error: message });
+    console.error("[fulfillment-worker] failed", {
+      id: job.id,
+      error: message,
+    });
     return true;
   }
 }

@@ -1,3 +1,4 @@
+import { asRecord } from './unknownValue';
 export function isValidTimeZone(value: string) {
   try {
     Intl.DateTimeFormat("en-US", { timeZone: value }).format(new Date());
@@ -8,7 +9,7 @@ export function isValidTimeZone(value: string) {
 }
 
 export function getSupportedTimeZones() {
-  const withIntl = (Intl as any).supportedValuesOf;
+  const withIntl = (asRecord(Intl)).supportedValuesOf;
   if (typeof withIntl === "function") {
     try {
       return withIntl("timeZone") as string[];

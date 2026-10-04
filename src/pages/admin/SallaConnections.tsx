@@ -21,7 +21,7 @@ export default function AdminSallaConnectionsPage() {
   const updateConn = useUpdateAdminSalla();
   const rotateToken = useRotateAdminSallaToken();
 
-  const connections = connectionsQuery.data?.data ?? [];
+  const connections = useMemo(() => connectionsQuery.data?.data ?? [], [connectionsQuery.data?.data]);
 
   const filtered = useMemo(() => {
     if (!query.trim()) return connections;

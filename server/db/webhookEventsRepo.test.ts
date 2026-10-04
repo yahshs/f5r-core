@@ -1,3 +1,4 @@
+import { ensureTestUser } from "../test/authFixture";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -12,6 +13,7 @@ describe("webhook event processing lease", () => {
     resetDbForTests();
     if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
     await ensureDbReady();
+    ensureTestUser("seller-1");
   });
 
   it("recovers a processing event after its worker lease expires", () => {

@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
-import { verifyAuthToken } from "./lib/jwt";
+import { resolveSession } from "./db/authSessionsRepo";
 
 export type SellerAuth = {
   sellerId: string;
@@ -9,13 +9,15 @@ declare module "express-serve-static-core" {
   interface Request {
     sellerAuth?: SellerAuth;
     authUser?: { id: string; role: string; email: string; name: string };
+    authSessionId?: string;
   }
 }
 
 function getBearerToken(req: Request) {
   const header = req.header("authorization") || "";
   const m = header.match(/^Bearer\s+(.+)$/i);
-  return m?.[1] || null;
+  if (m?.[1] && m[1] !== "cookie") return m[1];
+  return String(req.headers.cookie || "").split(";").map(s=>s.trim()).find(s=>s.startsWith("f5r_session="))?.slice(12) || null;
 }
 
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
@@ -23,8 +25,9 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
   if (!token) return res.status(401).json({ success: false, message: "Unauthorized" });
 
   try {
-    const claims = verifyAuthToken(token);
-    req.authUser = { id: claims.sub, role: claims.role, email: claims.email, name: claims.name };
+    const { user, sessionId } = resolveSession(token);
+    req.authUser = { id: user.id, role: user.role, email: user.email, name: user.name };
+    req.authSessionId = sessionId;
     return next();
   } catch {
     return res.status(401).json({ success: false, message: "Unauthorized" });

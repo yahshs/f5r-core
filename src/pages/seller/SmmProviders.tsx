@@ -1,3 +1,4 @@
+import type { SmmProviderCreateInput } from '@/api/smmProviders';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -266,7 +267,7 @@ export default function SellerSmmProvidersPage() {
   const deleteMutation = useDeleteSellerSmmProvider();
   const testMutation = useTestSellerSmmProvider();
 
-  const providers = listQuery.data ?? [];
+  const providers = useMemo(() => listQuery.data ?? [], [listQuery.data]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -292,14 +293,14 @@ export default function SellerSmmProvidersPage() {
       });
       toast({ title: t('common.success'), description: t('seller.smmProviders.toasts.created') });
       setSelectedId(provider.id);
-    } catch (e: any) {
-      toast({ title: t('common.error'), description: e.message, variant: 'destructive' });
+    } catch (e: unknown) {
+      toast({ title: t('common.error'), description: (e instanceof Error ? e.message : 'Request failed'), variant: 'destructive' });
     }
   };
 
   const handleEdit = async (providerId: string, values: FormValues) => {
     try {
-      const input: any = {
+      const input: Partial<SmmProviderCreateInput> = {
         name: values.name,
         base_url: values.base_url,
         is_active: values.is_active,
@@ -311,8 +312,8 @@ export default function SellerSmmProvidersPage() {
       if (values.api_key && values.api_key.trim().length) input.api_key = values.api_key;
       await updateMutation.mutateAsync({ id: providerId, input });
       toast({ title: t('common.success'), description: t('seller.smmProviders.toasts.updated') });
-    } catch (e: any) {
-      toast({ title: t('common.error'), description: e.message, variant: 'destructive' });
+    } catch (e: unknown) {
+      toast({ title: t('common.error'), description: (e instanceof Error ? e.message : 'Request failed'), variant: 'destructive' });
     }
   };
 
@@ -320,8 +321,8 @@ export default function SellerSmmProvidersPage() {
     try {
       await deleteMutation.mutateAsync(providerId);
       toast({ title: t('common.success'), description: t('seller.smmProviders.toasts.deleted') });
-    } catch (e: any) {
-      toast({ title: t('common.error'), description: e.message, variant: 'destructive' });
+    } catch (e: unknown) {
+      toast({ title: t('common.error'), description: (e instanceof Error ? e.message : 'Request failed'), variant: 'destructive' });
     }
   };
 
@@ -330,8 +331,8 @@ export default function SellerSmmProvidersPage() {
     try {
       const res = await testMutation.mutateAsync(selected.id);
       toast({ title: t('seller.smmProviders.toasts.testedTitle'), description: res.message });
-    } catch (e: any) {
-      toast({ title: t('seller.smmProviders.toasts.testFailedTitle'), description: e.message, variant: 'destructive' });
+    } catch (e: unknown) {
+      toast({ title: t('seller.smmProviders.toasts.testFailedTitle'), description: (e instanceof Error ? e.message : 'Request failed'), variant: 'destructive' });
     }
   };
 

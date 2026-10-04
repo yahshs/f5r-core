@@ -16,11 +16,7 @@ export default function ContactPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setIsLoading(false);
-    toast({ title: 'Message sent!', description: 'We\'ll get back to you soon.' });
-    (e.target as HTMLFormElement).reset();
+    toast({ title: 'Contact form is unavailable', description: 'Use the email address shown on this page.', variant: 'destructive' });
   };
 
   const contactInfo = [

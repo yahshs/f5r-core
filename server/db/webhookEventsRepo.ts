@@ -1,3 +1,4 @@
+import { asRecord } from '../lib/unknownValue';
 import crypto from "node:crypto";
 import { getDb } from "./db";
 
@@ -20,6 +21,7 @@ export type WebhookEventRow = {
   last_error: string | null;
   received_at: string;
   processed_at: string | null;
+  lease_id: string | null;
 };
 
 export function insertWebhookEvent(input: {
@@ -68,46 +70,47 @@ export function claimNextWebhookEvent(nowIso: string) {
     const row = db
       .prepare(
         `SELECT * FROM webhook_events
-         WHERE status IN ('RECEIVED','FAILED','PROCESSING') AND next_attempt_at <= ?
+         WHERE status IN ('RECEIVED','FAILED','PROCESSING') AND attempts < 20 AND next_attempt_at <= ?
          ORDER BY received_at ASC
          LIMIT 1`,
       )
       .get(nowIso) as WebhookEventRow | undefined;
     if (!row) return null;
 
+    const leaseId=crypto.randomUUID();
     db.prepare(
       `UPDATE webhook_events
-       SET status = 'PROCESSING', attempts = attempts + 1, next_attempt_at = ?
+       SET status = 'PROCESSING', attempts = attempts + 1, next_attempt_at = ?, lease_id=?
        WHERE id = ?`,
-    ).run(leaseUntilIso, row.id);
+    ).run(leaseUntilIso, leaseId, row.id);
 
-    return { ...row, status: "PROCESSING" as const, attempts: row.attempts + 1 };
+    return { ...row, lease_id: leaseId, status: "PROCESSING" as const, attempts: row.attempts + 1 };
   });
 
   return tx();
 }
 
-export function markWebhookEventDone(id: string, processedAtIso: string) {
+export function markWebhookEventDone(id: string, processedAtIso: string, leaseId?: string) {
   const db = getDb();
   db.prepare(
     `UPDATE webhook_events
      SET status = 'DONE', processed_at = ?, last_error = NULL
-     WHERE id = ?`,
-  ).run(processedAtIso, id);
+     WHERE id = ? AND (? IS NULL OR lease_id=?)`,
+  ).run(processedAtIso, id, leaseId ?? null,leaseId ?? null);
 }
 
-export function markWebhookEventFailed(id: string, input: { error: string; nextAttemptAtIso: string }) {
+export function markWebhookEventFailed(id: string, input: { error: string; nextAttemptAtIso: string; leaseId?: string }) {
   const db = getDb();
   db.prepare(
     `UPDATE webhook_events
      SET status = 'FAILED', last_error = ?, next_attempt_at = ?
-     WHERE id = ?`,
-  ).run(input.error, input.nextAttemptAtIso, id);
+     WHERE id = ? AND (? IS NULL OR lease_id=?)`,
+  ).run(input.error, input.nextAttemptAtIso, id,input.leaseId ?? null,input.leaseId ?? null);
 }
 
 export function countWebhookEventsByEventKey(eventKey: string) {
   const db = getDb();
-  const row = db.prepare(`SELECT COUNT(1) as c FROM webhook_events WHERE event_key = ?`).get(eventKey) as any;
+  const row = asRecord(db.prepare(`SELECT COUNT(1) as c FROM webhook_events WHERE event_key = ?`).get(eventKey));
   return Number(row?.c ?? 0);
 }
 

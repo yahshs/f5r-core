@@ -1,3 +1,8 @@
+import {
+  invoiceTotalsByCurrency,
+  reportingCurrency,
+  ledgerTotalsByCurrency,
+} from "../lib/financialReporting";
 import { Router } from "express";
 import { z } from "zod";
 import { requireAdmin } from "../auth";
@@ -25,76 +30,130 @@ adminAnalyticsRouter.use(requireAdmin);
 
 adminAnalyticsRouter.get("/", (req, res) => {
   const parsed = querySchema.safeParse(req.query);
-  if (!parsed.success) return res.status(400).json({ success: false, message: "Invalid query" });
+  if (!parsed.success)
+    return res.status(400).json({ success: false, message: "Invalid query" });
 
   const range = parsed.data.range ?? null;
   const days = parsed.data.days ?? 14;
   const db = getDb();
 
   const now = new Date();
-  const rangeDays = range === "day" ? 1 : range === "week" ? 7 : range === "month" ? 30 : range === "all" ? null : days;
-  const seriesDays = range === "all" ? 90 : rangeDays ?? days;
-  const sinceOrders = startOfDayIso(new Date(now.getTime() - (seriesDays - 1) * 24 * 60 * 60 * 1000));
-  const since7d = startOfDayIso(new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000));
-  const since30d = startOfDayIso(new Date(now.getTime() - 29 * 24 * 60 * 60 * 1000));
-  const sinceRange = rangeDays ? startOfDayIso(new Date(now.getTime() - (rangeDays - 1) * 24 * 60 * 60 * 1000)) : null;
-
-  const totalOrders = (db.prepare(`SELECT COUNT(*) as c FROM orders`).get() as { c: number }).c;
-  const totalUsers = (db.prepare(`SELECT COUNT(*) as c FROM users`).get() as { c: number }).c;
-  const totalSellers = (db.prepare(`SELECT COUNT(*) as c FROM users WHERE role = 'seller'`).get() as { c: number }).c;
-  const ordersLast7d = (db.prepare(`SELECT COUNT(*) as c FROM orders WHERE created_at >= ?`).get(since7d) as { c: number }).c;
-  let revenueLast30d = (db.prepare(`SELECT COALESCE(SUM(total), 0) as s FROM orders WHERE created_at >= ?`).get(since30d) as { s: number }).s ?? 0;
-  const ordersWithNullTotal30d = db
-    .prepare(`SELECT id FROM orders WHERE created_at >= ? AND (total IS NULL OR total = 0)`)
-    .all(since30d) as { id: string }[];
-  for (const ord of ordersWithNullTotal30d) {
-    const items = listOrderItemsByOrderId(ord.id);
-    revenueLast30d += items.reduce((sum, item) => sum + (extractItemTotalFromTargetJson(item.target_json) ?? 0), 0);
-  }
-  let totalRevenueAllTime = (db.prepare(`SELECT COALESCE(SUM(total), 0) as s FROM orders`).get() as { s: number }).s ?? 0;
-  const ordersWithNullTotalAll = db
-    .prepare(`SELECT id FROM orders WHERE total IS NULL OR total = 0`)
-    .all() as { id: string }[];
-  for (const ord of ordersWithNullTotalAll) {
-    const items = listOrderItemsByOrderId(ord.id);
-    totalRevenueAllTime += items.reduce((sum, item) => sum + (extractItemTotalFromTargetJson(item.target_json) ?? 0), 0);
-  }
-  const ordersInRange = sinceRange ? (db.prepare(`SELECT COUNT(*) as c FROM orders WHERE created_at >= ?`).get(sinceRange) as { c: number }).c : null;
-  let revenueInRange = sinceRange ? (db.prepare(`SELECT COALESCE(SUM(total), 0) as s FROM orders WHERE created_at >= ?`).get(sinceRange) as { s: number }).s ?? 0 : null;
-  if (sinceRange) {
-    const ordersWithNullInRange = db
-      .prepare(`SELECT id FROM orders WHERE created_at >= ? AND (total IS NULL OR total = 0)`)
-      .all(sinceRange) as { id: string }[];
-    for (const ord of ordersWithNullInRange) {
-      const items = listOrderItemsByOrderId(ord.id);
-      revenueInRange! += items.reduce((sum, item) => sum + (extractItemTotalFromTargetJson(item.target_json) ?? 0), 0);
-    }
-  }
-
-  const pendingFulfillments = (db.prepare(`SELECT COUNT(*) as c FROM fulfillments WHERE status IN ('PENDING','SUBMITTED')`).get() as { c: number }).c;
-  const failedFulfillmentsLast7d = (db.prepare(`SELECT COUNT(*) as c FROM fulfillments WHERE status = 'FAILED' AND created_at >= ?`).get(since7d) as { c: number }).c;
-  const failedFulfillmentsInRange = sinceRange
-    ? (db.prepare(`SELECT COUNT(*) as c FROM fulfillments WHERE status = 'FAILED' AND created_at >= ?`).get(sinceRange) as { c: number }).c
+  const rangeDays =
+    range === "day"
+      ? 1
+      : range === "week"
+        ? 7
+        : range === "month"
+          ? 30
+          : range === "all"
+            ? null
+            : days;
+  const seriesDays = range === "all" ? 90 : (rangeDays ?? days);
+  const sinceOrders = startOfDayIso(
+    new Date(now.getTime() - (seriesDays - 1) * 24 * 60 * 60 * 1000),
+  );
+  const since7d = startOfDayIso(
+    new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000),
+  );
+  const since30d = startOfDayIso(
+    new Date(now.getTime() - 29 * 24 * 60 * 60 * 1000),
+  );
+  const sinceRange = rangeDays
+    ? startOfDayIso(
+        new Date(now.getTime() - (rangeDays - 1) * 24 * 60 * 60 * 1000),
+      )
     : null;
 
-  const webhookBacklog = (db.prepare(`SELECT COUNT(*) as c FROM webhook_events WHERE status IN ('RECEIVED','PROCESSING')`).get() as { c: number }).c;
-  const webhookFailed = (db.prepare(`SELECT COUNT(*) as c FROM webhook_events WHERE status = 'FAILED'`).get() as { c: number }).c;
+  const totalOrders = (
+    db.prepare(`SELECT COUNT(*) as c FROM orders`).get() as { c: number }
+  ).c;
+  const totalUsers = (
+    db.prepare(`SELECT COUNT(*) as c FROM users`).get() as { c: number }
+  ).c;
+  const totalSellers = (
+    db
+      .prepare(`SELECT COUNT(*) as c FROM users WHERE role = 'seller'`)
+      .get() as { c: number }
+  ).c;
+  const ordersLast7d = (
+    db
+      .prepare(`SELECT COUNT(*) as c FROM orders WHERE created_at >= ?`)
+      .get(since7d) as { c: number }
+  ).c;
+  const ordersInRange = sinceRange
+    ? (
+        db
+          .prepare(`SELECT COUNT(*) as c FROM orders WHERE created_at >= ?`)
+          .get(sinceRange) as { c: number }
+      ).c
+    : null;
+  const pendingFulfillments = (
+    db
+      .prepare(
+        `SELECT COUNT(*) as c FROM fulfillments WHERE status IN ('PENDING','SUBMITTED')`,
+      )
+      .get() as { c: number }
+  ).c;
+  const failedFulfillmentsLast7d = (
+    db
+      .prepare(
+        `SELECT COUNT(*) as c FROM fulfillments WHERE status = 'FAILED' AND created_at >= ?`,
+      )
+      .get(since7d) as { c: number }
+  ).c;
+  const failedFulfillmentsInRange = sinceRange
+    ? (
+        db
+          .prepare(
+            `SELECT COUNT(*) as c FROM fulfillments WHERE status = 'FAILED' AND created_at >= ?`,
+          )
+          .get(sinceRange) as { c: number }
+      ).c
+    : null;
 
-  const pendingUpgradeRequests = (db.prepare(`SELECT COUNT(*) as c FROM subscription_upgrade_requests WHERE status = 'PENDING'`).get() as { c: number }).c;
+  const webhookBacklog = (
+    db
+      .prepare(
+        `SELECT COUNT(*) as c FROM webhook_events WHERE status IN ('RECEIVED','PROCESSING')`,
+      )
+      .get() as { c: number }
+  ).c;
+  const webhookFailed = (
+    db
+      .prepare(
+        `SELECT COUNT(*) as c FROM webhook_events WHERE status = 'FAILED'`,
+      )
+      .get() as { c: number }
+  ).c;
+
+  const pendingUpgradeRequests = (
+    db
+      .prepare(
+        `SELECT COUNT(*) as c FROM subscription_upgrade_requests WHERE status = 'PENDING'`,
+      )
+      .get() as { c: number }
+  ).c;
 
   const orderRollupRows = db
     .prepare(
       `
-      SELECT id, created_at, total
+      SELECT id, created_at, CASE WHEN upper(currency)='SAR' AND lower(COALESCE(status,'')) NOT LIKE '%cancel%' AND lower(COALESCE(status,'')) NOT LIKE '%refund%' THEN COALESCE(total,0) ELSE 0 END as total
       FROM orders
       WHERE created_at >= ?
       ORDER BY created_at ASC
     `,
     )
-    .all(sinceOrders) as { id: string; created_at: string; total: number | null }[];
+    .all(sinceOrders) as {
+    id: string;
+    created_at: string;
+    total: number | null;
+  }[];
 
-  const seriesDaysForMap = range === "all" ? 90 : rangeDays ?? days;
-  const dayMap = new Map<string, { day: string; orders: number; revenue: number }>();
+  const seriesDaysForMap = range === "all" ? 90 : (rangeDays ?? days);
+  const dayMap = new Map<
+    string,
+    { day: string; orders: number; revenue: number }
+  >();
   for (let i = seriesDaysForMap - 1; i >= 0; i--) {
     const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
     const key = dateKeyUtc(d.toISOString());
@@ -105,20 +164,28 @@ adminAnalyticsRouter.get("/", (req, res) => {
     const agg = dayMap.get(key);
     if (!agg) continue;
     agg.orders += 1;
-    let orderTotal = Number(row.total || 0);
-    if (orderTotal === 0) {
-      const items = listOrderItemsByOrderId(row.id);
-      orderTotal = items.reduce((sum, item) => sum + (extractItemTotalFromTargetJson(item.target_json) ?? 0), 0);
-    }
+    const orderTotal = Number(row.total || 0);
+
     agg.revenue += orderTotal;
   }
   const ordersByDay = Array.from(dayMap.values());
 
   const fulfillmentsByStatusRows = db
-    .prepare(`SELECT status, COUNT(*) as c FROM fulfillments WHERE created_at >= ? GROUP BY status`)
-    .all(since30d) as { status: "PENDING" | "SUBMITTED" | "SUCCESS" | "FAILED"; c: number }[];
-  const fulfillmentsByStatus = { PENDING: 0, SUBMITTED: 0, SUCCESS: 0, FAILED: 0 };
-  for (const r of fulfillmentsByStatusRows) fulfillmentsByStatus[r.status] = r.c;
+    .prepare(
+      `SELECT status, COUNT(*) as c FROM fulfillments WHERE created_at >= ? GROUP BY status`,
+    )
+    .all(since30d) as {
+    status: "PENDING" | "SUBMITTED" | "SUCCESS" | "FAILED";
+    c: number;
+  }[];
+  const fulfillmentsByStatus = {
+    PENDING: 0,
+    SUBMITTED: 0,
+    SUCCESS: 0,
+    FAILED: 0,
+  };
+  for (const r of fulfillmentsByStatusRows)
+    fulfillmentsByStatus[r.status] = r.c;
 
   const topSellers = db
     .prepare(
@@ -128,7 +195,7 @@ adminAnalyticsRouter.get("/", (req, res) => {
         u.name as name,
         u.email as email,
         COUNT(o.id) as orders,
-        COALESCE(SUM(o.total), 0) as revenue
+        COALESCE(SUM(CASE WHEN upper(o.currency)='SAR' AND lower(COALESCE(o.status,'')) NOT LIKE '%cancel%' AND lower(COALESCE(o.status,'')) NOT LIKE '%refund%' THEN o.total ELSE 0 END),0) as revenue
       FROM users u
       LEFT JOIN orders o ON o.seller_id = u.id AND o.created_at >= ?
       WHERE u.role = 'seller'
@@ -137,7 +204,13 @@ adminAnalyticsRouter.get("/", (req, res) => {
       LIMIT 8
     `,
     )
-    .all(since30d) as { seller_id: string; name: string; email: string; orders: number; revenue: number }[];
+    .all(since30d) as {
+    seller_id: string;
+    name: string;
+    email: string;
+    orders: number;
+    revenue: number;
+  }[];
 
   const providerHealth = db
     .prepare(
@@ -156,27 +229,61 @@ adminAnalyticsRouter.get("/", (req, res) => {
       LIMIT 8
     `,
     )
-    .all(since30d) as { provider_id: string; name: string; total: number; failed: number; success: number }[];
+    .all(since30d) as {
+    provider_id: string;
+    name: string;
+    total: number;
+    failed: number;
+    success: number;
+  }[];
 
-  const sallaConnectionsEnabled = (db.prepare(`SELECT COUNT(*) as c FROM salla_connections WHERE is_enabled = 1`).get() as { c: number }).c;
-  const sallaStale = (db
-    .prepare(`SELECT COUNT(*) as c FROM salla_connections WHERE is_enabled = 1 AND (last_event_at IS NULL OR last_event_at < ?)`)
-    .get(startOfDayIso(new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000))) as { c: number }).c;
+  const sallaConnectionsEnabled = (
+    db
+      .prepare(
+        `SELECT COUNT(*) as c FROM salla_connections WHERE is_enabled = 1`,
+      )
+      .get() as { c: number }
+  ).c;
+  const sallaStale = (
+    db
+      .prepare(
+        `SELECT COUNT(*) as c FROM salla_connections WHERE is_enabled = 1 AND (last_event_at IS NULL OR last_event_at < ?)`,
+      )
+      .get(
+        startOfDayIso(new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000)),
+      ) as { c: number }
+  ).c;
 
   res.json({
     success: true,
     data: {
+      financials: {
+        ledgerTotalsByCurrency: ledgerTotalsByCurrency(),
+        reportingCurrency,
+        basis:
+          "Invoice totals, not settled payments. Provider costs are estimates.",
+        invoiceTotalsByCurrency: invoiceTotalsByCurrency(undefined, since30d),
+      },
       kpi: {
         totalOrders,
         totalUsers,
         totalSellers,
         ordersLast7d,
-        revenueLast30d,
-        totalRevenueAllTime,
+        revenueLast30d:
+          invoiceTotalsByCurrency(undefined, since30d).find(
+            (row) => row.currency === reportingCurrency,
+          )?.invoiceTotal ?? 0,
+        totalRevenueAllTime:
+          invoiceTotalsByCurrency().find(
+            (row) => row.currency === reportingCurrency,
+          )?.invoiceTotal ?? 0,
         range,
         rangeDays,
         ordersInRange,
-        revenueInRange,
+        revenueInRange:
+          invoiceTotalsByCurrency(undefined, sinceRange ?? undefined).find(
+            (row) => row.currency === reportingCurrency,
+          )?.invoiceTotal ?? 0,
         pendingFulfillments,
         failedFulfillmentsLast7d,
         failedFulfillmentsInRange,

@@ -115,7 +115,7 @@ export default function SellerDashboardPage() {
   const successRate = analytics?.kpi.fulfillmentsSuccessRate30d == null
     ? null
     : Math.round(analytics.kpi.fulfillmentsSuccessRate30d * 100);
-  const readinessHealthy = routingIssues === 0 && webhookBacklog === 0;
+  const readinessHealthy = analytics?.integrationOperational===true && (analytics?.activeProviders??0)>0 && routingIssues === 0 && webhookBacklog === 0 && subscriptionQuery.data?.subscription.status==='active';
 
   const subscription = subscriptionQuery.data?.subscription;
   const subscriptionUsage = subscriptionQuery.data?.usage;
@@ -131,7 +131,7 @@ export default function SellerDashboardPage() {
   const copy = isRTL
     ? {
         subtitle: 'هذه نظرة مباشرة على تشغيل متجرك.',
-        sync: 'مزامنة لحظية مع سلة',
+        sync: 'ربط المتجر مع سلة',
         heroTitle: 'واجهة هادئة، وتشغيل واضح لحظة بلحظة.',
         heroDescription: 'الطلبات والتنفيذ والتعويضات في مكان واحد، بتفاصيل كافية بدون ازدحام.',
         followOrders: 'متابعة الطلبات',
@@ -154,7 +154,7 @@ export default function SellerDashboardPage() {
       }
     : {
         subtitle: 'A live view of your store operation.',
-        sync: 'Live sync with Salla',
+        sync: 'Salla store integration',
         heroTitle: 'A calm interface with a clear real-time operation.',
         heroDescription: 'Orders, fulfillment, and compensation in one focused workspace.',
         followOrders: 'View orders',
@@ -192,8 +192,8 @@ export default function SellerDashboardPage() {
           <p className="mt-1 text-xs text-muted-foreground sm:text-sm">{copy.subtitle}</p>
         </div>
         <div className="hidden items-center gap-2 sm:flex">
-          <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_0_4px_rgba(52,211,153,0.09)]" />
-          <span className="text-xs text-muted-foreground">{copy.healthy}</span>
+          <span className={cn('h-2 w-2 rounded-full',readinessHealthy?'bg-emerald-400':'bg-primary')} />
+          <span className="text-xs text-muted-foreground">{readinessHealthy?copy.healthy:copy.needsAttention}</span>
         </div>
       </header>
 

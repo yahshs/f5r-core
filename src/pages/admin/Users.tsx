@@ -75,7 +75,7 @@ export default function AdminUsersPage() {
   const deleteUser = useDeleteAdminUser();
   const resetPassword = useResetAdminUserPassword();
 
-  const users = usersQuery.data?.data ?? [];
+  const users = useMemo(() => usersQuery.data?.data ?? [], [usersQuery.data?.data]);
   const passwordUser = users.find((u) => u.id === passwordId) ?? null;
 
   const filtered = useMemo(() => {
@@ -92,8 +92,8 @@ export default function AdminUsersPage() {
         name: editForm.name,
         email: editForm.email,
         role: editForm.role,
-        phone: editForm.phone ?? null,
-        subscriptionPlan: (editForm.subscription?.plan as any) ?? undefined,
+        phone: editForm.phone ?? undefined,
+        subscriptionPlan: (editForm.subscription?.plan as "basic" | "plus" | "pro" | "special") ?? undefined,
         subscriptionDays,
         isDisabled: editForm.isDisabled ?? false,
         emailVerified: editForm.emailVerified,
@@ -122,7 +122,7 @@ export default function AdminUsersPage() {
       await deleteUser.mutateAsync(deleteId);
       toast({ title: t('common.success'), description: t('admin.usersDeleted') });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : t('common.error');
+      const msg = e instanceof Error ? (e instanceof Error ? e.message : 'Request failed') : t('common.error');
       toast({ title: t('common.error'), description: msg });
     } finally {
       setDeleteId(null);
@@ -242,7 +242,7 @@ export default function AdminUsersPage() {
               </div>
               <div>
                 <Label>{t('admin.usersRole')}</Label>
-                <Select value={editForm.role} onValueChange={(v) => setEditForm({ ...editForm, role: v as any })}>
+                <Select value={editForm.role} onValueChange={(v) => setEditForm({ ...editForm, role: v as "admin" | "user" | "seller" })}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -256,7 +256,7 @@ export default function AdminUsersPage() {
               <div>
                 <Label>{t('admin.usersSubscriptionPlan')}</Label>
                 <Select
-                  value={(editForm.subscription?.plan as any) ?? 'basic'}
+                  value={editForm.subscription?.plan ?? 'basic'}
                   onValueChange={(v) => setEditForm({ ...editForm, subscription: { ...(editForm.subscription ?? { status: 'active', renewAt: null }), plan: v } })}
                 >
                   <SelectTrigger>

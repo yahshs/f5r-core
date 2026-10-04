@@ -1,186 +1,47 @@
-# F5R Project Setup Guide
+# Setup
 
-## Prerequisites
+## Local development
 
-- **Node.js** (v18 or higher recommended)
-- **npm** (comes with Node.js)
+Install Node 24 LTS, then run `npm ci`. The supported engine range also allows Node 22.12+, but Node 24 is the tested CI baseline. Native SQLite bindings must be installed with the selected Node version; do not reuse `node_modules` across incompatible runtimes.
 
-## Quick Start
+Create a protected `.env` with `NODE_ENV=development`, `PORT=8787`, `BASE_PUBLIC_URL` matching the frontend origin, `DB_PATH=./.data/app.sqlite`, and independent `JWT_SECRET` and `ENCRYPTION_KEY`. Generate each secret independently:
 
-### 1. Install Dependencies
-
-```bash
-cd f5s-connect
-npm install
-```
-
-### 2. Set Up Environment Variables
-
-Create a `.env` file in the `f5s-connect` directory with the following variables:
-
-```env
-# Recommended for JWT authentication. If omitted, a separate JWT key is
-# derived from ENCRYPTION_KEY so login still works.
-JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
-
-# Required in production to create/update the administrator account
-ADMIN_PASSWORD=use-a-strong-password
-
-# Optional: defaults to admin@f5s.sa when ADMIN_PASSWORD is set
-# ADMIN_EMAIL=admin@f5s.sa
-
-# Required for encrypting sensitive data (must be exactly 32 bytes)
-# Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-ENCRYPTION_KEY=0123456789abcdef0123456789abcdef
-
-# Optional: Database path (defaults to .data/app.sqlite)
-# DB_PATH=.data/app.sqlite
-
-# Optional: Server port (defaults to 8787)
-# PORT=8787
-
-# Optional: Demo password for test accounts (defaults to "demo1234")
-# DEMO_PASSWORD=demo1234
-
-# Optional frontend API URL. Both forms below are accepted.
-# VITE_API_BASE_URL=https://backend.example.com
-# VITE_API_BASE_URL=https://backend.example.com/api
-
-# Optional: Disable background workers (set to "0" to disable)
-# WORKERS_ENABLED=1
-
-# Optional: Public URL of the Node backend
-# BASE_PUBLIC_URL=https://backend.example.com
-
-# Optional: Put the public Salla webhook endpoint on WordPress.
-# When set, F5R registers/displays https://your-wordpress.com/wp-json/f5r/v1/salla/<publicId>
-# WORDPRESS_PUBLIC_URL=https://your-wordpress.com
-```
-
-**Quick way to generate ENCRYPTION_KEY:**
-```bash
+```sh
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-### 3. Run the Project
+The encryption key must encode 32 bytes as hex or base64. Keep `WORKERS_ENABLED=0` when inspecting data without executing queued work. Optional development-only `DEMO_PASSWORD` creates absent demo accounts; it never changes an existing account. Never set it in production.
 
-#### Option A: Run Both Frontend and Backend Together (Recommended)
-
-```bash
+```sh
 npm run dev:full
 ```
 
-This starts:
-- **Backend server** on `http://localhost:8787`
-- **Frontend dev server** on `http://localhost:8080` (proxies API calls to backend)
+The frontend proxies `/api` to the API so session cookies use the same origin. The SPA stores a user hint, with authentication in an HttpOnly cookie. Cross-origin frontend/API hosting needs an explicitly designed cookie/origin configuration.
 
-#### Option B: Run Separately
+## Production configuration
 
-**Terminal 1 - Backend:**
-```bash
-npm run server:dev
-```
+Use `.env.example` as the variable inventory. Set `NODE_ENV=production`, a persistent absolute `DB_PATH`, public HTTPS `BASE_PUBLIC_URL`, independent JWT/encryption/OAuth secrets, and the exact trusted proxy hop count. Default outbound concurrency is 8 (configurable 1–64); waiting calls are bounded. Start with workers paused. Keep historical encryption keys available for rekeying and retained backups.
 
-**Terminal 2 - Frontend:**
-```bash
-npm run dev
-```
-
-### 4. Access the Application
-
-- **Frontend**: http://localhost:8080
-- **Backend API**: http://localhost:8787/api
-- **Health Check**: http://localhost:8787/api/health
-
-## Login Credentials
-
-### Admin Account
-- **Email**: `admin@f5s.sa`
-- **Password in production**: your `ADMIN_PASSWORD` value
-- **Password in development**: `demo1234` (or your `DEMO_PASSWORD` env var)
-
-### Seller Account
-- **Email**: `seller@f5s.sa`
-- **Password**: `demo1234` (or your `DEMO_PASSWORD` env var)
-
-> **Note**: Demo accounts are created automatically in development. In production they are created only when `DEMO_PASSWORD` is explicitly set.
-
-## Production Build
-
-### Build for Production
-
-```bash
+```sh
 npm run build
-```
-
-### Run Production Server
-
-```bash
+npm run migrate
+npm run admin:bootstrap
 npm start
 ```
 
-The production server will:
-- Serve the built frontend from `dist/`
-- Run the Express API
-- Use port 8787 (or your `PORT` env var)
+For bootstrap only, provide `ADMIN_EMAIL` and `ADMIN_PASSWORD` (minimum 10 characters, maximum 72 UTF-8 bytes). Bootstrap refuses existing accounts; remove those credentials afterward. Serve the built frontend and API through the same HTTPS origin. Follow the backup, populated migration, ingress credential, reconnect and provider canary gates in [OPERATIONS.md](docs/OPERATIONS.md) before enabling workers.
 
-### Run Database Migrations
+Salla native webhook signatures and manual relay tokens are separate ingress contracts. Manual senders must use `X-F5R-Webhook-Token`; Telegram requires its configured secret header. Configure external services only in the intended environment. Starting the API with a Telegram token may configure its webhook.
 
-```bash
-npm run migrate
+## Verification
+
+```sh
+npm run lint
+npm run typecheck
+npm test
+npm run build
+npm run test:load
+npm audit
 ```
 
-## Project Structure
-
-```
-f5s-connect/
-├── src/              # React frontend (Vite)
-├── server/           # Express backend
-│   ├── db/          # Database migrations & repositories
-│   ├── routes/      # API routes
-│   ├── lib/         # Utilities (JWT, encryption, etc.)
-│   └── workers/     # Background workers
-├── public/          # Static assets
-└── dist/            # Production build output
-```
-
-## Troubleshooting
-
-### Port Already in Use
-
-If port 8787 or 8080 is already in use:
-- Change `PORT` in `.env` for backend
-- Change port in `vite.config.ts` for frontend
-
-### Database Issues
-
-- Database is created automatically at `.data/app.sqlite`
-- To reset: delete `.data/app.sqlite` and restart the server
-- Migrations run automatically on startup
-
-### Missing Environment Variables
-
-If you see errors about `JWT_SECRET` or `ENCRYPTION_KEY`:
-- Make sure `.env` file exists in `f5s-connect/` directory
-- Check that `ENCRYPTION_KEY` is exactly 32 bytes (64 hex characters or 44 base64 characters)
-
-## Development Scripts
-
-| Command | Description |
-|--------|-------------|
-| `npm run dev` | Start frontend dev server only |
-| `npm run dev:full` | Start both frontend and backend |
-| `npm run server:dev` | Start backend with auto-reload |
-| `npm run server:start` | Start backend (production mode) |
-| `npm run build` | Build for production |
-| `npm start` | Start production server |
-| `npm run migrate` | Run database migrations |
-| `npm test` | Run tests |
-| `npm run lint` | Run linter |
-
-## Additional Notes
-
-- The frontend uses Vite with HMR (Hot Module Replacement) for fast development
-- The backend uses `tsx` for TypeScript execution
-- SQLite database is used (no separate database server needed)
-- Background workers handle order fulfillment and webhook processing
+Tests isolate SQLite and mock provider mutations. The load command creates an in-memory 10,000-order fixture and checks authenticated tenant pagination and readiness latency. It does not establish production capacity. Production-shaped restore and integration contract checks remain deployment gates.

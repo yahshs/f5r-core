@@ -4,9 +4,16 @@ import { requireSeller } from "../auth";
 import { getCompensationStatsForSeller, listRecentCompensationRequestsForSeller } from "../db/compensationRequestsRepo";
 import { ensureCustomerBotSettings, updateCustomerBotSettings } from "../db/customerBotSettingsRepo";
 import { buildTelegramStartLink, getTelegramBotUsername } from "../lib/telegram";
+import { issueCustomerOrderAccess } from "../db/customerOrderAccessRepo";
 
 export const sellerCompensationBotRouter = Router();
 sellerCompensationBotRouter.use(requireSeller);
+sellerCompensationBotRouter.post("/orders/:orderId/access-link", (req, res) => {
+  try {
+    const access = issueCustomerOrderAccess(req.sellerAuth!.sellerId, String(req.params.orderId));
+    return res.json({ success: true, data: { deepLink: buildTelegramStartLink(`co_${access.token}`), expiresAt: access.expiresAt } });
+  } catch { return res.status(404).json({ success: false, message: "Order unavailable" }); }
+});
 
 const updateSchema = z.object({
   is_enabled: z.boolean(),

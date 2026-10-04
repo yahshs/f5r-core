@@ -3,6 +3,7 @@ import { getSallaAccessToken, getSallaConnectionBySellerId, isSallaConnectionOpe
 import { listOrderItemsByOrderId, upsertOrderItem, type OrderItemRow, type OrderRow } from "../db/ordersRepo";
 import { buildTargetJson, extractOrder, extractOrderId, extractSallaApiOrderId, parseWebhookPayloadRaw } from "../workers/sallaWebhookWorker";
 import { fetchSallaOrderWithItems } from "./sallaClient";
+import { getFreshSallaAccessToken } from "./sallaTokens";
 import { matchSallaItem, mergeSallaOrderItems } from "./sallaOrderItems";
 
 export async function recoverSallaOrderItem(order: OrderRow, item: OrderItemRow) {
@@ -20,7 +21,7 @@ export async function recoverSallaOrderItem(order: OrderRow, item: OrderItemRow)
     WHERE seller_id = ? AND topic = 'invoice.created' AND instr(payload_raw, ?) > 0
     ORDER BY received_at DESC LIMIT 100`).all(order.seller_id, order.salla_order_id) as Array<{ payload_raw: string }>;
   for (const event of events) {
-    let payload: any;
+    let payload: unknown;
     try { payload = parseWebhookPayloadRaw(event.payload_raw); } catch { continue; }
     if (extractOrderId(payload) !== order.salla_order_id && extractSallaApiOrderId(payload) !== order.salla_order_id) continue;
     apiOrderId ||= extractSallaApiOrderId(payload);
@@ -31,7 +32,7 @@ export async function recoverSallaOrderItem(order: OrderRow, item: OrderItemRow)
 
   const connection = getSallaConnectionBySellerId(order.seller_id);
   let accessToken: string | null = null;
-  try { accessToken = connection && isSallaConnectionOperational(connection) ? getSallaAccessToken(connection) : null; }
+  try { accessToken = connection && isSallaConnectionOperational(connection) ? await getFreshSallaAccessToken(connection) : null; }
   catch { /* Keep any recoverable original invoice data even if the token cannot be decrypted. */ }
   let reason = "العدد غير موجود في بيانات الفاتورة. أرسل خيارات عنصر الطلب كاملة من سلة/Make أو اربط سلة بصلاحية قراءة الطلبات.";
   if (accessToken && apiOrderId) {

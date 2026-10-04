@@ -56,8 +56,8 @@ export default function AdminSubscriptionRequestsPage() {
       toast({ title: t("common.success"), description: t("admin.subscriptionRequests.toasts.reviewed") });
       setSelected(null);
       setNote("");
-    } catch (e: any) {
-      toast({ title: t("common.error"), description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: t("common.error"), description: (e instanceof Error ? e.message : 'Request failed'), variant: "destructive" });
     }
   };
 
@@ -69,7 +69,7 @@ export default function AdminSubscriptionRequestsPage() {
           <p className="text-sm text-muted-foreground">{t("admin.subscriptionRequests.subtitle")}</p>
         </div>
         <div className="w-full sm:w-56">
-          <Select value={status} onValueChange={(v) => setStatus(v as any)}>
+          <Select value={status} onValueChange={(v) => setStatus(v as "PENDING" | "APPROVED" | "REJECTED" | "ALL")}>
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
@@ -173,7 +173,7 @@ export default function AdminSubscriptionRequestsPage() {
 
               <div className="space-y-2">
                 <Label>{t("admin.subscriptionRequests.decision")}</Label>
-                <Select value={decision} onValueChange={(v) => setDecision(v as any)}>
+                <Select value={decision} onValueChange={(v) => setDecision(v as "APPROVED" | "REJECTED")}>
                   <SelectTrigger className="w-full sm:w-60">
                     <SelectValue />
                   </SelectTrigger>

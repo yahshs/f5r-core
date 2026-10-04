@@ -24,6 +24,8 @@ export type NotificationJobRow = {
   sent_at: string | null;
   created_at: string;
   updated_at: string;
+  lease_id: string | null;
+  lease_expires_at: string | null;
 };
 
 export function insertNotificationJob(input: {
@@ -46,11 +48,12 @@ export function insertNotificationJob(input: {
 
 export function claimNextNotificationJob(nowIso: string) {
   const db = getDb();
+  db.prepare("UPDATE notification_jobs SET status='PENDING' WHERE status='PROCESSING' AND (lease_expires_at IS NULL OR lease_expires_at<=?)").run(nowIso);
   const tx = db.transaction(() => {
     const row = db
       .prepare(
         `SELECT * FROM notification_jobs
-         WHERE status IN ('PENDING','FAILED') AND next_attempt_at <= ?
+         WHERE status IN ('PENDING','FAILED') AND attempts < 20 AND next_attempt_at <= ?
          ORDER BY created_at ASC
          LIMIT 1`,
       )
@@ -58,33 +61,35 @@ export function claimNextNotificationJob(nowIso: string) {
     if (!row) return null;
 
     const updatedAt = new Date().toISOString();
+    const leaseId = crypto.randomUUID();
+    const leaseUntil = new Date(Date.parse(nowIso)+5*60000).toISOString();
     db.prepare(
       `UPDATE notification_jobs
-       SET status = 'PROCESSING', attempts = attempts + 1, updated_at = ?
+       SET status = 'PROCESSING', attempts = attempts + 1, updated_at = ?, lease_id=?, lease_expires_at=?
        WHERE id = ?`,
-    ).run(updatedAt, row.id);
+    ).run(updatedAt, leaseId, leaseUntil, row.id);
 
-    return { ...row, status: "PROCESSING" as const, attempts: row.attempts + 1, updated_at: updatedAt };
+    return { ...row, lease_id: leaseId, lease_expires_at: leaseUntil, status: "PROCESSING" as const, attempts: row.attempts + 1, updated_at: updatedAt };
   });
   return tx();
 }
 
-export function markNotificationJobSent(id: string, nowIso: string) {
+export function markNotificationJobSent(id: string, nowIso: string, leaseId: string) {
   const db = getDb();
   db.prepare(
     `UPDATE notification_jobs
      SET status = 'SENT', sent_at = ?, last_error = NULL, updated_at = ?
-     WHERE id = ?`,
-  ).run(nowIso, nowIso, id);
+     WHERE id = ? AND lease_id=? AND status='PROCESSING'`,
+  ).run(nowIso, nowIso, id, leaseId);
 }
 
-export function markNotificationJobFailed(id: string, input: { error: string; nextAttemptAtIso: string; nowIso: string }) {
+export function markNotificationJobFailed(id: string, input: { error: string; nextAttemptAtIso: string; nowIso: string; leaseId: string }) {
   const db = getDb();
   db.prepare(
     `UPDATE notification_jobs
      SET status = 'FAILED', last_error = ?, next_attempt_at = ?, updated_at = ?
-     WHERE id = ?`,
-  ).run(input.error, input.nextAttemptAtIso, input.nowIso, id);
+     WHERE id = ? AND lease_id=? AND status='PROCESSING'`,
+  ).run(input.error, input.nextAttemptAtIso, input.nowIso, id, input.leaseId);
 }
 
 export function getNotificationJobByDedupeKey(dedupeKey: string) {

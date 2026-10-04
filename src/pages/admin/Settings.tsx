@@ -72,7 +72,7 @@ export default function AdminSettingsPage() {
       }
       clearDraft?.();
     } catch (e) {
-      setSaveError(e instanceof Error ? e.message : 'Failed to save setting');
+      setSaveError(e instanceof Error ? (e instanceof Error ? e.message : 'Request failed') : 'Failed to save setting');
     }
   };
 
@@ -87,7 +87,7 @@ export default function AdminSettingsPage() {
         if (!result.telegramWebhook.configured) setSaveError(result.telegramWebhook.message || 'تعذر الربط.');
         await settingsQuery.refetch();
       } else setTelegramStatus((await adminSettingsApi.getTelegramStatus()).data);
-    } catch (error) { setSaveError(error instanceof Error ? error.message : 'تعذر فحص البوت.'); }
+    } catch (error) { setSaveError(error instanceof Error ? (error instanceof Error ? error.message : 'Request failed') : 'تعذر فحص البوت.'); }
     finally { setCheckingTelegram(false); }
   };
 

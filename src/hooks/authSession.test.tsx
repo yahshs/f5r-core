@@ -1,3 +1,4 @@
+import { testUser } from '@/test/userFixture';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -17,7 +18,7 @@ async function renderSession() {
 describe('session validation regressions', () => {
   beforeEach(() => {
     client = new QueryClient({ defaultOptions: { queries: { gcTime: Infinity } } });
-    useAuthStore.setState({ token: 'old-session', user: { id: 'seller-a', role: 'seller' } as any, isAuthenticated: true, isLoading: true });
+    useAuthStore.setState({ token: 'old-session', user: testUser('seller-a'), isAuthenticated: true, isLoading: true });
   });
   afterEach(() => {
     if (view) act(() => view.unmount());
@@ -41,9 +42,9 @@ describe('session validation regressions', () => {
   it('does not let a late rejection of the old token log out the new account', async () => {
     let rejectOld: (error: Error) => void;
     vi.mocked(authApi.getCurrentUser).mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectOld = reject; }));
-    vi.mocked(authApi.getCurrentUser).mockResolvedValue({ id: 'seller-b', role: 'seller' } as any);
+    vi.mocked(authApi.getCurrentUser).mockResolvedValue(testUser('seller-b'));
     await renderSession();
-    await act(async () => { useAuthStore.getState().setSession({ id: 'seller-b', role: 'seller' } as any, 'new-session'); });
+    await act(async () => { useAuthStore.getState().setSession(testUser('seller-b'), 'new-session'); });
     await act(async () => { rejectOld!(new AuthApiError('Unauthorized', { status: 401 })); });
     expect(useAuthStore.getState()).toMatchObject({ token: 'new-session', isAuthenticated: true });
     expect(useAuthStore.getState().user?.id).toBe('seller-b');

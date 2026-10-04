@@ -372,7 +372,7 @@ export default function RuleModal(props: {
                     try {
                       await loadServices();
                     } catch (e) {
-                      const msg = e instanceof Error ? e.message : t("common.error");
+                      const msg = e instanceof Error ? (e instanceof Error ? e.message : 'Request failed') : t("common.error");
                       form.setError("service_name", { type: "custom", message: msg });
                     }
                   }}
@@ -463,7 +463,7 @@ export default function RuleModal(props: {
             {canBulkEdit ? (
               <div className="space-y-2">
                 <Label>{t("seller.products.rules.fields.applyTo")}</Label>
-                <Select value={applyMode} onValueChange={(v) => setApplyMode(v as any)}>
+                <Select value={applyMode} onValueChange={(v) => setApplyMode(v as "single" | "all_matching" | "products" | "all_by_name" | "products_by_name")}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -539,7 +539,7 @@ export default function RuleModal(props: {
               <Select
                 value={quantityType}
                 onValueChange={(v) => {
-                  form.setValue("quantity_type", v as any);
+                  form.setValue("quantity_type", v as "fixed" | "from_field");
                   if (v === "fixed") {
                     form.setValue("quantity_field", null);
                   } else {
@@ -629,7 +629,7 @@ export default function RuleModal(props: {
                       <Label className="text-xs">{t("seller.products.rules.condition.op")}</Label>
                       <Select
                         value={form.watch(`conditions.${idx}.op` as const)}
-                        onValueChange={(v) => form.setValue(`conditions.${idx}.op` as const, v as any)}
+                        onValueChange={(v) => form.setValue(`conditions.${idx}.op` as const, v as "equals" | "contains" | "gt" | "lt")}
                       >
                         <SelectTrigger>
                           <SelectValue />

@@ -339,7 +339,7 @@ function SellerOrdersContent({ sellerId }: { sellerId: string | undefined }) {
                     <TableHead className="hidden md:table-cell">{t('orders.columns.quantity')}</TableHead>
                     <TableHead>{t('orders.columns.status')}</TableHead>
                     <TableHead className="hidden lg:table-cell text-right">{t('orders.columns.cost', { defaultValue: 'Cost' })}</TableHead>
-                    <TableHead className="hidden lg:table-cell text-right">{t('orders.columns.profit', { defaultValue: 'Profit' })}</TableHead>
+                    <TableHead className="hidden lg:table-cell text-right">{t('orders.columns.profit', { defaultValue: 'Estimated invoice margin' })}</TableHead>
                     <TableHead className="text-right">{t('orders.columns.total')}</TableHead>
                     <TableHead className="text-right">{t('common.actions')}</TableHead>
                   </TableRow>

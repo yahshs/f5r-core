@@ -1,73 +1,27 @@
-# Welcome to your Lovable project
+# F5R integration core
 
-## Project info
+React application and Express API for seller/admin Salla integrations, product rules, SMM fulfillment, Telegram notifications and purchaser refill requests. SQLite stores tenant data, revocable sessions, durable queues, submission evidence and an immutable financial ledger.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
-
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+Use Node 24 LTS and `npm ci`. See [SETUP.md](SETUP.md), [the implementation report](docs/SECURITY-IMPLEMENTATION.md) and [OPERATIONS.md](docs/OPERATIONS.md).
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+npm ci
+npm run dev:full
 ```
 
-**Edit a file directly in GitHub**
+Configure a protected local `.env` first. Production requires independent secrets, HTTPS and an explicit administrator bootstrap. Development demo users require an explicit `DEMO_PASSWORD`; startup never resets existing passwords. Billing, support tickets and outgoing contact/recovery email are unavailable until real services are integrated.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```sh
+npm run lint
+npm run typecheck
+npm test
+npm run build
+npm run test:load
+npm audit
+```
 
-**Use GitHub Codespaces**
+Provider acceptance and delivery are separate states. Ambiguous paid submissions/refills require provider confirmation in the administrator Operations page; they are never automatically replayed. Provider-reported charges and configured-rate estimates are separate from invoice totals and bank settlement.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+SQLite has no database row-level security. This implementation enforces tenant access through authenticated routes, scoped repositories and database ownership constraints. PostgreSQL RLS and real billing/support are separate projects.
 
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+For GitHub → Railway deployment, use [RAILWAY-RELEASE.md](docs/RAILWAY-RELEASE.md). It covers the Docker image, persistent volume, protected metrics/alerts, configuration preflight, restored migration drill and live canary checklist.

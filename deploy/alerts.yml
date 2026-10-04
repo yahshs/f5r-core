@@ -1,0 +1,30 @@
+groups:
+  - name: f5r
+    rules:
+      - alert: F5RMetricsUnavailable
+        expr: up{job="f5r"} == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations: { summary: "F5R operational metrics are unavailable" }
+      - alert: F5RUncertainPaidOperation
+        expr: f5r_uncertain_submissions > 0 or f5r_uncertain_refills > 0
+        labels: { severity: critical }
+        annotations: { summary: "Confirm provider outcome before replaying paid work" }
+      - alert: F5RExhaustedWork
+        expr: f5r_queue_exhausted > 0 or f5r_exhausted_status_polls > 0
+        labels: { severity: critical }
+        annotations: { summary: "An exhausted queue requires operator review" }
+      - alert: F5RQueueDelayed
+        expr: f5r_queue_oldest_due_seconds > 300
+        for: 2m
+        labels: { severity: warning }
+        annotations: { summary: "Ready work has waited over five minutes" }
+      - alert: F5RQueueStalled
+        expr: f5r_queue_oldest_due_seconds > 900
+        labels: { severity: critical }
+        annotations: { summary: "Ready work has waited over fifteen minutes" }
+      - alert: F5RWorkerUnhealthy
+        expr: f5r_workers_enabled == 1 and f5r_workers_healthy == 0
+        for: 1m
+        labels: { severity: critical }
+        annotations: { summary: "Enabled F5R workers are unhealthy" }

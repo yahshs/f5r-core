@@ -1,6 +1,9 @@
 import { Ticket, TicketReply, TicketStatus, TicketPriority, PaginatedResponse } from '@/types';
 
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const delay = (ms: number) => {
+  if (import.meta.env.PROD) throw new Error('Support tickets are unavailable. Contact your administrator.');
+  return new Promise(resolve => setTimeout(resolve, ms));
+};
 
 // Mock tickets
 let mockTickets: Ticket[] = [

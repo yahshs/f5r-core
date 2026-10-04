@@ -6,7 +6,7 @@ const linkRule = {
   target_field: "link",
   normalize_url: 1,
   service_name: "TikTok views",
-} as any;
+} as unknown;
 
 describe("Salla invoice payload extraction", () => {
   it('keeps username targets as provided even when URL normalization is enabled', () => {

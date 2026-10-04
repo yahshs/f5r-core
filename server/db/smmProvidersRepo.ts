@@ -186,6 +186,9 @@ export function updateProvider(sellerId: string, id: string, patch: {
 
 export function deleteProvider(sellerId: string, id: string) {
   const db = getDb();
+  if (db.prepare("SELECT 1 FROM fulfillments WHERE provider_id=? LIMIT 1").get(id) || db.prepare("SELECT 1 FROM smm_product_rules WHERE provider_connection_id=? LIMIT 1").get(id)) {
+    return db.prepare("UPDATE smm_provider_connections SET is_active=0,is_default=0 WHERE seller_id=? AND id=?").run(sellerId,id).changes > 0;
+  }
   const result = db
     .prepare(`DELETE FROM smm_provider_connections WHERE seller_id = ? AND id = ?`)
     .run(sellerId, id);

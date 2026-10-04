@@ -7,7 +7,7 @@ import request from "supertest";
 vi.mock("../lib/telegram", () => ({
   getTelegramBotUsername: () => "f5r_customer_test_bot",
   buildTelegramStartLink: (code: string) => `https://t.me/f5r_customer_test_bot?start=${encodeURIComponent(code)}`,
-  getTelegramWebhookSecret: () => null,
+  getTelegramWebhookSecret: () => "test-telegram-secret",
   sendTelegramMessage: vi.fn(async () => ({ ok: true })),
   answerTelegramCallbackQuery: vi.fn(async () => ({ ok: true })),
 }));
@@ -34,13 +34,14 @@ vi.mock("../smm/panelV2Adapter", async () => {
 
 import { createApp } from "../app";
 import { getDb, resetDbForTests } from "../db/db";
-import { signAuthToken } from "../lib/jwt";
+import { signAuthToken } from "../test/authFixture";
 import { createFulfillmentIfMissing, markFulfillmentSuccess } from "../db/fulfillmentsRepo";
 import { upsertOrder, upsertOrderItem } from "../db/ordersRepo";
 import { processNextCompensationRequest } from "../workers/compensationWorker";
 import { fetchPanelV2OrderStatus, requestPanelV2Refill } from "../smm/panelV2Adapter";
 import { answerTelegramCallbackQuery, sendTelegramMessage } from "../lib/telegram";
 import { createProvider } from "../db/smmProvidersRepo";
+import { issueCustomerOrderAccess } from "../db/customerOrderAccessRepo";
 import { encryptSecret } from "../lib/encryption";
 
 type CompensationDbRow = { status: string };
@@ -77,9 +78,9 @@ describe("customer compensation bot", () => {
     const app = await createApp();
     vi.mocked(sendTelegramMessage).mockRejectedValueOnce(new Error("Telegram request timeout"));
     const update = { update_id: 901234, message: { text: "/start", chat: { id: 901234, type: "private" } } };
-    await request(app).post("/api/webhooks/telegram").send(update).expect(503);
-    await request(app).post("/api/webhooks/telegram").send(update).expect(200);
-    await request(app).post("/api/webhooks/telegram").send(update).expect(200);
+    await request(app).post("/api/webhooks/telegram").set("X-Telegram-Bot-Api-Secret-Token", "test-telegram-secret").send(update).expect(503);
+    await request(app).post("/api/webhooks/telegram").set("X-Telegram-Bot-Api-Secret-Token", "test-telegram-secret").send(update).expect(200);
+    await request(app).post("/api/webhooks/telegram").set("X-Telegram-Bot-Api-Secret-Token", "test-telegram-secret").send(update).expect(200);
     expect(sendTelegramMessage).toHaveBeenCalledTimes(2);
   });
 
@@ -145,11 +146,11 @@ describe("customer compensation bot", () => {
     });
 
     await request(app)
-      .post("/api/webhooks/telegram")
+      .post("/api/webhooks/telegram").set("X-Telegram-Bot-Api-Secret-Token", "test-telegram-secret")
       .send({
         update_id: 1,
         message: {
-          text: "/start",
+          text: `/start co_${issueCustomerOrderAccess(sellerId, order.id).token}`,
           chat: { id: 9001, type: "private" },
           from: { id: 9001, username: "customer" },
         },
@@ -157,7 +158,7 @@ describe("customer compensation bot", () => {
       .expect(200);
 
     await request(app)
-      .post("/api/webhooks/telegram")
+      .post("/api/webhooks/telegram").set("X-Telegram-Bot-Api-Secret-Token", "test-telegram-secret")
       .send({
         update_id: 2,
         message: {
@@ -180,10 +181,11 @@ describe("customer compensation bot", () => {
     expect(statusCall?.[2]?.replyMarkup?.inline_keyboard.flat().some((button) => button.callback_data?.startsWith("cr:"))).toBe(true);
 
     await request(app)
-      .post("/api/webhooks/telegram")
+      .post("/api/webhooks/telegram").set("X-Telegram-Bot-Api-Secret-Token", "test-telegram-secret")
       .send({
         update_id: 3,
         callback_query: {
+          from: { id: 9001 },
           id: "callback-refill-1",
           data: `cr:${order.id}`,
           message: { chat: { id: 9001, type: "private" } },
@@ -214,10 +216,11 @@ describe("customer compensation bot", () => {
     });
 
     await request(app)
-      .post("/api/webhooks/telegram")
+      .post("/api/webhooks/telegram").set("X-Telegram-Bot-Api-Secret-Token", "test-telegram-secret")
       .send({
         update_id: 4,
         callback_query: {
+          from: { id: 9001 },
           id: "callback-no-shortage",
           data: `cr:${order.id}`,
           message: { chat: { id: 9001, type: "private" } },
@@ -238,10 +241,11 @@ describe("customer compensation bot", () => {
       currency: "USD",
     });
     await request(app)
-      .post("/api/webhooks/telegram")
+      .post("/api/webhooks/telegram").set("X-Telegram-Bot-Api-Secret-Token", "test-telegram-secret")
       .send({
         update_id: 5,
         callback_query: {
+          from: { id: 9001 },
           id: "callback-refill-limit",
           data: `cr:${order.id}`,
           message: { chat: { id: 9001, type: "private" } },
@@ -258,7 +262,7 @@ describe("customer compensation bot", () => {
     expect(finalSettings.body.data.stats.successful).toBe(1);
   });
 
-  it("reports any platform order number without a deep link or enabled compensation", async () => {
+  it("rejects an order number without private order access", async () => {
     const app = await createApp();
     const sellerId = "seller-public-order-status";
     insertSeller(sellerId);
@@ -279,7 +283,7 @@ describe("customer compensation bot", () => {
     });
 
     await request(app)
-      .post("/api/webhooks/telegram")
+      .post("/api/webhooks/telegram").set("X-Telegram-Bot-Api-Secret-Token", "test-telegram-secret")
       .send({
         update_id: 20,
         message: {
@@ -290,6 +294,6 @@ describe("customer compensation bot", () => {
       })
       .expect(200);
 
-    expect(vi.mocked(sendTelegramMessage).mock.calls.some((call) => String(call[1]).includes("280128286"))).toBe(true);
+    expect(vi.mocked(sendTelegramMessage).mock.calls.some((call) => String(call[1]).includes("280128286"))).toBe(false);
   });
 });

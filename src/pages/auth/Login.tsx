@@ -29,8 +29,8 @@ export default function LoginPage() {
       const { user } = await loginMutation.mutateAsync({ email, password });
       toast({ title: 'Welcome back!', description: 'Login successful' });
       navigate(user.role === 'seller' ? '/seller/dashboard' : user.role === 'admin' ? '/admin' : '/account');
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error', description: (error instanceof Error ? error.message : 'Request failed'), variant: 'destructive' });
     }
   };
 
@@ -39,8 +39,8 @@ export default function LoginPage() {
       await demoLoginMutation.mutateAsync(role);
       toast({ title: 'Welcome!', description: `Logged in as demo ${role}` });
       navigate(role === 'admin' ? '/admin' : '/seller/dashboard');
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error', description: (error instanceof Error ? error.message : 'Request failed'), variant: 'destructive' });
     }
   };
 
@@ -153,6 +153,7 @@ export default function LoginPage() {
               </Button>
             </form>
 
+            {import.meta.env.DEV && <>
             {/* Divider */}
             <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
@@ -185,6 +186,7 @@ export default function LoginPage() {
               </Button>
             </div>
 
+            </>}
             <p className="mt-6 text-center text-sm text-muted-foreground">
               {t('auth.login.noAccount')}{' '}
               <Link to="/auth/register" className="text-primary font-medium hover:underline">

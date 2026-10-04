@@ -22,6 +22,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { sellerSallaApi } from '@/api/sellerSalla';
 
 export default function SellerSallaIntegrationPage() {
   const { t, i18n } = useTranslation();
@@ -39,6 +40,8 @@ export default function SellerSallaIntegrationPage() {
   const ensureWebhookMutation = useEnsureSellerSallaWebhook();
 
   const [enabled, setEnabled] = useState(true);
+  const [webhookCredential, setWebhookCredential] = useState('');
+  const [rotatingCredential, setRotatingCredential] = useState(false);
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<'all' | 'paid'>('all');
   const [duplicateDelayEnabled, setDuplicateDelayEnabled] = useState(false);
   const [duplicateDelayMinutes, setDuplicateDelayMinutes] = useState(5);
@@ -98,7 +101,7 @@ export default function SellerSallaIntegrationPage() {
       });
       toast({ title: t('common.success'), description: t('seller.salla.toasts.saved') });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : t('common.error');
+      const msg = e instanceof Error ? (e instanceof Error ? e.message : 'Request failed') : t('common.error');
       toast({ title: t('common.error'), description: msg });
     }
   };
@@ -153,7 +156,7 @@ export default function SellerSallaIntegrationPage() {
                       const data = await connectMutation.mutateAsync();
                       window.location.href = data.install_url;
                     } catch (e) {
-                      const msg = e instanceof Error ? e.message : t('common.error');
+                      const msg = e instanceof Error ? (e instanceof Error ? e.message : 'Request failed') : t('common.error');
                       toast({ title: t('common.error'), description: msg });
                     }
                   }}
@@ -175,7 +178,7 @@ export default function SellerSallaIntegrationPage() {
                         await disconnectMutation.mutateAsync();
                         toast({ title: t('common.success'), description: t('seller.salla.disconnected', { defaultValue: 'Salla disconnected.' }) });
                       } catch (e) {
-                        const msg = e instanceof Error ? e.message : t('common.error');
+                        const msg = e instanceof Error ? (e instanceof Error ? e.message : 'Request failed') : t('common.error');
                         toast({ title: t('common.error'), description: msg });
                       }
                     }}
@@ -283,7 +286,7 @@ export default function SellerSallaIntegrationPage() {
                       const res = await simulateMutation.mutateAsync();
                       toast({ title: t('common.success'), description: `${isRTL ? 'تم إنشاء اختبار' : 'Test created'}: ${res.salla_order_id}` });
                     } catch (e) {
-                      const msg = e instanceof Error ? e.message : t('common.error');
+                      const msg = e instanceof Error ? (e instanceof Error ? e.message : 'Request failed') : t('common.error');
                       toast({ title: t('common.error'), description: msg });
                     }
                   }}
@@ -312,6 +315,14 @@ export default function SellerSallaIntegrationPage() {
                     </div>
                   </div>
 
+                  <p className="text-sm text-muted-foreground">{isRTL ? 'أرسل الرمز في ترويسة x-f5r-webhook-token. التجديد يلغي الرمز السابق.' : 'Send the credential in the x-f5r-webhook-token header. Rotation revokes the previous credential.'}</p>
+                  <Button type="button" variant="outline" disabled={rotatingCredential} onClick={async () => {
+                    setRotatingCredential(true);
+                    try { setWebhookCredential((await sellerSallaApi.rotateToken()).token); }
+                    catch (error) { toast({ title: t('common.error'), description: error instanceof Error ? (error instanceof Error ? error.message : 'Request failed') : 'Failed to rotate credential' }); }
+                    finally { setRotatingCredential(false); }
+                  }}>{isRTL ? 'إنشاء / تجديد الرمز' : 'Generate / rotate credential'}</Button>
+                  {webhookCredential && <div className="flex gap-2"><Input readOnly type="password" value={webhookCredential} aria-label="Webhook credential" /><Button type="button" variant="outline" onClick={() => copy(webhookCredential)}>{t('common.copy')}</Button></div>}
                 </div>
               ) : (
                 <Button
@@ -324,7 +335,7 @@ export default function SellerSallaIntegrationPage() {
                       await ensureWebhookMutation.mutateAsync();
                       toast({ title: t('common.success') });
                     } catch (e) {
-                      const msg = e instanceof Error ? e.message : t('common.error');
+                      const msg = e instanceof Error ? (e instanceof Error ? e.message : 'Request failed') : t('common.error');
                       toast({ title: t('common.error'), description: msg });
                     }
                   }}

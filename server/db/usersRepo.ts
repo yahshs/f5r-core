@@ -16,6 +16,7 @@ export type UserRow = {
   wallet_balance: number;
   email_verified: 0 | 1;
   is_disabled: 0 | 1;
+  deleted_at: string | null;
   last_login_at: string | null;
   created_at: string;
   updated_at: string;
@@ -56,7 +57,7 @@ export function toPublicUser(row: UserRow): PublicUser {
 export function getUserByEmail(email: string) {
   const db = getDb();
   return db
-    .prepare(`SELECT * FROM users WHERE lower(email) = lower(?) LIMIT 1`)
+    .prepare(`SELECT * FROM users WHERE lower(trim(email)) = lower(trim(?)) LIMIT 1`)
     .get(email) as UserRow | undefined;
 }
 
@@ -81,7 +82,7 @@ export function createUser(input: {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id,
-    input.email,
+    input.email.trim().toLowerCase(),
     input.passwordHash,
     input.name,
     input.role,
@@ -123,8 +124,6 @@ export function ensureDemoUsers(input: { passwordHash: string }) {
     for (const u of demo) {
       const exists = getUserByEmail(u.email);
       if (exists) {
-        updateUserPassword(exists.id, input.passwordHash);
-        updateUser(exists.id, { role: u.role, emailVerified: true, isDisabled: false });
         continue;
       }
       insert.run(
@@ -168,7 +167,7 @@ export function updateUser(id: string, patch: Partial<{
   const now = new Date().toISOString();
 
   const next = {
-    email: patch.email ?? existing.email,
+    email: patch.email?.trim().toLowerCase() ?? existing.email,
     name: patch.name ?? existing.name,
     role: patch.role ?? existing.role,
     phone: patch.phone !== undefined ? patch.phone : existing.phone,
@@ -209,7 +208,8 @@ export function updateUserPassword(id: string, passwordHash: string) {
 
 export function deleteUser(id: string) {
   const db = getDb();
-  const res = db.prepare(`DELETE FROM users WHERE id = ?`).run(id);
+  // Suspend and retain financial/integration history for an explicit retention workflow.
+  const res = db.prepare(`UPDATE users SET is_disabled=1,deleted_at=?,updated_at=? WHERE id=? AND deleted_at IS NULL`).run(new Date().toISOString(),new Date().toISOString(),id);
   return res.changes > 0;
 }
 
@@ -227,15 +227,5 @@ export function ensureAdminUser(input: { email: string; passwordHash: string }) 
     return created;
   }
 
-  if (existing.role !== "admin") {
-    updateUser(existing.id, { role: "admin" });
-  }
-  if (existing.is_disabled) {
-    updateUser(existing.id, { isDisabled: false });
-  }
-  if (!existing.email_verified) {
-    updateUser(existing.id, { emailVerified: true });
-  }
-  updateUserPassword(existing.id, input.passwordHash);
-  return getUserById(existing.id)!;
+  return existing;
 }
